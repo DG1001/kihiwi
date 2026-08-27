@@ -1,4 +1,4 @@
-# aihiwi — Einstieg für Claude Code
+# kihiwi — Einstieg für Claude Code
 
 Sprachgesteuerter Forschungsassistent für ein KI-Labor, vollständig lokal auf dem
 GX10. Überblick in [README.md](README.md).
@@ -43,5 +43,5 @@ automatisch geladen) enthält zweierlei:
 - **Arbeitsweise von Fred**, projektübergreifend: die Dreiteilung der
   Dokumentation und Commits an sinnvollen Schnitten ohne Nachfrage.
 
-Sie liegen dort und nicht im aihiwi-Scope, weil sie über dieses Projekt
+Sie liegen dort und nicht im kihiwi-Scope, weil sie über dieses Projekt
 hinaus gelten.

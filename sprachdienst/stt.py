@@ -28,7 +28,7 @@ def _vokabular() -> str:
 
 
 def _mehrteilig(felder: dict, wav: bytes) -> tuple[bytes, str]:
-    grenze = "----aihiwi7f3a"
+    grenze = "----kihiwi7f3a"
     teile = []
     for k, v in felder.items():
         teile.append(f'--{grenze}\r\nContent-Disposition: form-data; name="{k}"\r\n\r\n{v}\r\n'.encode())

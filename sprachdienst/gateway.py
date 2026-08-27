@@ -21,7 +21,7 @@ from . import aktivierung, doku, konfig, llm, stt, tts
 from .turn import Turnerkenner
 from .zustand import Phase, Zustandshalter
 
-log = logging.getLogger("aihiwi")
+log = logging.getLogger("kihiwi")
 HALTER = Zustandshalter()
 SEITEN = {"/": "monitor.html", "/index.html": "monitor.html",
           "/klient": "klient.html", "/klient.html": "klient.html"}

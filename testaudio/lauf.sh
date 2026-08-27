@@ -3,7 +3,7 @@
 set -u
 W=/home/nutzer/code/whisper.cpp/build/bin/whisper-cli
 M=/home/nutzer/code/whisper.cpp/models/ggml-large-v3-turbo.bin
-D=/home/nutzer/Developer/github.com/aihiwi/testaudio
+D=/home/nutzer/Developer/github.com/kihiwi/testaudio
 PROMPT=$(cat "$D/vokabular.txt")
 
 lauf() {  # $1=Bezeichnung  $2=Datei  $3...=Flaggen

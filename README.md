@@ -1,4 +1,4 @@
-# aihiwi
+# kihiwi
 
 Sprachgesteuerter Forschungsassistent für ein KI-Labor. Läuft **vollständig
 lokal** auf einem ASUS Ascent GX10 (GB10, 121 GiB Unified Memory) — kein

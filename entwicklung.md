@@ -1,4 +1,4 @@
-# aihiwi — Entwicklungsprotokoll
+# kihiwi — Entwicklungsprotokoll
 
 Neuestes zuerst. Jeder Eintrag hält fest, was entschieden wurde und **warum**,
 was schiefging und woran es lag. Fachliches steht in [fachlich.md](fachlich.md),
@@ -343,6 +343,28 @@ nach, die Aufzeichnung stoppt wirklich.
 
 **Allgemeiner:** Bei folgenreichen Werkzeugen nicht darauf bauen, dass das Modell
 den Aufruf macht — prüfen, ob er stattgefunden hat, und ihn andernfalls erzwingen.
+
+### Umbenannt: aihiwi → kihiwi
+
+Fred fand `kihiwi` stimmiger (KI-Hiwi), passend auch zum Aktivierungswort
+„Kiwi". Umbenannt wurde vollständig, nicht nur der Ordner:
+
+- Verzeichnis `~/Developer/github.com/aihiwi` → `kihiwi` (Git-Historie zieht mit)
+- alle 21 Textstellen in Code und Dokumentation
+- die Umgebungsvariablen `AIHIWI_*` → `KIHIWI_*`
+- der fest verdrahtete Pfad in `testaudio/lauf.sh`
+- die acht venv-Skripte mit absolutem Shebang und `pyvenv.cfg`
+
+**Der venv war die einzige echte Stolperstelle.** `.venv/bin/python` ist ein
+Symlink auf das System-Python und überlebt einen Umzug, aber die
+Konsolenskripte (`pip`, `piper`, `websockets`, …) tragen den alten Pfad im
+Shebang. Ohne `sed` darüber wären sie stumm kaputtgegangen.
+
+**Nebenwirkung ausserhalb des Repos:** Claude Code legt seinen Projektstand
+unter einem vom Pfad abgeleiteten Verzeichnis ab. Die alte Sitzungshistorie
+bleibt unter `-home-nutzer-Developer-github-com-aihiwi` liegen; neue Sitzungen
+bekommen ein neues Verzeichnis. Die dauerhaften Notizen sind davon nicht
+betroffen — sie liegen bewusst im Home-Scope.
 
 ### Offen
 

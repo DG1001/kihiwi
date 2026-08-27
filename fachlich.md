@@ -1,4 +1,4 @@
-# aihiwi — Fachliche Beschreibung
+# kihiwi — Fachliche Beschreibung
 
 Sprachgesteuerter Forschungsassistent für ein KI-Labor, vollständig lokal.
 Ein Laborrechner mit Jabra-Freisprecher und Monitor steht im Labor, die

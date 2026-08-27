@@ -80,7 +80,7 @@ async def lauf(pfad, aufnahme=False, ansprechen=True):
         aufgabe.cancel()
 
         if antwort:
-            ziel = "/tmp/aihiwi-antwort.wav"
+            ziel = "/tmp/kihiwi-antwort.wav"
             with wave.open(ziel, "wb") as w:
                 w.setnchannels(1); w.setsampwidth(2); w.setframerate(rate_aus)
                 w.writeframes(b"".join(antwort))

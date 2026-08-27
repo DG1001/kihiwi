@@ -1,4 +1,4 @@
-# aihiwi — Technische Beschreibung
+# kihiwi — Technische Beschreibung
 
 ## Die Maschine
 
@@ -18,7 +18,7 @@ und GPU teilen sich diese Bandbreite, ein großes CPU-Modell hilft nicht.
 Argumente: `ds4` | `ornith` | **`ornith-voice`** | `qwen36nvfp4` | `qwen38` |
 `nemotron` | `nemotronspec` | `qwenvl30` | `stop` | `status`.
 
-**Für aihiwi `model-switch ornith-voice` benutzen**, nicht `ornith`. Gleiches
+**Für kihiwi `model-switch ornith-voice` benutzen**, nicht `ornith`. Gleiches
 Modell und gleicher `served-model-name`, aber `DEF_CTX=32768` und `GPU_UTIL` auf
 0.55 statt der Prüfstands-Vorgaben 131072/0.85. Am Kontext in
 `model-switch status` sieht man, welches Profil läuft.
@@ -352,7 +352,7 @@ Kandidat als Agent-Basis, mit Vorbehalten:
 ## Maschinen-Notizen außerhalb des Repos
 
 Ausführlicher in `~/.claude/projects/-home-nutzer/memory/` (Projekt-Scope `~`,
-in aihiwi-Sessions nicht automatisch geladen): `gx10-zwei-modelle`,
+in kihiwi-Sessions nicht automatisch geladen): `gx10-zwei-modelle`,
 `gx10-modell-benchmark`, `gx10-netzwerk-serverraum`, `gx10-serverraum-umzug`,
 `gx10-ssh-key-only`, `gx10-ds4-opencode`, `hermes-searxng`,
 `qwen38-flash-wartet`. Bei Widersprüchen sind jene die Quelle.

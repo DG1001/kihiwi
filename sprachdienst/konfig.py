@@ -12,12 +12,12 @@ WURZEL = Path(__file__).resolve().parent.parent
 # NIEMALS 0.0.0.0 oder [::]. Der GX10 hat eine weltweit geroutete IPv6 ohne NAT
 # davor; ein Dienst, der Laboraudio fuehrt, gehoert nicht versehentlich dorthin.
 # Fuer den Laborclient spaeter auf die Tailnet-Adresse <tailnet-adresse> umstellen.
-BIND      = os.environ.get("AIHIWI_BIND", "127.0.0.1")
-PORT      = int(os.environ.get("AIHIWI_PORT", "8920"))
+BIND      = os.environ.get("KIHIWI_BIND", "127.0.0.1")
+PORT      = int(os.environ.get("KIHIWI_PORT", "8920"))
 
-STT_URL   = os.environ.get("AIHIWI_STT", "http://127.0.0.1:8910/inference")
-LLM_URL   = os.environ.get("AIHIWI_LLM", "http://127.0.0.1:8889/v1")
-LLM_MODEL = os.environ.get("AIHIWI_MODEL", "ornith-1.5-35b-a3b")
+STT_URL   = os.environ.get("KIHIWI_STT", "http://127.0.0.1:8910/inference")
+LLM_URL   = os.environ.get("KIHIWI_LLM", "http://127.0.0.1:8889/v1")
+LLM_MODEL = os.environ.get("KIHIWI_MODEL", "ornith-1.5-35b-a3b")
 
 # --- Audio ------------------------------------------------------------------
 RATE       = 16000
@@ -51,7 +51,7 @@ AKTIVIERUNG_MIN = 0.80   # unscharf, aber nicht zu lose: bei 0,75 galt
                          # schon "Der Hiwi ..." als Ansprache
 
 # --- Dateien ----------------------------------------------------------------
-AUFNAHMEN  = Path(os.environ.get("AIHIWI_AUFNAHMEN", WURZEL / "aufnahmen"))
+AUFNAHMEN  = Path(os.environ.get("KIHIWI_AUFNAHMEN", WURZEL / "aufnahmen"))
 VAD_MODELL = WURZEL / "vad" / "silero_vad.onnx"
 STIMME     = WURZEL / "voices" / "de_DE-thorsten-medium.onnx"
 VOKABULAR  = WURZEL / "vokabular.txt"
