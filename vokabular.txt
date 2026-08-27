@@ -9,6 +9,10 @@
 # Zeilen mit # sind Kommentar. Ein Begriff je Zeile.
 # ENTWURF, aus den ersten Aufnahmen gezogen -- bitte pruefen und ergaenzen.
 
+# --- Geräte und Hersteller ---
+JEOL
+JEOL REM
+
 # --- Rasterelektronenmikroskopie ---
 Rasterelektronenmikroskop
 Rasterelektronenmikroskopie

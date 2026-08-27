@@ -189,6 +189,20 @@ vier echte Aufnahmen (zusammen 65 s) in 22 s.
 Ein Längenwächter davor fängt grobe Ausreißer ab: weicht der korrigierte Text um
 mehr als 40 % von der Rohlänge ab, hat das Modell umformuliert statt korrigiert.
 
+### Verdächtige Wörter aufklären
+
+Wenn ein Wort im Transkript falsch aussieht, hilft ein Kandidatentest: mehrere
+Möglichkeiten **einzeln** in den `--prompt` geben und schauen, welche einrastet.
+
+    for h in JEOL Zeiss Hitachi Tescan; do
+        whisper-cli -m $M -f $F -nt -np -l de --prompt "Fachbegriffe: $VOK, $h."
+    done
+
+Die Kandidaten, die **nicht** durchschlagen, sind die eigentliche Aussage. Ohne
+sie wäre es bloßes Prompt-Forcing — Whisper übernimmt bereitwillig, was im Prompt
+steht. Belegt am 27.08.2026: „IO/Yo/Jeove-Rasterelektronenmikroskop" wurde zu
+„JEOL", während Zeiss, Hitachi und Tescan die Stelle unverändert ließen.
+
 ### Die Vokabelliste ist der Hebel
 
 `vokabular.txt` im Projektwurzelverzeichnis, ein Begriff je Zeile, `#` ist

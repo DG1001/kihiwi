@@ -290,6 +290,20 @@ sitzt im `initial_prompt`, nicht in der Nachbearbeitung. `vokabular.txt` ist
 deshalb aus `testaudio/` ins Projektwurzelverzeichnis gewandert: es ist ein
 fachliches Artefakt, kein Testmaterial.
 
+### „IO-Rasterelektronenmikroskop" aufgeklärt
+
+Fred wies darauf hin, dass „IO" eine Fehlerkennung war — er hatte das so nicht
+gesagt. Drei Läufe ergaben drei Varianten desselben Lauts: „IO", „Yo", „Jeove".
+Letzteres klang nach **JEOL**, einem REM-Hersteller.
+
+**Prüfung per Kandidatentest:** JEOL, Zeiss, Hitachi und Tescan einzeln in den
+Prompt. Nur JEOL rastete ein, die anderen drei ließen die Stelle unverändert —
+damit war ausgeschlossen, dass der Prompt die Antwort bloß erzwingt. Fred hat
+bestätigt: es ist ein JEOL.
+
+Die Methode ist übernommen worden: Kandidaten einzeln testen, und die
+**Nicht**-Treffer sind der eigentliche Beleg.
+
 ### Offen
 
 - Autostart (systemd-Units) — bewusst zurückgestellt.
