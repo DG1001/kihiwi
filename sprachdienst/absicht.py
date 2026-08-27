@@ -25,6 +25,7 @@ from enum import Enum
 class Absicht(str, Enum):
     AUFZEICHNUNG = "aufzeichnung"   # Mitschnitt an/aus
     RECHERCHE    = "recherche"      # mehrschrittig, dauert Minuten
+    WEB          = "web"            # eine Sache schnell im Netz nachsehen
     WISSEN       = "wissen"         # in den Unterlagen nachschlagen
     PLAUDEREI    = "plauderei"      # kein Werkzeug nötig
 
@@ -49,10 +50,18 @@ _AUF_TUN    = re.compile(r"\b(start|starte|starten|beginn|beginne|an|ein|einscha
                          r"ausschalt|abschalt|halt|anhalt|pausier)\w*")
 
 # Recherche: ausdrücklich verlangt oder erkennbar mehrschrittig.
+#
+# "im internet" gehoert hier NICHT hinein. "Suche im Internet nach X" ist eine
+# schlichte Netzsuche; als Recherche eingestuft bekam das Modell nur
+# 'rechercheauftrag', fand nichts Passendes und erfand ein "researchauftrag".
 _RECH = re.compile(r"recherchier|recherche|vergleich|gegenueberstell|"
                    r"literatur|stand der (technik|forschung)|"
                    r"(schau|sieh|guck)\w*\s+(mal\s+)?(ausfuehrlich|genauer|"
-                   r"gruendlich|nach draussen)|im internet|im netz|online")
+                   r"gruendlich)")
+
+# Netzsuche: ausdruecklich nach draussen, aber einschrittig.
+_WEB = re.compile(r"im internet|im netz|im web|online|google|"
+                  r"(such|schau|sieh|guck)\w*\s+.{0,20}(internet|netz|web)")
 
 # Wissen: Frage nach Sachverhalten. Fragewörter oder ein Fragezeichen genügen.
 _FRAGE = re.compile(r"^(wie|was|wo|wer|wann|warum|weshalb|welche\w*|wieviel\w*|"
@@ -75,6 +84,8 @@ def erkennen(text: str) -> Absicht:
         return Absicht.AUFZEICHNUNG
     if _RECH.search(t):
         return Absicht.RECHERCHE
+    if _WEB.search(t):
+        return Absicht.WEB
     if _PLAUDER.match(t) and len(t.split()) <= 6:
         return Absicht.PLAUDEREI
     if _FRAGE.search(t):
@@ -87,6 +98,7 @@ def erkennen(text: str) -> Absicht:
 WERKZEUGE_JE_ABSICHT = {
     Absicht.AUFZEICHNUNG: ["aufzeichnung"],
     Absicht.RECHERCHE:    ["rechercheauftrag"],
+    Absicht.WEB:          ["web_suchen"],
     Absicht.WISSEN:       ["dokumente_suchen", "web_suchen"],
     Absicht.PLAUDEREI:    [],
 }
@@ -99,6 +111,10 @@ ZUSATZ_JE_ABSICHT = {
     Absicht.RECHERCHE:
         " Der Nutzer will eine Recherche. Rufe 'rechercheauftrag' auf und sage"
         " danach nur zu, dich zu melden. Antworte NICHT inhaltlich.",
+    Absicht.WEB:
+        " Der Nutzer will ausdrücklich im Internet nachgesehen haben. Rufe"
+        " 'web_suchen' auf und sage dazu, dass das Ergebnis aus dem Internet"
+        " stammt, nicht aus den Laborunterlagen.",
     Absicht.WISSEN:
         " Rufe zuerst 'dokumente_suchen' auf. Antworte nur mit dem, was die"
         " Unterlagen hergeben, und nenne die Quelle. Findest du nichts, sag das"

@@ -51,6 +51,13 @@ async def gesundheit():
         elif not llm_da:
             hinweis = "Modell nicht erreichbar — es wird weiter aufgezeichnet"
         HALTER.setzen(llm_da=llm_da, stt_da=stt_da, hinweis=hinweis)
+
+        # Ein abgelaufenes Gespraech muss auch aus der ANZEIGE verschwinden.
+        # Vorher blieb die Marke stehen, waehrend der Dienst schon wieder auf
+        # das Aktivierungswort wartete -- man sprach ins Leere.
+        if HALTER.z.gespraech and not any(s.im_gespraech() for s in SITZUNGEN):
+            log.info("Gespräch abgelaufen")
+            HALTER.setzen(gespraech=False)
         await asyncio.sleep(5)
 
 
@@ -90,6 +97,20 @@ ANSAGE = {
     "web_suchen": "Ich schaue kurz im Netz nach.",
     "rechercheauftrag": "Das gebe ich als Rechercheauftrag ab, das dauert ein paar Minuten.",
 }
+
+def _sprechbar(text: str) -> str:
+    """Markdown fuer die Sprachausgabe abraeumen.
+
+    Hermes antwortet mit Aufzaehlungen und Fettschrift; ungefiltert liest Piper
+    Sternchen und Bindestriche mit vor.
+    """
+    text = re.sub(r"\*\*|__|`", "", text)
+    text = re.sub(r"^\s*[-*•]\s*", "", text, flags=re.M)
+    text = re.sub(r"^#{1,6}\s*", "", text, flags=re.M)
+    text = re.sub(r"\((?:doi|https?)[^)]*\)", "", text)   # DOIs und URLs
+    text = re.sub(r"https?://\S+", "", text)
+    return re.sub(r"\s{2,}", " ", text.replace("\n", " ")).strip()
+
 
 WERKZEUGE = [{
     "type": "function",
@@ -248,7 +269,15 @@ class Sitzung:
             self.antwort_task = asyncio.create_task(self.antworten(ep))
 
     async def recherche_melden(self, auftrag, text, kurz):
-        """Ergebnis an DIESE Verbindung ausgeben."""
+        """Ergebnis an DIESE Verbindung ausgeben.
+
+        Setzt die Gespraechsuhr zurueck: wer minutenlang auf ein Ergebnis
+        wartet, schweigt zwar, fuehrt aber ein Gespraech. Ohne das lief die
+        45-Sekunden-Grenze waehrend der Recherche ab, und die Rueckfrage zum
+        Ergebnis brauchte wieder ein "Kiwi".
+        """
+        self.letzte_ansprache = time.time()
+        HALTER.setzen(gespraech=True)
         await self.ws.send(json.dumps({"typ": "recherche", "frage": auftrag.frage,
                                        "text": text, "dauer": round(auftrag.dauer)}))
         await self.ws.send(json.dumps({"typ": "text", "rolle": "assistent",
@@ -556,7 +585,16 @@ class Sitzung:
         return "Aufzeichnung läuft jetzt." if self.rek.laeuft else "Aufzeichnung ist gestoppt."
 
     async def sag(self, satz: str):
+        """Spricht einen Satz. Markdown wird IMMER entfernt.
+
+        Vorher galt das nur fuer Rechercheergebnisse -- dann sprach der
+        Assistent "Sternchen nicht Sternchen" mitten im Satz, sobald das Modell
+        etwas hervorhob.
+        """
         import time as _t
+        satz = _sprechbar(satz)
+        if not satz:
+            return
         _ts = _t.time()
         erster = True
         async for pcm, rate in tts.sprich(satz):
@@ -573,20 +611,6 @@ class Sitzung:
 
 
 # ---------------------------------------------------------------- Verbindungen
-def _sprechbar(text: str) -> str:
-    """Markdown fuer die Sprachausgabe abraeumen.
-
-    Hermes antwortet mit Aufzaehlungen und Fettschrift; ungefiltert liest Piper
-    Sternchen und Bindestriche mit vor.
-    """
-    text = re.sub(r"\*\*|__|`", "", text)
-    text = re.sub(r"^\s*[-*•]\s*", "", text, flags=re.M)
-    text = re.sub(r"^#{1,6}\s*", "", text, flags=re.M)
-    text = re.sub(r"\((?:doi|https?)[^)]*\)", "", text)   # DOIs und URLs
-    text = re.sub(r"https?://\S+", "", text)
-    return re.sub(r"\s{2,}", " ", text.replace("\n", " ")).strip()
-
-
 async def recherche_verteilen(auftrag):
     """Rueckmeldung an alle, die gerade verbunden sind.
 
