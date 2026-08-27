@@ -84,9 +84,11 @@ start_whisper() {
     [ -x "$WHISPER/build/bin/whisper-server" ] || { fehl "whisper-server fehlt — erst bauen"; return 1; }
     [ -f "$MODELL" ] || { fehl "Modell fehlt: $MODELL"; return 1; }
     info "starte whisper-server"
+    # < /dev/null ist nicht kosmetisch: ohne das erbt der Dienst stdin, und die
+    # aufrufende Shell wartet auf ihn, obwohl er laengst laeuft.
     ( cd "$WHISPER" && nohup ./build/bin/whisper-server \
         -m "$MODELL" --host 127.0.0.1 --port $P_WHISPER -l de -t 8 \
-        >"$LOGS/whisper.log" 2>&1 & )
+        </dev/null >"$LOGS/whisper.log" 2>&1 & )
     warte 60 bereit_whisper && ok "whisper-server bereit (:$P_WHISPER)" \
         || { fehl "whisper-server kam nicht hoch, siehe $LOGS/whisper.log"; return 1; }
 }
@@ -96,7 +98,7 @@ start_sprach() {
     [ -x "$VENV" ] || { fehl "venv fehlt: $VENV"; return 1; }
     info "starte Sprachdienst"
     ( cd "$WURZEL" && nohup "$VENV" -m sprachdienst.gateway \
-        >"$LOGS/sprach.log" 2>&1 & )
+        </dev/null >"$LOGS/sprach.log" 2>&1 & )
     warte 30 bereit_sprach && ok "Sprachdienst bereit (:$P_SPRACH)" \
         || { fehl "Sprachdienst kam nicht hoch, siehe $LOGS/sprach.log"; return 1; }
 }
