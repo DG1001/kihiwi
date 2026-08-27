@@ -351,7 +351,10 @@ class Sitzung:
         """Fuehrt einen Werkzeugaufruf aus. Rueckgabe geht ans Modell zurueck."""
         if name == "dokumente_suchen":
             frage = str(args.get("frage", ""))
-            treffer = await asyncio.to_thread(wissen_index.suchen, frage, 4)
+            # Acht statt vier: bei Zahlenfragen stand die entscheidende Stelle
+            # ("FENSTER_NM = 50.0") regelmaessig auf Platz fuenf bis acht,
+            # waehrend Uebersichtstexte oben landeten.
+            treffer = await asyncio.to_thread(wissen_index.suchen, frage, 8)
             if not treffer:
                 return ("Nichts in den Unterlagen gefunden. Sag das offen, statt zu "
                         "raten.")
@@ -359,7 +362,7 @@ class Sitzung:
             for t in treffer:
                 # Quelle mitgeben, damit das Modell zitieren kann statt zu behaupten.
                 teile.append(f"[{t.quelle} — {t.titel}, Abschnitt: {t.ueberschrift}]\n"
-                             f"{t.text[:700]}")
+                             f"{t.text[:600]}")
             return "\n\n".join(teile)
 
         if name == "web_suchen":

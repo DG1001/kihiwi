@@ -291,6 +291,18 @@ async def antwort_mit_werkzeugen(frage: str, verlauf, werkzeuge, ausfuehren,
                                 "tool_call_id": r.get("id") or f"ruf{i}",
                                 "content": str(ergebnis)})
 
+    # Runden aufgebraucht, ohne dass eine Antwort kam: das Modell hat sich in
+    # Suchen verrannt. Statt zu schweigen einmal ohne Werkzeuge antworten
+    # lassen -- es hat inzwischen genug Material gesehen.
+    nachrichten.append({"role": "user", "content":
+                        "Antworte jetzt mit dem, was du gefunden hast. Wenn nichts "
+                        "Belastbares dabei war, sag genau das. Suche nicht weiter."})
+    try:
+        async for satz in _saetze(nachrichten, max_tokens, 0.3):
+            yield ("satz", satz)
+    except Exception as e:
+        log.error("Schlussantwort gescheitert: %r", e)
+
 
 async def erzwinge_werkzeug(frage: str, verlauf, werkzeuge, name: str,
                             system: str | None = None, timeout: float = 20.0):

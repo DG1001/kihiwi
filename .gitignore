@@ -10,6 +10,14 @@ logs/
 __pycache__/
 *.pyc
 
+# --- Wissensindex: erzeugt, und enthaelt fremde Inhalte ----------------------
+# index.db traegt den Volltext der eingelesenen Quellen, darunter das PRIVATE
+# Hauptrepo. Er gehoert nicht in die Historie -- neu erzeugen mit
+# `./dienste.sh wissen einlesen`. repos/ sind Arbeitsklone.
+wissen/index.db
+wissen/repos/
+wissen/.tmp*
+
 # --- Modelle: gross und jederzeit nachladbar ---------------------------------
 # Wiederherstellen siehe CLAUDE.md, Abschnitt "Einrichten".
 voices/*.onnx

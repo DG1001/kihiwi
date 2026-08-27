@@ -6,17 +6,32 @@
       "art": "lokal",
       "aktiv": true,
       "pfad": "~/Developer/github.com/kihiwi",
-      "muster": ["*.md"],
-      "aus": ["aufnahmen", "logs", ".venv", "wissen"]
+      "muster": [
+        "*.md"
+      ],
+      "aus": [
+        "aufnahmen",
+        "logs",
+        ".venv",
+        "wissen"
+      ]
     },
     {
-      "name": "labor-github",
+      "name": "haupt-repo",
       "art": "git",
-      "aktiv": false,
-      "_todo": "URL des privaten Repos eintragen, dann aktiv:true. gh ist als DG1001 angemeldet.",
-      "url": "https://github.com/DG1001/BEISPIEL.git",
-      "web": "https://github.com/DG1001/BEISPIEL",
-      "muster": ["*.md", "*.pdf", "*.txt"]
+      "aktiv": true,
+      "url": "https://github.com/BEISPIEL/mein-repo.git",
+      "web": "https://github.com/BEISPIEL/mein-repo",
+      "muster": [
+        "*.md",
+        "*.txt",
+        "*.pdf",
+        "*.csv",
+        "*.py",
+        "*.json",
+        "*.yaml",
+        "*.yml"
+      ]
     },
     {
       "name": "nextcloud",
