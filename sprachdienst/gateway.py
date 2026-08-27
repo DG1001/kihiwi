@@ -266,8 +266,8 @@ class Sitzung:
             if not text.strip():
                 # Nur gerufen, ohne Anweisung -- kurz quittieren statt das
                 # Modell mit einem leeren Satz zu behelligen.
-                HALTER.setzen(gespraech=True, phase=Phase.ANTWORTEN)
-                await self.sag("Ja?")
+                HALTER.setzen(gespraech=True)
+                await self.melden("Ja?")
                 HALTER.setzen(phase=Phase.BEREIT)
                 continue
             ep.text = text
@@ -287,12 +287,7 @@ class Sitzung:
         HALTER.setzen(gespraech=True)
         await self.ws.send(json.dumps({"typ": "recherche", "frage": auftrag.frage,
                                        "text": text, "dauer": round(auftrag.dauer)}))
-        await self.ws.send(json.dumps({"typ": "text", "rolle": "assistent",
-                                       "text": kurz}))
-        vorher = HALTER.z.phase
-        HALTER.setzen(phase=Phase.ANTWORTEN)
-        await self.sag("Die Recherche ist fertig. " + kurz)
-        HALTER.setzen(phase=vorher)
+        await self.melden("Die Recherche ist fertig. " + kurz)
 
     async def nachschaerfen(self, ep, kurzfassung: str) -> str:
         """Zweiter Durchgang mit dem VOLLEN Fachvokabular.
@@ -334,9 +329,7 @@ class Sitzung:
     async def gespraech_beenden(self, sagen: str | None = "Bis dann."):
         HALTER.setzen(gespraech=False, phase=Phase.ANTWORTEN if sagen else Phase.BEREIT)
         if sagen:
-            await self.ws.send(json.dumps({"typ": "text", "rolle": "assistent",
-                                           "text": sagen}))
-            await self.sag(sagen)
+            await self.melden(sagen)
             HALTER.setzen(phase=Phase.BEREIT if HALTER.z.mikro else Phase.LEERLAUF)
 
     async def antworten(self, ep):
@@ -385,10 +378,8 @@ class Sitzung:
             # Sprachpfad ein Modell -- Antworten dauern dann spuerbar laenger.
             # Das anzusagen ist ehrlicher, als den Nutzer warten zu lassen.
             if HALTER.z.recherche:
-                hinweis = "Ich recherchiere noch nebenbei, das dauert gerade länger."
-                await self.ws.send(json.dumps({"typ": "text", "rolle": "assistent",
-                                               "text": hinweis}))
-                await self.sag(hinweis)
+                await self.melden("Ich recherchiere noch nebenbei, das dauert "
+                                  "gerade länger.")
             # Satzweise: der erste Satz geht raus, waehrend der Rest noch
             # geschrieben wird. Nur bis dahin zaehlt die gefuehlte Latenz.
             t1 = _t.time(); erster = True
@@ -396,6 +387,13 @@ class Sitzung:
             gerufene: set[str] = set()
             self.web_benutzt = False
             wofuer = absicht_modul.erkennen(text)
+
+            # Protokollabruf: der Dienst weiss, wo die Protokolle liegen.
+            # Ueber das Modell ging es schief -- es sagte "ich sehe kein
+            # Protokoll", weil es keinen Dateizugriff hat.
+            if wofuer is absicht_modul.Absicht.PROTOKOLL:
+                await self.protokoll_zeigen()
+                return
 
             # Aufzeichnungsbefehle direkt ausfuehren, ohne das Modell.
             #
@@ -455,10 +453,7 @@ class Sitzung:
                 if e[0] == "werkzeug_beginnt":
                     ansage = ANSAGE.get(e[1])
                     if ansage:
-                        await self.ws.send(json.dumps({"typ": "text",
-                                                       "rolle": "assistent",
-                                                       "text": ansage}))
-                        await self.sag(ansage)
+                        await self.melden(ansage)
                     continue
                 if e[0] == "werkzeug":
                     werkzeug_gerufen = True
@@ -677,6 +672,53 @@ class Sitzung:
         # Der Monitor zeigt es ohnehin, die Bestaetigung sagt es zusaetzlich.
         return "Aufzeichnung läuft jetzt." if self.rek.laeuft else "Aufzeichnung ist gestoppt."
 
+    async def protokoll_zeigen(self):
+        """Neuestes Laborprotokoll: Zusammenfassung sprechen, alles anzeigen."""
+        verz = sorted((p for p in konfig.AUFNAHMEN.glob("*/protokoll.md")),
+                      key=lambda p: p.stat().st_mtime, reverse=True)
+        if not verz:
+            await self.melden("Es gibt noch kein Protokoll. Zeichne etwas auf, "
+                              "dann erstelle ich beim Stoppen eines.")
+            return
+        pfad = verz[0]
+        text = pfad.read_text(encoding="utf-8")
+        # Fuer die Sprachausgabe nur die Zusammenfassung -- das Transkript
+        # vorzulesen dauert so lange wie die Aufnahme selbst.
+        m = re.search(r"## Zusammenfassung\n(.*?)(?=\n## |\Z)", text, re.S)
+        roh = m.group(1) if m else text[:800]
+        # Den Warnhinweis (Blockzitat) nicht vorlesen -- er steht in jedem
+        # Protokoll und sagt ueber diese Sitzung nichts aus.
+        roh = re.sub(r"^\s*>.*$", "", roh, flags=re.M)
+        kurz = _sprechbar(roh)
+        saetze = re.split(r"(?<=[.!?])\s+", kurz)
+        gesagt = " ".join(saetze[:3]) or "Das Protokoll ist leer."
+        await self.ws.send(json.dumps({"typ": "protokoll",
+                                       "sitzung": pfad.parent.name,
+                                       "text": text}))
+        await self.melden(f"Protokoll der Sitzung {pfad.parent.name}. " + gesagt
+                          + " Das Ganze steht auf dem Monitor.")
+
+    async def melden(self, text: str, in_verlauf: bool = True):
+        """Sagt etwas UND schreibt es in den Gespraechsverlauf.
+
+        Ohne den Verlaufseintrag weiss das Modell nichts von dem, was der
+        Dienst gesagt hat -- und bestreitet es dann. Gemeldet wurde genau das:
+        der Dienst sagte "Das Protokoll ist fertig", und auf Nachfrage
+        antwortete das Modell "Das habe ich nicht gesagt" und widersprach dem
+        Nutzer. Alles Gesprochene gehoert in den Verlauf.
+        """
+        await self.ws.send(json.dumps({"typ": "text", "rolle": "assistent",
+                                       "text": text}))
+        vorher = HALTER.z.phase
+        if vorher not in (Phase.DENKEN, Phase.ANTWORTEN):
+            HALTER.setzen(phase=Phase.ANTWORTEN)
+        await self.sag(text)
+        if HALTER.z.phase is Phase.ANTWORTEN and vorher is not Phase.ANTWORTEN:
+            HALTER.setzen(phase=vorher)
+        if in_verlauf:
+            self.verlauf.append({"role": "assistant", "content": text})
+            del self.verlauf[:-8]
+
     async def sag(self, satz: str):
         """Spricht einen Satz. Markdown wird IMMER entfernt.
 
@@ -730,12 +772,7 @@ async def nachbereiten(verz):
                 if ziel else "Die Aufzeichnung enthielt nichts zum Protokollieren.")
         for s in list(SITZUNGEN):
             try:
-                await s.ws.send(json.dumps({"typ": "text", "rolle": "assistent",
-                                            "text": satz}))
-                vorher = HALTER.z.phase
-                HALTER.setzen(phase=Phase.ANTWORTEN)
-                await s.sag(satz)
-                HALTER.setzen(phase=vorher)
+                await s.melden(satz)
             except Exception:
                 pass
 

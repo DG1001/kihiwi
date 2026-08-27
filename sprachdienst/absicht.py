@@ -26,6 +26,7 @@ class Absicht(str, Enum):
     AUFZEICHNUNG = "aufzeichnung"   # Mitschnitt an/aus
     RECHERCHE    = "recherche"      # mehrschrittig, dauert Minuten
     WEB          = "web"            # eine Sache schnell im Netz nachsehen
+    PROTOKOLL    = "protokoll"      # das eigene Protokoll zeigen/vorlesen
     WISSEN       = "wissen"         # in den Unterlagen nachschlagen
     PLAUDEREI    = "plauderei"      # kein Werkzeug nötig
 
@@ -72,6 +73,12 @@ _RECH = re.compile(r"recherchier|recherche|vergleich|gegenueberstell|"
 _WEB = re.compile(r"im internet|im netz|im web|online|google|"
                   r"(such|schau|sieh|guck)\w*\s+.{0,20}(internet|netz|web)")
 
+# Protokoll: das zuletzt erstellte anzeigen oder vorlesen. Bewusst VOR der
+# Aufzeichnungspruefung ausgewertet, sonst faengt "Protokoll" dort haengen.
+_PROT = re.compile(r"\bprotokoll\w*\b(?!ier)")
+_PROT_TUN = re.compile(r"zeig|lies|vorles|vorlesen|anzeig|was steht|zusammenfass|"
+                       r"gib mir|schick|oeffne|sehen|sieh")
+
 # Wissen: Frage nach Sachverhalten. Fragewörter oder ein Fragezeichen genügen.
 _FRAGE = re.compile(r"^(wie|was|wo|wer|wann|warum|weshalb|welche\w*|wieviel\w*|"
                     r"wie viel\w*|gibt es|haben wir|hatten wir|kannst du .*sagen)\b|\?")
@@ -86,6 +93,11 @@ def erkennen(text: str) -> Absicht:
     t = _normal(text).strip()
     if not t:
         return Absicht.PLAUDEREI
+
+    # Vor der Aufzeichnung pruefen: "zeig mir das Protokoll" ist keine
+    # Steuerung des Mitschnitts, sondern ein Abruf des Ergebnisses.
+    if _PROT.search(t) and _PROT_TUN.search(t):
+        return Absicht.PROTOKOLL
 
     # Reihenfolge ist Absicht: ein Aufzeichnungsbefehl bleibt einer, auch wenn
     # er als Frage formuliert ist ("kannst du die Aufzeichnung starten?").
@@ -110,6 +122,7 @@ WERKZEUGE_JE_ABSICHT = {
     Absicht.AUFZEICHNUNG: ["aufzeichnung"],
     Absicht.RECHERCHE:    ["rechercheauftrag"],
     Absicht.WEB:          ["web_suchen"],
+    Absicht.PROTOKOLL:    [],
     Absicht.WISSEN:       ["dokumente_suchen", "web_suchen"],
     Absicht.PLAUDEREI:    [],
 }
@@ -133,6 +146,7 @@ ZUSATZ_JE_ABSICHT = {
         " Unterlagen hergeben, und nenne die Quelle. Findest du nichts, sag das"
         " offen — erfinde keine Zahlen. 'web_suchen' nur, wenn die Unterlagen"
         " nichts hergeben; sag dann, dass es aus dem Internet stammt.",
+    Absicht.PROTOKOLL: "",
     Absicht.PLAUDEREI: "",
 }
 

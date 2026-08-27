@@ -253,6 +253,8 @@ function verbinden() {
       $("led-llm").classList.toggle("da", d.llm_da);
     } else if (d.typ === "text") {
       zeile(d.rolle, d.text);
+    } else if (d.typ === "protokoll") {
+      zeile("assistent", `Protokoll ${d.sitzung}:\n\n${d.text}`);
     } else if (d.typ === "recherche") {
       zeile("assistent", `Rechercheergebnis (${d.dauer}s) zu „${d.frage}“:\n\n${d.text}`);
     } else if (d.typ === "ton") {
