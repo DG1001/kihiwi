@@ -23,7 +23,8 @@ from .zustand import Phase, Zustandshalter
 
 log = logging.getLogger("aihiwi")
 HALTER = Zustandshalter()
-SEITE = (konfig.WURZEL / "sprachdienst" / "monitor.html")
+SEITEN = {"/": "monitor.html", "/index.html": "monitor.html",
+          "/klient": "klient.html", "/klient.html": "klient.html"}
 
 
 # ---------------------------------------------------------------- Gesundheit
@@ -196,14 +197,23 @@ async def behandeln(ws):
 
 
 async def http_seite(verbindung, anfrage):
-    """GET / liefert die Monitorseite; alles andere geht an den WebSocket."""
-    if anfrage.path in ("/", "/index.html"):
-        try:
-            leib = SEITE.read_bytes()
-        except OSError:
-            leib = b"<h1>monitor.html fehlt</h1>"
-        return verbindung.respond(http.HTTPStatus.OK, leib.decode())
-    return None
+    """GET / liefert den Laborbildschirm, /klient den Sprachclient fuer den
+    Browser; alles andere geht an den WebSocket.
+
+    Der Sprachclient braucht einen "secure context", sonst gibt der Browser das
+    Mikrofon nicht frei. Ueber SSH weiterleiten und als localhost aufrufen:
+        ssh -L 8920:127.0.0.1:8920 <rechner>
+        http://localhost:8920/klient
+    Damit bleibt der Dienst auf 127.0.0.1 gebunden.
+    """
+    datei = SEITEN.get(anfrage.path.split("?")[0])
+    if datei is None:
+        return None
+    try:
+        leib = (konfig.WURZEL / "sprachdienst" / datei).read_text(encoding="utf-8")
+    except OSError:
+        leib = f"<h1>{datei} fehlt</h1>"
+    return verbindung.respond(http.HTTPStatus.OK, leib)
 
 
 async def haupt():

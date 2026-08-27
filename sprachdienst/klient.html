@@ -1,0 +1,218 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>aihiwi — Sprachclient</title>
+<style>
+  :root { --bg:#101014; --fg:#e8e8ea; --matt:#8a8a95; --linie:#2a2a33; --an:#3d9a54; }
+  * { box-sizing:border-box; margin:0; }
+  body { background:var(--bg); color:var(--fg); font:15px/1.55 system-ui,sans-serif;
+         max-width:44rem; margin:0 auto; padding:1.5rem; }
+  h1 { font-size:1.1rem; font-weight:600; margin-bottom:.2rem; }
+  .matt { color:var(--matt); }
+  #kopf { display:flex; align-items:baseline; justify-content:space-between;
+          border-bottom:1px solid var(--linie); padding-bottom:.8rem; margin-bottom:1rem; }
+  #phase { font-size:1.5rem; font-weight:600; }
+  #knoepfe { display:flex; gap:.6rem; flex-wrap:wrap; margin:1rem 0; }
+  button { font:inherit; padding:.55rem 1.1rem; border-radius:.4rem; cursor:pointer;
+           border:1px solid var(--linie); background:#1c1c24; color:var(--fg); }
+  button:hover:not(:disabled) { border-color:#4a4a58; }
+  button:disabled { opacity:.4; cursor:default; }
+  button.an { background:var(--an); border-color:var(--an); color:#fff; }
+  button.rot { background:#b3211f; border-color:#b3211f; color:#fff; }
+  #sprechen { flex:1; min-width:12rem; font-weight:600; }
+
+  #pegel { height:.5rem; background:#1c1c24; border-radius:.25rem; overflow:hidden;
+           margin:.4rem 0 1rem; }
+  #pegelbalken { height:100%; width:0; background:var(--an); transition:width .05s; }
+
+  #verlauf { border-top:1px solid var(--linie); padding-top:1rem; }
+  .zeile { margin-bottom:.7rem; }
+  .wer { color:var(--matt); font-size:.75rem; text-transform:uppercase;
+         letter-spacing:.08em; }
+  .zeile.assistent .wer { color:#7aa2d8; }
+  #leds { display:flex; gap:1.2rem; font-size:.85rem; color:var(--matt); }
+  .led { display:inline-block; width:.55em; height:.55em; border-radius:50%;
+         background:#6b2020; margin-right:.35em; }
+  .led.da { background:var(--an); }
+  #warnung { background:#3a2a12; border:1px solid #6b4c1a; color:#e8b339;
+             padding:.8rem 1rem; border-radius:.4rem; margin-bottom:1rem; display:none; }
+  kbd { background:#1c1c24; border:1px solid var(--linie); border-radius:.25rem;
+        padding:.1em .4em; font-size:.85em; }
+</style>
+
+<div id="warnung"></div>
+
+<div id="kopf">
+  <div><h1>aihiwi — Sprachclient</h1>
+       <span class="matt" id="geraet">kein Mikrofon gewählt</span></div>
+  <div id="phase" class="matt">—</div>
+</div>
+
+<div id="knoepfe">
+  <button id="mikro">Mikrofon einschalten</button>
+  <button id="aufnahme" disabled>Aufzeichnung starten</button>
+</div>
+<div id="pegel"><div id="pegelbalken"></div></div>
+<div id="knoepfe">
+  <button id="sprechen" disabled>Sprechen — halten oder <kbd>Leertaste</kbd></button>
+  <button id="abbrechen" disabled>Abbrechen</button>
+</div>
+
+<div id="leds">
+  <span><span class="led" id="led-ws"></span>Verbindung</span>
+  <span><span class="led" id="led-stt"></span>Spracherkennung</span>
+  <span><span class="led" id="led-llm"></span>Modell</span>
+</div>
+
+<div id="verlauf"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+const RATE = 16000, BLOCK = 512;
+let ws, ctx, quelle, knoten, strom, spielt = 0, tonRate = 22050;
+
+function warnen(t) { $("warnung").textContent = t; $("warnung").style.display = "block"; }
+
+if (!window.isSecureContext) {
+  warnen("Kein sicherer Kontext — der Browser gibt das Mikrofon nicht frei. "
+       + "Über SSH weiterleiten und http://localhost:8920/klient aufrufen: "
+       + "ssh -L 8920:127.0.0.1:8920 <rechner>");
+}
+
+// --- Aufnahme: 512er-Bloecke als int16, genau das Format des Dienstes ---------
+const WORKLET = `
+class Sender extends AudioWorkletProcessor {
+  constructor() { super(); this.puffer = new Float32Array(${BLOCK}); this.n = 0; }
+  process(eingang) {
+    const k = eingang[0][0];
+    if (!k) return true;
+    for (let i = 0; i < k.length; i++) {
+      this.puffer[this.n++] = k[i];
+      if (this.n === ${BLOCK}) {
+        const aus = new Int16Array(${BLOCK});
+        let spitze = 0;
+        for (let j = 0; j < ${BLOCK}; j++) {
+          const v = Math.max(-1, Math.min(1, this.puffer[j]));
+          aus[j] = v * 32767;
+          if (Math.abs(v) > spitze) spitze = Math.abs(v);
+        }
+        this.port.postMessage({pcm: aus.buffer, spitze}, [aus.buffer]);
+        this.n = 0;
+      }
+    }
+    return true;
+  }
+}
+registerProcessor('sender', Sender);
+`;
+
+async function mikroAn() {
+  // sampleRate direkt auf 16 kHz: der Browser resampelt selbst, wir muessen nicht.
+  ctx = new AudioContext({sampleRate: RATE});
+  strom = await navigator.mediaDevices.getUserMedia({audio: {
+    channelCount: 1,
+    // Das Jabra hat eigene Echounterdrueckung. Die des Browsers bleibt an --
+    // sie stoert nicht und hilft, falls doch ein anderes Mikrofon dranhaengt.
+    echoCancellation: true, noiseSuppression: true, autoGainControl: true}});
+  const spur = strom.getAudioTracks()[0];
+  $("geraet").textContent = spur.label || "Mikrofon aktiv";
+
+  await ctx.audioWorklet.addModule(URL.createObjectURL(
+    new Blob([WORKLET], {type: "application/javascript"})));
+  quelle = ctx.createMediaStreamSource(strom);
+  knoten = new AudioWorkletNode(ctx, "sender");
+  knoten.port.onmessage = e => {
+    $("pegelbalken").style.width = Math.min(100, e.data.spitze * 140) + "%";
+    if (ws && ws.readyState === 1) ws.send(e.data.pcm);
+  };
+  quelle.connect(knoten);
+}
+
+function mikroAus() {
+  if (quelle) quelle.disconnect();
+  if (strom) strom.getTracks().forEach(t => t.stop());
+  if (ctx) ctx.close();
+  quelle = knoten = strom = ctx = null;
+  $("pegelbalken").style.width = "0";
+  $("geraet").textContent = "kein Mikrofon gewählt";
+}
+
+// --- Wiedergabe: int16-PCM in der Rate, die der Dienst ankuendigt -------------
+function abspielen(puffer) {
+  if (!ctx) return;
+  const roh = new Int16Array(puffer);
+  const b = ctx.createBuffer(1, roh.length, tonRate);
+  const k = b.getChannelData(0);
+  for (let i = 0; i < roh.length; i++) k[i] = roh[i] / 32768;
+  const q = ctx.createBufferSource();
+  q.buffer = b; q.connect(ctx.destination);
+  const jetzt = ctx.currentTime;
+  if (spielt < jetzt) spielt = jetzt + 0.02;   // kleiner Vorlauf gegen Knacksen
+  q.start(spielt);
+  spielt += b.duration;
+}
+
+// --- Verbindung --------------------------------------------------------------
+const TEXTE = {leerlauf:"Mikrofon aus", bereit:"Bereit", hoeren:"Hört zu",
+               denken:"Denkt nach", antworten:"Antwortet"};
+
+function zeile(wer, text) {
+  const d = document.createElement("div");
+  d.className = "zeile " + wer;
+  d.innerHTML = `<div class="wer">${wer === "nutzer" ? "Du" : "Assistent"}</div>`;
+  d.appendChild(document.createTextNode(text));
+  $("verlauf").prepend(d);
+}
+
+function verbinden() {
+  ws = new WebSocket(`ws://${location.host}/audio`);
+  ws.binaryType = "arraybuffer";
+  ws.onopen  = () => $("led-ws").classList.add("da");
+  ws.onclose = () => { $("led-ws").classList.remove("da"); setTimeout(verbinden, 1500); };
+  ws.onmessage = e => {
+    if (e.data instanceof ArrayBuffer) { abspielen(e.data); return; }
+    const d = JSON.parse(e.data);
+    if (d.typ === "zustand") {
+      $("phase").textContent = TEXTE[d.phase] || d.phase;
+      $("phase").className = d.phase === "leerlauf" ? "matt" : "";
+      $("aufnahme").classList.toggle("rot", d.aufnahme);
+      $("aufnahme").textContent = d.aufnahme ? "Aufzeichnung läuft — stoppen"
+                                             : "Aufzeichnung starten";
+      $("led-stt").classList.toggle("da", d.stt_da);
+      $("led-llm").classList.toggle("da", d.llm_da);
+    } else if (d.typ === "text") {
+      zeile(d.rolle, d.text);
+    } else if (d.typ === "ton") {
+      tonRate = d.rate;
+    }
+  };
+}
+
+const senden = o => ws && ws.readyState === 1 && ws.send(JSON.stringify(o));
+
+$("mikro").onclick = async () => {
+  if (ctx) {
+    mikroAus(); senden({befehl: "mikro", an: false});
+    $("mikro").textContent = "Mikrofon einschalten"; $("mikro").classList.remove("an");
+    $("aufnahme").disabled = $("sprechen").disabled = $("abbrechen").disabled = true;
+  } else {
+    try { await mikroAn(); } catch (e) { warnen("Mikrofon nicht verfügbar: " + e.message); return; }
+    senden({befehl: "mikro", an: true});
+    $("mikro").textContent = "Mikrofon ausschalten"; $("mikro").classList.add("an");
+    $("aufnahme").disabled = $("sprechen").disabled = $("abbrechen").disabled = false;
+  }
+};
+$("aufnahme").onclick = () =>
+  senden({befehl: "aufnahme", an: !$("aufnahme").classList.contains("rot")});
+$("abbrechen").onclick = () => senden({befehl: "abbrechen"});
+
+// Ansprechen ersetzt das Aktivierungswort, solange es keins gibt.
+const ansprechen = () => { if (!$("sprechen").disabled) senden({befehl: "ansprechen"}); };
+$("sprechen").onclick = ansprechen;
+addEventListener("keydown", e => {
+  if (e.code === "Space" && !e.repeat && e.target === document.body) {
+    e.preventDefault(); ansprechen();
+  }
+});
+
+verbinden();
+</script>

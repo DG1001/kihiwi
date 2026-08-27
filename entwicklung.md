@@ -157,6 +157,36 @@ Das Projektverzeichnis war **kein Git-Repository** — trotz des Pfads unter
 gehören nicht in eine Versionsverwaltung, aus der sie sich praktisch nicht mehr
 entfernen lassen.
 
+### Browser-Client statt Software auf dem Notebook
+
+Für den ersten Test mit echtem Mikrofon soll das Jabra an Freds Notebook hängen.
+Statt dort etwas zu installieren liefert der Dienst jetzt unter `/klient` eine
+Seite, die Mikrofon und Lautsprecher des aufrufenden Rechners benutzt.
+
+**Stolperstein:** `getUserMedia` funktioniert nur im „secure context" — über
+`http://<ip>:8920` gibt der Browser das Mikrofon kommentarlos nicht frei.
+**Lösung:** SSH-Portweiterleitung, dann gilt die Seite als `localhost`. Nutzt
+die ohnehin bestehende SSH-Verbindung und lässt den Dienst auf `127.0.0.1`
+gebunden — besser als Bindung aufweichen oder ein Zertifikat basteln.
+
+### Zum Futro-Client: Einschätzung korrigiert
+
+Ich hatte den Futro S520 für zu schwach für einen Browser gehalten. Nach den
+tatsächlichen Daten — AMD G-Series (GX-210HA/GX-212ZC), Jaguar-Kerne von 2013,
+dual-core amd64 mit SSE4.2 und AVX, dazu eine GCN-Radeon — stimmt das nicht:
+Chromium läuft dort, und das Compositing ist hardwarebeschleunigt.
+
+**Der eigentliche Engpass ist der verlötete 4-GB-MLC-Flash**, nicht die
+Rechenleistung: nicht tauschbar, und ein Browser schreibt permanent Cache.
+Empfehlung deshalb, vom USB-Stick zu booten und den internen Flash gar nicht zu
+benutzen — dann ist auch das Klonen auf mehrere Futros einfach.
+
+**Folge:** Die Idee, statt eines Browsers eine eigene Oberfläche (LVGL o. ä.) zu
+bauen, ist damit vom Tisch — ihre Begründung war die vermeintlich zu schwache
+Hardware. Was bleibt, ist der Gedanke dahinter: ein festes Anzeige-Protokoll mit
+wenigen Ansichtstypen statt „die KI schickt HTML". Das hält den Renderer
+austauschbar, ohne dass eine Bibliothek geschrieben werden muss.
+
 ### Offen
 
 - Autostart (systemd-Units) — bewusst zurückgestellt.

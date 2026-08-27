@@ -126,6 +126,27 @@ JSON-Befehle (`mikro`, `aufnahme`, `ansprechen`, `abbrechen`); der Dienst sendet
 JSON (`zustand`, `text`, `ton`, `ton_ende`) und Binäraudio. `/monitor` liefert nur
 den Zustand, `GET /` die Monitorseite.
 
+### Browser-Client für den Test
+
+`/klient` liefert einen Sprachclient, der Mikrofon und Lautsprecher des
+aufrufenden Rechners benutzt — damit lässt sich ein Jabra an einem beliebigen
+Notebook testen, ohne dort etwas zu installieren.
+
+**`getUserMedia` braucht einen „secure context".** Über `http://<ip>:8920`
+verweigert der Browser das Mikrofon kommentarlos. Lösung ist die
+SSH-Weiterleitung, dann gilt die Seite als `localhost`:
+
+    ssh -L 8920:127.0.0.1:8920 <rechner>
+    # dann im Browser: http://localhost:8920/klient
+
+Der Dienst bleibt dabei an `127.0.0.1` gebunden — kein Aufweichen der Bindung,
+kein Zertifikat nötig.
+
+Der Client nimmt mit `AudioContext({sampleRate: 16000})` auf, der Browser
+resampelt selbst; ein AudioWorklet schneidet 512er-Blöcke als int16 und schickt
+sie unverändert im Format des Dienstes. Browserseitige Echounterdrückung bleibt
+an, auch wenn das Jabra eigene mitbringt.
+
 Testen ohne Hardware:
 
     .venv/bin/python -m sprachdienst.klient_test testaudio/s3.wav [--aufnahme]
