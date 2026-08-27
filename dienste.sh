@@ -7,6 +7,7 @@
 #   ./dienste.sh neustart        stop + start der beiden lokalen Dienste
 #   ./dienste.sh status          was laeuft, auf welchem Port
 #   ./dienste.sh log [name]      Protokoll folgen (sprach | whisper | vllm)
+#   ./dienste.sh protokoll [...] Aufnahmen transkribieren und Protokoll bauen
 #
 # Die Dienste werden ueber ihren PORT gefunden, nicht ueber den Prozessnamen:
 # `pkill -f sprachdienst.gateway` bringt die eigene Shell um, weil das Muster in
@@ -153,6 +154,14 @@ case "${1:-status}" in
         stopp_port $P_WHISPER "whisper-server"
         start_whisper; start_sprach; echo; status ;;
     status)  status ;;
+    protokoll)
+        # Dokumentationspfad. Braucht whisper-server; das Modell nur fuer
+        # Korrektur und Zusammenfassung -- ohne es entsteht trotzdem ein
+        # Transkript.
+        belegt $P_WHISPER || { fehl "whisper-server laeuft nicht — erst ./dienste.sh start"; exit 1; }
+        bereit_vllm >/dev/null || warn "Modell nicht erreichbar — nur Transkript, keine Zusammenfassung"
+        shift
+        exec "$VENV" -m sprachdienst.protokoll "$@" ;;
     log)
         case "${2:-sprach}" in
             sprach)  tail -f "$LOGS/sprach.log" ;;

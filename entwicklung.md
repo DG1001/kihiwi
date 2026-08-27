@@ -232,6 +232,31 @@ Hardware. Was bleibt, ist der Gedanke dahinter: ein festes Anzeige-Protokoll mit
 wenigen Ansichtstypen statt „die KI schickt HTML". Das hält den Renderer
 austauschbar, ohne dass eine Bibliothek geschrieben werden muss.
 
+### Dokumentationspfad fertiggestellt
+
+`sprachdienst/protokoll.py`: VAD-Zerlegung, Transkription, Korrektur,
+Zusammenfassung. Auf einer synthetischen Sitzung (65 s, 11 Äußerungen) fand die
+Zerlegung genau 11 Abschnitte, der Durchlauf dauerte 13 s.
+
+**Entscheidung: Korrektur bleibt vorsichtig.** Ein erster, forscherer Prompt
+("klingt es wie ein Begriff aus der Liste, ersetze es") reparierte zwar
+„Vaseline" → „Baseline", machte aus „Putsch" aber „Baseline" statt „Patch" —
+also eine plausibel aussehende Fälschung. Für ein Protokoll ist das der
+schlimmste Fall: **ein sichtbar falsches Wort ist besser als ein glaubhaft
+falsches.** Jetzt wird nur ersetzt, wenn genau ein Begriff eindeutig passt;
+alles andere bleibt stehen und die Zusammenfassung führt es unter „Unklare
+Stellen" auf. Im Testlauf hat das Modell genau das getan, ohne zu raten.
+
+**Problem: Markdown lief auf eine Zeile zusammen.** `antwort_saetze` zerlegt den
+Strom in Sätze — im Sprachpfad genau richtig, in einem Dokument falsch: beim
+Zusammensetzen gehen Zeilenumbrüche verloren und Aufzählungen kollabieren.
+**Fix:** `llm.antwort_text` gibt den Strom unverändert zurück; erzeugte Dokumente
+benutzen die.
+
+Nebenbei: Das Modell setzte trotz Anweisung gelegentlich `#`-Überschriften mitten
+in die Datei und brach damit die Gliederung. Sicherheitsnetz per Regex, das
+Ebene 1 und 2 auf Ebene 3 herunterstuft.
+
 ### Offen
 
 - Autostart (systemd-Units) — bewusst zurückgestellt.

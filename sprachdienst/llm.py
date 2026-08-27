@@ -21,13 +21,13 @@ ERSTER_MIN = 25          # kuerzer klingt abgehackt
 ERSTER_MAX = 60          # laenger kostet unnoetig Zeit
 
 
-def _strom(nachrichten, max_tokens, schieb):
+def _strom(nachrichten, max_tokens, temperatur, schieb):
     """schieb(x) legt x threadsicher in die asyncio.Queue des Aufrufers."""
     try:
         req = urllib.request.Request(
             f"{konfig.LLM_URL}/chat/completions",
             data=json.dumps({"model": konfig.LLM_MODEL, "stream": True,
-                             "max_tokens": max_tokens, "temperature": 0.3,
+                             "max_tokens": max_tokens, "temperature": temperatur,
                              "messages": nachrichten}).encode(),
             headers={"Content-Type": "application/json"})
         for roh in urllib.request.urlopen(req, timeout=60):
@@ -43,6 +43,51 @@ def _strom(nachrichten, max_tokens, schieb):
         schieb(None)
 
 
+async def antwort_text(system: str, frage: str, max_tokens: int = 400,
+                        temperatur: float = 0.2) -> str:
+    """Gibt die vollstaendige Antwort UNVERAENDERT zurueck.
+
+    Fuer erzeugte Dokumente. antwort_saetze* zerlegt in Saetze -- das ist im
+    Sprachpfad genau richtig und in Markdown falsch: beim Wiederzusammensetzen
+    gehen Zeilenumbrueche verloren und Aufzaehlungen laufen auf eine Zeile.
+    """
+    teile = []
+    async for stueck in _roh([{"role": "system", "content": system},
+                              {"role": "user", "content": frage}],
+                             max_tokens, temperatur):
+        teile.append(stueck)
+    return "".join(teile).strip()
+
+
+async def _roh(nachrichten, max_tokens, temperatur):
+    """Liefert die Token-Stuecke, wie sie kommen."""
+    schleife = asyncio.get_running_loop()
+    q: asyncio.Queue = asyncio.Queue()
+    schieb = lambda x: schleife.call_soon_threadsafe(q.put_nowait, x)
+    threading.Thread(target=_strom, args=(nachrichten, max_tokens, temperatur, schieb),
+                     daemon=True).start()
+    while True:
+        stueck = await q.get()
+        if stueck is None:
+            return
+        yield stueck
+
+
+async def antwort_saetze_roh(system: str, frage: str, max_tokens: int = 400,
+                             temperatur: float = 0.2):
+    """Wie antwort_saetze, aber mit eigenem System-Prompt und ohne Verlauf.
+
+    Gebraucht vom Dokumentationspfad: dessen Aufgaben (Korrektur,
+    Zusammenfassung) haben nichts mit dem Sprachassistenten zu tun, und
+    konfig.SYSTEM_PROMPT ist auf gesprochene Kurzantworten getrimmt --
+    "hoechstens zwei Saetze" waere fuer ein Protokoll fatal.
+    """
+    async for satz in _saetze([{"role": "system", "content": system},
+                               {"role": "user", "content": frage}],
+                              max_tokens, temperatur):
+        yield satz
+
+
 async def antwort_saetze(frage: str, verlauf=None, max_tokens: int = 160):
     """Liefert die Antwort SATZWEISE, sobald ein Satz vollstaendig ist.
 
@@ -52,14 +97,18 @@ async def antwort_saetze(frage: str, verlauf=None, max_tokens: int = 160):
     nachrichten = [{"role": "system", "content": konfig.SYSTEM_PROMPT}]
     nachrichten += list(verlauf or [])
     nachrichten.append({"role": "user", "content": frage})
+    async for satz in _saetze(nachrichten, max_tokens, 0.3):
+        yield satz
 
+
+async def _saetze(nachrichten, max_tokens, temperatur):
     # Der Thread SCHIEBT, die Schleife fragt nicht ab -- sonst haengt er auf
     # einer leeren Queue, wenn die Antwort abgebrochen wird, und blockiert das
     # Beenden des Dienstes um 120 Sekunden.
     schleife = asyncio.get_running_loop()
     q: asyncio.Queue = asyncio.Queue()
     schieb = lambda x: schleife.call_soon_threadsafe(q.put_nowait, x)
-    threading.Thread(target=_strom, args=(nachrichten, max_tokens, schieb),
+    threading.Thread(target=_strom, args=(nachrichten, max_tokens, temperatur, schieb),
                      daemon=True).start()
 
     puffer = ""

@@ -151,6 +151,36 @@ Testen ohne Hardware:
 
     .venv/bin/python -m sprachdienst.klient_test testaudio/s3.wav [--aufnahme]
 
+## Dokumentationspfad
+
+`sprachdienst/protokoll.py`, Aufruf über `./dienste.sh protokoll [sitzung …] [--neu]`.
+Ohne Sitzungsnamen werden alle unter `aufnahmen/` verarbeitet; ohne `--neu` nur
+das, was noch kein Transkript hat.
+
+Drei Stufen, in dieser Reihenfolge:
+
+1. **VAD-Zerlegung.** Nur Sprachbereiche gehen ins STT — Pflicht, nicht
+   Optimierung, weil large-v3-turbo in Stille halluziniert. Nebeneffekt: jeder
+   Abschnitt bekommt seinen Zeitstempel geschenkt. Bereiche mit weniger als
+   600 ms Abstand werden verbunden, kürzer als 400 ms verworfen, länger als
+   60 s geteilt.
+2. **Transkription** je Bereich mit der Vokabelliste als `initial_prompt`.
+3. **Korrektur** durch das Modell — **bewusst vorsichtig**: ersetzt wird nur,
+   wenn genau ein Begriff der Vokabelliste eindeutig gemeint sein kann. Roh- und
+   korrigierter Text werden beide gespeichert und im Protokoll untereinander
+   gezeigt.
+
+Erzeugt wird `aufnahmen/<sitzung>/protokoll.md` mit Zusammenfassung (als
+**abgeleitet** gekennzeichnet, jede Aussage mit Zeitstempel) und dem
+vollständigen Transkript. Unsichere Stellen landen unter „Unklare Stellen"
+statt geraten zu werden. Roh-Audio bleibt liegen.
+
+Gemessen: 65 s Audio mit 11 Äußerungen → 11 Abschnitte, komplett in **13 s**.
+
+Ein Längenwächter fängt Ausreißer ab: weicht der korrigierte Text um mehr als
+40 % von der Rohlänge ab, hat das Modell umformuliert statt korrigiert, und der
+Rohtext bleibt stehen.
+
 ## Latenzbudget (warm gemessen, 27.08.2026)
 
 | Glied | Zeit | Anmerkung |
