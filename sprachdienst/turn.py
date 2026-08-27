@@ -44,7 +44,7 @@ class Turnerkenner:
         return self.sprach
 
     async def _pruefe(self, samples):
-        text = await stt.transkribiere(samples)
+        text = await stt.transkribiere(samples, kurz=True)
         if not text:
             return 0.0, ""
         return await llm.p_fertig(text), text

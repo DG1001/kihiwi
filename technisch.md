@@ -19,8 +19,9 @@ Argumente: `ds4` | `ornith` | **`ornith-voice`** | `qwen36nvfp4` | `qwen38` |
 `nemotron` | `nemotronspec` | `qwenvl30` | `stop` | `status`.
 
 **Für kihiwi `model-switch ornith-voice` benutzen**, nicht `ornith`. Gleiches
-Modell und gleicher `served-model-name`, aber `DEF_CTX=32768` und `GPU_UTIL` auf
-0.55 statt der Prüfstands-Vorgaben 131072/0.85. Am Kontext in
+Modell und gleicher `served-model-name`, aber `DEF_CTX=65536` und `GPU_UTIL` auf
+0.55 statt der Prüfstands-Vorgaben 131072/0.85. Die 64K sind Hermes' Mindestmass;
+sie kosten nichts (41,1 GiB KV-Cache, 58-fache Nebenläufigkeit). Am Kontext in
 `model-switch status` sieht man, welches Profil läuft.
 
 Alle vLLM-Modelle teilen sich Port **8889** und den Container `vllm-model`;
@@ -33,8 +34,9 @@ DeepSeek-V4-Flash GGUF, **Qwen3-VL-30B-A3B als Bildmodell**, Qwen3.8-Flash-Next
 Q3_K_XL (wartet auf llama.cpp PR #27742).
 
 **Speicher-Falle: nicht `GPU_UTIL` ist der Hebel, sondern `CTX`.** Ornith kostet
-40 KB KV je Token (40 Lagen, 2 KV-Köpfe, head_dim 256, fp8) — eine 131k-Sequenz
-also 5,2 GB, eine 32k-Sequenz 1,3 GB. Mit den Prüfstands-Vorgaben waren 110 von
+**~12 KB KV je Token** (gemessen: 41,9 GiB für 3,62 Mio. Token bei 32k, 41,1 GiB
+für 3,85 Mio. bei 64k). *Meine frühere Rechnung von 40 KB aus der Kopfgeometrie
+war um Faktor drei zu hoch — die Zahl aus dem vLLM-Protokoll gilt.* Mit den Prüfstands-Vorgaben waren 110 von
 121 GiB belegt und 6 GiB Swap in Benutzung; mit `ornith-voice` bleiben 41,9 GiB
 KV-Cache, 110-fache Nebenläufigkeit und rund 40 GiB frei. Dieselbe Falle bei
 ds4: `-c 262144` belegte 114/121 GiB und lieferte 503er — die Fehlermeldung

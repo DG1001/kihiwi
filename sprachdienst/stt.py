@@ -11,20 +11,39 @@ import numpy as np
 from . import konfig
 
 
-def _vokabular() -> str:
-    """Fachbegriffe fuer den initial_prompt. Groesster Qualitaetshebel bei
-    deutschem Fachvokabular, kostet nichts."""
+def begriffe() -> list[str]:
     try:
         zeilen = konfig.VOKABULAR.read_text(encoding="utf-8").splitlines()
     except OSError:
-        return ""
-    begriffe = [z.strip() for z in zeilen if z.strip() and not z.startswith("#")]
-    # Das Aktivierungswort gehoert IMMER dazu, unabhaengig von der Datei.
-    # Ohne es hoerte die Erkennung aus "Kiwi, stoppe die Aufzeichnung" ein
-    # "TV stoppe die Aufzeichnung" -- der Assistent war dann taub.
-    begriffe = list(dict.fromkeys(
-        [w.title() for w in konfig.AKTIVIERUNG if " " not in w] + begriffe))
-    return ("Fachbegriffe: " + ", ".join(begriffe) + ".") if begriffe else ""
+        return []
+    return [z.strip() for z in zeilen if z.strip() and not z.startswith("#")]
+
+
+def _vokabular(kurz: bool = False) -> str:
+    """Fachbegriffe fuer den initial_prompt. Groesster Qualitaetshebel bei
+    deutschem Fachvokabular, kostet nichts.
+
+    **Der Prompt hat begrenztes Gewicht, und die Begriffe konkurrieren darin.**
+    Als die Liste um Projektbegriffe wuchs, hoerte die Erkennung aus "Kiwi"
+    wieder "TV" -- der Assistent war taub, obwohl das Aktivierungswort
+    ausdruecklich in der Liste stand.
+
+    Deshalb zwei Fassungen, passend zu den beiden Pfaden:
+    kurz=True  fuer den Dialog -- Aktivierungswort und wenige Begriffe, damit
+               das Aktivierungswort sicher durchkommt;
+    kurz=False fuer die Dokumentation -- alles, dort zaehlt Vollstaendigkeit
+               und es gibt kein Aktivierungswort zu treffen.
+    """
+    wach = [w.title() for w in konfig.AKTIVIERUNG if " " not in w]
+    if kurz:
+        # Aktivierungswort zuletzt: der Prompt steht direkt vor dem Audio,
+        # und was hinten steht, wirkt am staerksten.
+        liste = begriffe()[:konfig.VOKABULAR_KURZ] + wach
+    else:
+        # Aktivierungswort auch hier ans Ende: im zweiten Durchgang wurde es
+        # sonst als "TV" transkribiert und blieb als Muell im Fragetext stehen.
+        liste = list(dict.fromkeys(begriffe() + wach))
+    return ("Fachbegriffe: " + ", ".join(dict.fromkeys(liste)) + ".") if liste else ""
 
 
 def _mehrteilig(felder: dict, wav: bytes) -> tuple[bytes, str]:
@@ -58,12 +77,12 @@ def _ruf(wav: bytes, prompt: str, timeout: float) -> str:
 
 
 async def transkribiere(samples: np.ndarray, mit_vokabular: bool = True,
-                        timeout: float = 15.0) -> str:
+                        timeout: float = 15.0, kurz: bool = False) -> str:
     """Dialogpfad. Gibt bei Fehlern "" zurueck statt zu werfen -- ein toter
     STT darf den Dienst nicht mitreissen."""
     try:
         return await asyncio.to_thread(
-            _ruf, _wav(samples), _vokabular() if mit_vokabular else "", timeout)
+            _ruf, _wav(samples), _vokabular(kurz) if mit_vokabular else "", timeout)
     except (urllib.error.URLError, OSError, TimeoutError):
         return ""
 

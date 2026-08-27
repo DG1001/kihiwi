@@ -156,7 +156,7 @@ class Sitzung:
                 continue
 
             gerufen = HALTER.z.phase is Phase.HOEREN     # Knopf gedrueckt
-            text = ep.text or await stt.transkribiere(ep.samples)
+            text = ep.text or await stt.transkribiere(ep.samples, kurz=True)
             if not text.strip():
                 continue
 
@@ -171,14 +171,16 @@ class Sitzung:
                         continue
                     # Ein vorangestelltes "Kiwi," stoert nicht, muss aber weg.
                     ja, rest = aktivierung.erkannt(text)
-                    if ja:
-                        text = rest
+                    text = await self.nachschaerfen(ep, rest if ja else text)
                 else:
                     ja, rest = aktivierung.erkannt(text)
                     if not ja:
+                        # Verworfene Aeusserungen protokollieren: ohne das ist
+                        # nicht nachvollziehbar, warum der Assistent schweigt.
+                        log.info("nicht angesprochen (%s): %r", ep.grund, text[:70])
                         continue
                     log.info("Aktivierungswort erkannt: %r", text[:60])
-                    text = rest
+                    text = await self.nachschaerfen(ep, rest)
                     HALTER.setzen(gespraech=True)
 
             self.letzte_ansprache = time.time()
@@ -193,6 +195,25 @@ class Sitzung:
             log.info("Endpoint: %s nach %.0f ms Aeusserung", ep.grund, ep.dauer_ms)
             HALTER.setzen(phase=Phase.DENKEN)
             self.antwort_task = asyncio.create_task(self.antworten(ep))
+
+    async def nachschaerfen(self, ep, kurzfassung: str) -> str:
+        """Zweiter Durchgang mit dem VOLLEN Fachvokabular.
+
+        Der Dialogpfad transkribiert mit kurzem Prompt, damit das
+        Aktivierungswort sicher durchkommt -- das kostet aber die Fachbegriffe
+        ("Silizium mit Tretfenster" statt "Siliziumnitrid-Fenster"). Sobald
+        feststeht, dass wir angesprochen sind, lohnt der zweite Durchgang: er
+        kostet rund 130 ms und rettet genau die Begriffe, nach denen dann
+        gesucht wird.
+        """
+        genau = await stt.transkribiere(ep.samples, kurz=False)
+        if not genau:
+            return kurzfassung
+        ja, rest = aktivierung.erkannt(genau)
+        genau = rest if ja else genau
+        if genau and genau != kurzfassung:
+            log.info("nachgeschärft: %r -> %r", kurzfassung[:45], genau[:45])
+        return genau or kurzfassung
 
     def im_gespraech(self) -> bool:
         """Laeuft das Gespraech noch? Die Stillegrenze ist keine Bequemlichkeit,
@@ -234,7 +255,7 @@ class Sitzung:
         import time as _t
         t0 = _t.time()
         try:
-            text = ep.text or await stt.transkribiere(ep.samples)
+            text = ep.text or await stt.transkribiere(ep.samples, kurz=True)
             log.info("  STT %.0f ms%s", (_t.time()-t0)*1000,
                      " (uebersprungen)" if ep.text else "")
             if not text:

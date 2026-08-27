@@ -50,6 +50,11 @@ P_FERTIG_SCHWELLE = 0.1
 # "Kiwi, wie ..." (Aehnlichkeit 0,82) und schnitt zwei Woerter ab statt einem.
 # Varianten nur aufnehmen, wenn sie belegt sind.
 AKTIVIERUNG = ["kiwi", "kivi", "kiwie", "hey kiwi"]
+# Wie viele Fachbegriffe der Dialogpfad mitnimmt. Mehr verwaessert das
+# Aktivierungswort im Prompt -- gemessen: mit voller Liste wurde "Kiwi" wieder
+# als "TV" gehoert.
+VOKABULAR_KURZ = 12
+
 AKTIVIERUNG_MIN = 0.80   # unscharf, aber nicht zu lose: bei 0,75 galt
                          # schon "Der Hiwi ..." als Ansprache
 
