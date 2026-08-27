@@ -1,0 +1,214 @@
+# aihiwi — Technische Beschreibung
+
+## Die Maschine
+
+`gx10` — ASUS Ascent GX10, GB10, aarch64, Ubuntu (Kernel 6.17-nvidia),
+20 Kerne (Cortex-X925 + A725), **121 GiB Unified Memory**, 916 GB NVMe.
+
+**Die wichtigste Regel dieser Hardware: Bandbreite ist knapp, nicht Kapazität.**
+Rund 273 GB/s. Ein dichtes Modell muss je Token alle Gewichte durchschieben und
+verliert deshalb immer gegen MoE — Qwen3.6-27B (dicht, 51 GiB) kam auf 4,4 tok/s,
+Ornith (35B gesamt, 3B aktiv) auf 78,4. **Bei Modellwahl zuerst auf die aktiven
+Parameter sehen, nicht auf die Gesamtgröße.** Unified Memory heißt außerdem: CPU
+und GPU teilen sich diese Bandbreite, ein großes CPU-Modell hilft nicht.
+
+## Modelle
+
+`~/.local/bin/model-switch` — es läuft immer nur **ein** großes Modell.
+Argumente: `ds4` | `ornith` | **`ornith-voice`** | `qwen36nvfp4` | `qwen38` |
+`nemotron` | `nemotronspec` | `qwenvl30` | `stop` | `status`.
+
+**Für aihiwi `model-switch ornith-voice` benutzen**, nicht `ornith`. Gleiches
+Modell und gleicher `served-model-name`, aber `DEF_CTX=32768` und `GPU_UTIL` auf
+0.55 statt der Prüfstands-Vorgaben 131072/0.85. Am Kontext in
+`model-switch status` sieht man, welches Profil läuft.
+
+Alle vLLM-Modelle teilen sich Port **8889** und den Container `vllm-model`;
+`ds4-server` hört auf 8888 und hat **keinen** Autostart. Je Aufruf übersteuerbar:
+`CTX=`, `GPU_UTIL=`, `KV_DTYPE=`, `ABBILD_UEBER=`, `VERZ_UEBER=`.
+
+Vorhanden: Ornith-1.5-35B-A3B NVFP4 (22 GB, Standard), Qwen3.6-35B-A3B NVFP4,
+Qwen3.8-27B NVFP4+MTP, Nemotron-3.5-Lightning NVFP4 (+DSpark),
+DeepSeek-V4-Flash GGUF, **Qwen3-VL-30B-A3B als Bildmodell**, Qwen3.8-Flash-Next
+Q3_K_XL (wartet auf llama.cpp PR #27742).
+
+**Speicher-Falle: nicht `GPU_UTIL` ist der Hebel, sondern `CTX`.** Ornith kostet
+40 KB KV je Token (40 Lagen, 2 KV-Köpfe, head_dim 256, fp8) — eine 131k-Sequenz
+also 5,2 GB, eine 32k-Sequenz 1,3 GB. Mit den Prüfstands-Vorgaben waren 110 von
+121 GiB belegt und 6 GiB Swap in Benutzung; mit `ornith-voice` bleiben 41,9 GiB
+KV-Cache, 110-fache Nebenläufigkeit und rund 40 GiB frei. Dieselbe Falle bei
+ds4: `-c 262144` belegte 114/121 GiB und lieferte 503er — die Fehlermeldung
+nannte Speicher statt Kontext.
+
+**vLLM hängt sich reproduzierbar auf, und ein hängender Motor sieht aus wie ein
+langsames Modell.** Vor jeder Latenzmessung: `~/gx10-blog/bench/bereit.sh`.
+
+## Dienste
+
+Alles läuft über **`./dienste.sh`**:
+
+    ./dienste.sh start          alles hochfahren, idempotent
+    ./dienste.sh stop           Sprachdienst + whisper-server (vLLM bleibt)
+    ./dienste.sh stop --vllm    zusätzlich das Modell entladen
+    ./dienste.sh neustart       nur die beiden lokalen Dienste
+    ./dienste.sh status         was läuft, auf welchem Port
+    ./dienste.sh log sprach     Protokoll folgen (sprach | whisper | vllm)
+
+Protokolle in `logs/`. **`start` schaltet vLLM nicht ungefragt um** — läuft dort
+ein anderes Profil, wird nur gewarnt, denn auf dieser Maschine wird auch gemessen
+und ein Wechsel kostet zwei Minuten. Dienste werden über den **Port** gefunden,
+nicht über den Prozessnamen.
+
+| Dienst | Adresse | Anmerkung |
+|---|---|---|
+| vLLM | `127.0.0.1:8889` | Container `vllm-model` |
+| whisper-server | `127.0.0.1:8910` | large-v3-turbo, `-l de` |
+| Sprachdienst | `127.0.0.1:8920` | Monitor unter `http://127.0.0.1:8920/` |
+| ds4-server | `127.0.0.1:8888` | manuell zu starten |
+| SearXNG | `127.0.0.1:8088` | Container, für Hermes-Suche |
+
+## Netz und Zugriff
+
+Serverraum, `<lan-praefix>` an einer FRITZ!Box, Ethernet `enP7s7` (Gigabit —
+bei Einbruch zuerst `ethtool enP7s7` prüfen, ein zweipaariges Kabel hatte den
+Link schon einmal auf 100 Mbit gedrückt). Stabil erreichbar über Tailnet:
+`<tailnet-adresse>` / `<rechner>`.
+
+**Direkt an der FRITZ!Box, ohne IPFire davor** — die Maschine hat eine weltweit
+geroutete IPv6 ohne NAT, der Schutz hängt allein an der FRITZ!Box-Konfiguration.
+Neue Dienste, besonders der Audio-Gateway, **ausdrücklich an die Tailnet- oder
+LAN-Adresse binden, nie an `0.0.0.0`/`[::]`** (`konfig.BIND`).
+
+SSH ist **key-only** (`/etc/ssh/sshd_config.d/99-hardening.conf`), dazu
+passwortloses sudo. Passwort-Auth nie beiläufig reaktivieren.
+
+## Einrichten (nach frischem Klon)
+
+Modelle und venv liegen bewusst nicht im Repo:
+
+    python3 -m venv .venv && .venv/bin/pip install piper-tts websockets numpy
+    .venv/bin/python -m piper.download_voices de_DE-thorsten-medium --data-dir voices
+    .venv/bin/python -m piper.download_voices en_US-lessac-medium  --data-dir voices
+    curl -L -o vad/silero_vad.onnx \
+      https://github.com/snakers4/silero-vad/raw/master/src/silero_vad/data/silero_vad.onnx
+    .venv/bin/python testaudio/turns.py          # erzeugt das Testmaterial neu
+
+**whisper.cpp** liegt außerhalb des Projekts in `~/code/whisper.cpp`:
+
+    cmake -B build -DGGML_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES=121 -DCMAKE_BUILD_TYPE=Release
+    cmake --build build -j 18                    # 2 min 10 s
+
+Die `121` ist die Compute Capability des GB10. Ohne sie fällt der Server still
+auf die CPU zurück. Erfolgskontrolle im Startbanner: `ARCHS = 1210` und
+`BLACKWELL_NATIVE_FP4 = 1`. Modell `ggml-large-v3-turbo.bin` (1,6 GB) in
+`models/`.
+
+## Aufbau des Sprachdienstes
+
+`sprachdienst/` — bewusst **ein** Dienst mit schmaler Schnittstelle, getrennt vom
+Agenten. Der Agent (heute Ornith direkt, später vielleicht Hermes) hängt hinten
+dran und ist austauschbar, ohne dass Turn-Taking und Audio neu gebaut werden.
+
+| Datei | Rolle |
+|---|---|
+| `konfig.py` | alle Einstellungen an einer Stelle |
+| `zustand.py` | Zustand + Beobachter; Aufnahme und Dialog sind **orthogonal** |
+| `turn.py` | VAD, Endpointing, lexikalische Prüfung nebenher |
+| `stt.py` / `tts.py` / `llm.py` | Dienstanbindungen, je einzeln ersetzbar |
+| `doku.py` | Dokumentationspfad, rotiert alle 5 min, behält Roh-Audio |
+| `gateway.py` | WebSocket-Dienst |
+| `monitor.html` | Laborbildschirm |
+| `klient_test.py` | spielt eine WAV in Echtzeit ein, misst Ende-zu-Ende |
+| `vad/silero.py` | Silero-VAD v5 über onnxruntime, ohne torch |
+
+**Protokoll** auf `/audio`: Client sendet Binärrahmen (PCM int16 mono 16 kHz) und
+JSON-Befehle (`mikro`, `aufnahme`, `ansprechen`, `abbrechen`); der Dienst sendet
+JSON (`zustand`, `text`, `ton`, `ton_ende`) und Binäraudio. `/monitor` liefert nur
+den Zustand, `GET /` die Monitorseite.
+
+Testen ohne Hardware:
+
+    .venv/bin/python -m sprachdienst.klient_test testaudio/s3.wav [--aufnahme]
+
+## Latenzbudget (warm gemessen, 27.08.2026)
+
+| Glied | Zeit | Anmerkung |
+|---|---|---|
+| STT (whisper-server, large-v3-turbo) | ~100 ms | konstant, Whisper rechnet immer ein 30-s-Fenster |
+| LLM erstes Token | ~70 ms | 65–70 tok/s |
+| LLM erster **sprechbarer** Brocken | 350–670 ms | 30–90 Zeichen |
+| TTS erster Chunk (Piper, CPU) | 120–270 ms | je nach Brockenlänge |
+| Silero-VAD | 0,07 ms je 32-ms-Block | 0,2 % eines Kerns |
+| **Summe Maschine** | **~600–800 ms** | ohne Endpointing und Netz |
+| Endpointing | 490–1450 ms | **der eigentliche Engpass** |
+| **Ende-zu-Ende gemessen** | **1085–2251 ms** | drei Läufe über den Sprachdienst |
+
+**Achtung, naheliegender Denkfehler:** Die 70 ms sind das erste *Token*, nicht
+der erste *sprechbare* Brocken. Piper braucht einen Teilsatz, also 10–25 Token.
+Eine Budgetrechnung mit TTFT ist um den Faktor fünf zu optimistisch.
+
+**Immer warm messen.** Erster CUDA-Lauf 266 statt 100 ms, erster vLLM-Aufruf 226
+statt 70 ms, Piper als CLI-Prozess 800 statt 110 ms. Prozesse müssen dauerhaft
+laufen, nicht je Anfrage starten.
+
+### Endpointing
+
+Naiv (feste Stilleschwelle), 12 Testfälle mit gebauter Denkpause:
+
+| Schwelle | Fehlschnitte | Zusatzlatenz |
+|---|---|---|
+| 600 ms | 8/12 | 575 ms |
+| 800 ms | 5/12 | 759 ms |
+| 1000 ms | 2/12 | 991 ms |
+| **1200 ms** | **0/12** | **1183 ms** |
+
+Lexikalisch (bei 300 ms Stille transkribieren und das Modell fragen, ob der Satz
+fertig ist): **~510 ms bei 0/12 Fehlschnitten**, Kosten je Prüfung 228 ms
+(130 ms STT + 97 ms LLM). Die Prüfung läuft nebenher, während weiter zugehört
+wird — fällt sie auf WEITER, hat sie nichts gekostet. **Greift sie, wird ihr
+Transkript weiterverwendet und das STT im Antwortpfad übersprungen** (0 ms statt
+130–257 ms).
+
+## Fallen, die schon Zeit gekostet haben
+
+- **Silero v5 will 64 Samples Kontext vor dem 512er-Block**, Eingang also 576.
+  Ohne den Vorlauf meldet das Modell durchgehend „keine Sprache" — still, ohne
+  Fehlermeldung. Sieht aus wie kaputtes Audio. Behandelt in `vad/silero.py`.
+- **Whisper halluziniert in Stille.** 5 s Stille ergaben „Vielen Dank.", mit
+  Vokabular-Prompt „Untertitelung des ZDF, 2020", Rauschen „Amen."
+  **VAD-Gating vor dem STT ist zwingend**, nicht optional.
+- **Ohne `-l de` übersetzt Whisper.** Auto-Erkennung kippt bei gehäuften
+  englischen Fachbegriffen ins Englische. Immer Sprache hart setzen.
+- **Whisper hängt immer ein Satzzeichen an**, auch mitten im Satz. Vor dem
+  lexikalischen Endpointing Punkt und Komma entfernen, Fragezeichen behalten.
+- **Der System-Prompt landet im Lautsprecher.** ASCII-fiziertes Deutsch im Prompt
+  („Aufzaehlungen") bringt das Modell dazu, ebenso zu antworten — Piper spricht
+  „fuer" dann als „Fu-er". Umlaute im Prompt sind Pflicht.
+- **vLLM ist bei `temperature: 0` nicht deterministisch.** Grenzfälle schwanken
+  über die halbe Wahrscheinlichkeitsskala. Keine feinen Schwellen darauf bauen.
+- **`pkill -f` erwischt die eigene Shell**, wenn das Muster in deren
+  Kommandozeile steht. Über den Port gehen:
+  `ss -tlnpH "sport = :8920" | grep -oP 'pid=\K[0-9]+'`.
+
+## Hermes
+
+NousResearch Hermes Agent v0.20.5 in `~/.hermes/hermes-agent`, läuft gegen das
+lokal geladene Modell. Interaktiv: `hermes chat --no-restore-cwd --in .`
+Kandidat als Agent-Basis, mit Vorbehalten:
+
+- **`-z/--oneshot` nimmt die erste Antwort als Ergebnis** — bei langen Aufgaben
+  schreibt das Modell einen ausführlichen Bericht über Arbeit, die es nie getan
+  hat. Für alles Agentische `chat -q`. Für einen Dokumentationsassistenten ist
+  konfabulierte Arbeit die schlimmste Fehlerart.
+- Hermes greift über sein Arbeitsverzeichnis hinaus; nach Läufen `git status`.
+- `stt` steht auf `whisper-1` (Cloud) bzw. `local.model: base` — beides für
+  deutsches Fachvokabular ungeeignet.
+- Fürs Codieren taugt Hermes wenig.
+
+## Maschinen-Notizen außerhalb des Repos
+
+Ausführlicher in `~/.claude/projects/-home-nutzer/memory/` (Projekt-Scope `~`,
+in aihiwi-Sessions nicht automatisch geladen): `gx10-zwei-modelle`,
+`gx10-modell-benchmark`, `gx10-netzwerk-serverraum`, `gx10-serverraum-umzug`,
+`gx10-ssh-key-only`, `gx10-ds4-opencode`, `hermes-searxng`,
+`qwen38-flash-wartet`. Bei Widersprüchen sind jene die Quelle.
