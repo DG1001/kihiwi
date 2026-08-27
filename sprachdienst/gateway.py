@@ -213,7 +213,13 @@ async def http_seite(verbindung, anfrage):
         leib = (konfig.WURZEL / "sprachdienst" / datei).read_text(encoding="utf-8")
     except OSError:
         leib = f"<h1>{datei} fehlt</h1>"
-    return verbindung.respond(http.HTTPStatus.OK, leib)
+    antwort = verbindung.respond(http.HTTPStatus.OK, leib)
+    # respond() setzt text/plain -- der Browser zeigt die Seite sonst als
+    # Quelltext an. Headers.__setitem__ HAENGT AN statt zu ersetzen, deshalb
+    # erst loeschen.
+    del antwort.headers["Content-Type"]
+    antwort.headers["Content-Type"] = "text/html; charset=utf-8"
+    return antwort
 
 
 async def haupt():
