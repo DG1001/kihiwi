@@ -8,6 +8,8 @@
 #   ./dienste.sh status          was laeuft, auf welchem Port
 #   ./dienste.sh log [name]      Protokoll folgen (sprach | whisper | vllm)
 #   ./dienste.sh protokoll [...] Aufnahmen transkribieren und Protokoll bauen
+#   ./dienste.sh wissen [...]    Unterlagen einlesen/durchsuchen
+#                                (einlesen | status | suchen ... | web ...)
 #
 # Die Dienste werden ueber ihren PORT gefunden, nicht ueber den Prozessnamen:
 # `pkill -f sprachdienst.gateway` bringt die eigene Shell um, weil das Muster in
@@ -162,6 +164,9 @@ case "${1:-status}" in
         bereit_vllm >/dev/null || warn "Modell nicht erreichbar — nur Transkript, keine Zusammenfassung"
         shift
         exec "$VENV" -m sprachdienst.protokoll "$@" ;;
+    wissen)
+        shift
+        exec "$VENV" -m wissen "$@" ;;
     log)
         case "${2:-sprach}" in
             sprach)  tail -f "$LOGS/sprach.log" ;;

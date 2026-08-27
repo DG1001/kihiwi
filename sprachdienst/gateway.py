@@ -17,6 +17,8 @@ import numpy as np
 import websockets
 from websockets.asyncio.server import serve
 
+from wissen import index as wissen_index, web as wissen_web
+
 from . import aktivierung, doku, konfig, llm, stt, tts
 from .turn import Turnerkenner
 from .zustand import Phase, Zustandshalter
@@ -46,11 +48,42 @@ async def gesundheit():
 # Behauptet die Antwort eine Aenderung an der Aufzeichnung? Grob, absichtlich:
 # lieber einmal zu viel den wahren Zustand nachschieben als eine unbemerkte
 # Falschaussage stehen lassen.
+# Kuendigt die Antwort ein Nachschlagen an, ohne dass gesucht wurde? Dasselbe
+# Muster wie bei der Aufzeichnung: das Modell sagt, was es tun wird, statt es
+# zu tun. Der kurze Sprech-Prompt ("hoechstens zwei Saetze") verstaerkt das.
+_ANGEKUENDIGT = re.compile(
+    r"(schaue?|sehe?|gucke?|pruefe?|prüfe?)[^.]{0,30}"
+    r"(nach|unterlagen|dokument)|(unterlagen|dokumenten)[^.]{0,20}(nachsehen|nachschauen)",
+    re.I)
+
 _BEHAUPTUNG = re.compile(
     r"(aufzeichnung|aufnahme|mitschnitt)[^.]{0,40}"
     r"(gestartet|gestoppt|angelaufen|beendet|läuft|aus|an)", re.I)
 
 WERKZEUGE = [{
+    "type": "function",
+    "function": {
+        "name": "dokumente_suchen",
+        "description": ("Durchsucht die Unterlagen des Labors: Protokolle, Notizen, "
+                        "Handbücher, Projektdateien. IMMER zuerst benutzen, wenn nach "
+                        "Geräten, Messwerten, Verfahren oder früheren Arbeiten gefragt "
+                        "wird."),
+        "parameters": {
+            "type": "object",
+            "properties": {"frage": {"type": "string",
+                                     "description": "Suchbegriffe oder die Frage"}},
+            "required": ["frage"]},
+    }}, {
+    "type": "function",
+    "function": {
+        "name": "web_suchen",
+        "description": ("Sucht im Internet. Nur benutzen, wenn die Unterlagen des "
+                        "Labors nichts hergeben und es um allgemeines Fachwissen geht."),
+        "parameters": {
+            "type": "object",
+            "properties": {"frage": {"type": "string", "description": "Suchbegriffe"}},
+            "required": ["frage"]},
+    }}, {
     "type": "function",
     "function": {
         "name": "aufzeichnung",
@@ -75,6 +108,7 @@ class Sitzung:
         self.verlauf: list[dict] = []
         self.antwort_task: asyncio.Task | None = None
         self.letzte_ansprache = 0.0
+        self.web_benutzt = False
 
     async def schliessen(self):
         self.rek.stop()
@@ -176,6 +210,27 @@ class Sitzung:
             HALTER.setzen(phase=Phase.BEREIT if HALTER.z.mikro else Phase.LEERLAUF)
 
     async def antworten(self, ep):
+        """Mit hartem Zeitlimit. vLLM haengt sich gelegentlich auf -- ohne
+        Grenze blieb der Assistent dann stumm stehen, ohne Fehler, ohne
+        Rueckfallebene. Ein haengender Motor sieht aus wie ein langsames
+        Modell; hier soll er wie ein Fehler aussehen."""
+        try:
+            await asyncio.wait_for(self._antworten(ep), timeout=konfig.ANTWORT_MAX_S)
+        except asyncio.TimeoutError:
+            log.warning("Antwort abgebrochen: laenger als %ds", konfig.ANTWORT_MAX_S)
+            try:
+                await self.ws.send(json.dumps(
+                    {"typ": "text", "rolle": "assistent",
+                     "text": "Das dauert mir zu lange, ich breche ab."}))
+                await self.sag("Das dauert mir zu lange, ich breche ab.")
+            except Exception:
+                pass
+        finally:
+            self.letzte_ansprache = time.time()
+            if HALTER.z.phase in (Phase.DENKEN, Phase.ANTWORTEN):
+                HALTER.setzen(phase=Phase.BEREIT if HALTER.z.mikro else Phase.LEERLAUF)
+
+    async def _antworten(self, ep):
         import time as _t
         t0 = _t.time()
         try:
@@ -200,6 +255,7 @@ class Sitzung:
             # geschrieben wird. Nur bis dahin zaehlt die gefuehlte Latenz.
             t1 = _t.time(); erster = True
             werkzeug_gerufen = False
+            self.web_benutzt = False
             async for e in llm.antwort_mit_werkzeugen(
                     text, self.verlauf, WERKZEUGE, self.werkzeug,
                     system=self.system_prompt()):
@@ -223,6 +279,28 @@ class Sitzung:
             # Prompt half, aber darauf allein darf sich das nicht stuetzen --
             # wer glaubt, es werde nicht mehr aufgezeichnet, muss recht haben.
             antwort = " ".join(ganze)
+
+            # Angekuendigt statt getan: Suche nachholen und erneut antworten.
+            if not werkzeug_gerufen and _ANGEKUENDIGT.search(antwort):
+                log.info("  Nachschlagen angekündigt — hole die Suche nach")
+                ergebnis = await self.werkzeug("dokumente_suchen", {"frage": text})
+                verlauf2 = list(self.verlauf) + [
+                    {"role": "user", "content": text},
+                    {"role": "assistant", "content": antwort},
+                    {"role": "user", "content":
+                     f"Das steht in den Unterlagen:\n{ergebnis}\n\n"
+                     f"Beantworte damit jetzt: {text}"}]
+                nach = []
+                async for satz in llm.antwort_saetze("", verlauf2[:-1] + [verlauf2[-1]],
+                                                     max_tokens=200):
+                    nach.append(satz)
+                    await self.ws.send(json.dumps({"typ": "text",
+                                                   "rolle": "assistent", "text": satz}))
+                    await self.sag(satz)
+                ganze += nach
+                antwort = " ".join(ganze)
+                werkzeug_gerufen = True
+
             if not werkzeug_gerufen and _BEHAUPTUNG.search(antwort):
                 log.warning("Behauptung ohne Werkzeugaufruf — hole ihn nach")
                 args = await llm.erzwinge_werkzeug(text, self.verlauf, WERKZEUGE,
@@ -262,7 +340,7 @@ class Sitzung:
         """Der Zustand gehoert in den Prompt, nicht in ein Werkzeug: sonst
         fragt das Modell erst nach, ob aufgezeichnet wird, bevor es handelt."""
         lauft = "läuft gerade" if HALTER.z.aufnahme else "läuft gerade nicht"
-        return (konfig.SYSTEM_PROMPT +
+        return (konfig.SYSTEM_PROMPT + " " + konfig.WISSEN_PROMPT +
                 f" Die Audioaufzeichnung des Laborgesprächs {lauft}. "
                 "Willst du daran etwas ändern, MUSST du das Werkzeug 'aufzeichnung' "
                 "aufrufen. Behaupte niemals eine Änderung, die du nicht über das "
@@ -271,6 +349,30 @@ class Sitzung:
 
     async def werkzeug(self, name: str, args: dict) -> str:
         """Fuehrt einen Werkzeugaufruf aus. Rueckgabe geht ans Modell zurueck."""
+        if name == "dokumente_suchen":
+            frage = str(args.get("frage", ""))
+            treffer = await asyncio.to_thread(wissen_index.suchen, frage, 4)
+            if not treffer:
+                return ("Nichts in den Unterlagen gefunden. Sag das offen, statt zu "
+                        "raten.")
+            teile = []
+            for t in treffer:
+                # Quelle mitgeben, damit das Modell zitieren kann statt zu behaupten.
+                teile.append(f"[{t.quelle} — {t.titel}, Abschnitt: {t.ueberschrift}]\n"
+                             f"{t.text[:700]}")
+            return "\n\n".join(teile)
+
+        if name == "web_suchen":
+            if not konfig.WEB_SUCHE:
+                return "Websuche ist abgeschaltet."
+            treffer = await wissen_web.suchen(str(args.get("frage", "")))
+            if not treffer:
+                return "Die Websuche hat nichts geliefert."
+            self.web_benutzt = True
+            return "\n\n".join(
+                f"[Web: {t['titel']}]\n{t['text']}\nQuelle: {t['url']}"
+                for t in treffer)
+
         if name != "aufzeichnung":
             return f"Unbekanntes Werkzeug {name}."
         an = bool(args.get("an"))

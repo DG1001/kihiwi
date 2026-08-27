@@ -49,10 +49,14 @@ def erkannt(text: str) -> tuple[bool, str]:
             if len(k.split()) == n and \
                     difflib.SequenceMatcher(None, vorn, k).ratio() >= konfig.AKTIVIERUNG_MIN:
                 return True
-            # Zusammengezogen nur gegen einwortige Kandidaten: faengt ein
-            # zerlegtes "Hi Wi" ab, ohne beliebige Wortpaare zuzulassen.
-            if len(k.split()) == 1 and n > 1 and \
-                    difflib.SequenceMatcher(None, eng, k).ratio() >= konfig.AKTIVIERUNG_MIN:
+            # Zusammengezogen nur, wenn ALLE Teile kurz sind. Die Zusammen-
+            # ziehung ist fuer ein von der Erkennung zerlegtes Wort gedacht
+            # ("Ki Wi"), nicht fuer beliebige Wortpaare: sonst wird aus
+            # "Kiwi, wie ..." das "wie" mitverschluckt, weil "kiwiwie" auf
+            # die Variante "kiwie" passt.
+            if (len(k.split()) == 1 and n > 1
+                    and all(len(x) <= 3 for x in vorn.split())
+                    and difflib.SequenceMatcher(None, eng, k).ratio() >= konfig.AKTIVIERUNG_MIN):
                 return True
         return False
 

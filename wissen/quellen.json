@@ -1,0 +1,31 @@
+{
+  "_hinweis": "Quellen des Laborwissens. 'aktiv': false schaltet eine Quelle ab, ohne sie zu löschen.",
+  "quellen": [
+    {
+      "name": "kihiwi",
+      "art": "lokal",
+      "aktiv": true,
+      "pfad": "~/Developer/github.com/kihiwi",
+      "muster": ["*.md"],
+      "aus": ["aufnahmen", "logs", ".venv", "wissen"]
+    },
+    {
+      "name": "labor-github",
+      "art": "git",
+      "aktiv": false,
+      "_todo": "URL des privaten Repos eintragen, dann aktiv:true. gh ist als DG1001 angemeldet.",
+      "url": "https://github.com/DG1001/BEISPIEL.git",
+      "web": "https://github.com/DG1001/BEISPIEL",
+      "muster": ["*.md", "*.pdf", "*.txt"]
+    },
+    {
+      "name": "nextcloud",
+      "art": "nextcloud",
+      "aktiv": false,
+      "_todo": "URL und Nutzer eintragen, App-Passwort in $KIHIWI_NC_PASS ablegen, dann aktiv:true.",
+      "url": "https://BEISPIEL/remote.php/dav/files/NUTZER/Labor",
+      "nutzer": "NUTZER",
+      "passwort_env": "KIHIWI_NC_PASS"
+    }
+  ]
+}

@@ -396,6 +396,37 @@ dem Siliziumnitrid-Fenster kam „durchlässig für Röntgenstrahlen" und einmal
 offene Baustelle — sie braucht Anbindung an echte Dokumente, nicht mehr
 Modellgröße.
 
+### Wissensanbindung: Unterlagen und Websuche
+
+Quellen (lokal, Git, Nextcloud) in einen FTS5-Index, dazu SearXNG als Websuche,
+beides als Werkzeuge am Assistenten.
+
+**Entscheidung gegen Embeddings.** SQLite FTS5 ist in Python eingebaut, braucht
+kein Modell, keinen GPU-Speicher und keinen Dienst. Für Fachtexte ist
+Stichwortsuche stark. Semantik wäre der nächste Schritt, nicht der erste.
+
+**Der Nutzen ist belegt.** Im direkten Test beantwortet das Modell Fragen aus
+den Unterlagen mit Zahlen und Quelle — und sagt bei „Wie dick ist unser
+Siliziumnitrid-Fenster?" jetzt „keine belastbare Angabe gefunden", statt wie
+vorher 1 oder 3 Mikrometer zu erfinden. Genau dafür war das gedacht.
+
+**Ein langer Fehlschlag unterwegs.** Nach dem Einbau blieb der Dienst stumm
+stehen: keine Antwort, keine Fehlermeldung, die Anfrage nicht einmal im
+vLLM-Protokoll. Die Diagnose hat lange gedauert, und ich habe dabei mehrere
+falsche Fährten verfolgt (Imports, SQLite-Sperre, die Endpoint-Prüfung, den
+Thread-Pool). Erst eine saubere Halbierung brachte es: **mit einem Werkzeug lief
+es, mit dreien nicht** — vLLMs Streaming-Parser für Werkzeugaufrufe. Umgangen,
+indem die Werkzeugrunde ungestreamt läuft.
+
+**Lehre daraus:** Ich hätte viel früher halbieren sollen, statt Hypothesen
+einzeln durchzuprobieren. Und: `_strom` verschluckte Ausnahmen stillschweigend
+(`except ...: pass`) — dieser blinde Fleck hat die Suche zusätzlich verlängert.
+Jetzt wird protokolliert.
+
+**Zwei Mängel bleiben offen**, siehe technisch.md: das Modell ruft die Suche im
+Sprachpfad oft nicht auf (der kurze Sprechstil verdrängt den Werkzeugaufruf),
+und das dagegen eingebaute Nachfassen greift aus ungeklärtem Grund nicht.
+
 ### Offen
 
 - Autostart (systemd-Units) — bewusst zurückgestellt.

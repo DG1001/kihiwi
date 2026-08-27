@@ -168,6 +168,53 @@ Beimischung nur beim Schreiben eines Mikrofonblocks abgebaut wird. Ein echter
 Client streamt durchgehend; stockt er doch, verwirft `MAX_STAU_S` (4 s) den
 Überhang, statt ihn später über eine fremde Stelle zu legen.
 
+## Wissensanbindung
+
+`wissen/` — Volltextindex über die Unterlagen plus Websuche, als Werkzeuge am
+Assistenten.
+
+    ./dienste.sh wissen einlesen        alle Quellen einlesen
+    ./dienste.sh wissen status          was im Index liegt
+    ./dienste.sh wissen suchen ...      Volltextsuche
+    ./dienste.sh wissen web ...         SearXNG
+
+**SQLite FTS5, kein Vektorindex.** Eingebaut in Python, kein Embedding-Modell,
+kein GPU-Speicher (den Ornith belegt), kein zusätzlicher Dienst. Für Fachtexte
+ist Stichwortsuche stark — gefragt wird nach „Siliziumnitrid", „JEOL",
+Typbezeichnungen. Semantische Suche wäre der nächste Schritt, nicht der erste.
+
+Quellen in `wissen/quellen.json`: `lokal` (Ordner), `git` (klont/pullt nach
+`wissen/repos/`), `nextcloud` (WebDAV, **nur lesend**: PROPFIND und GET, kein
+PUT). Zugangsdaten für Nextcloud über `$KIHIWI_NC_PASS`, nicht in der Datei.
+
+**Die Websuche ist die einzige Stelle, an der etwas das Netz verlässt.** Über
+`konfig.WEB_SUCHE` abschaltbar. Zu bedenken: die Suchanfrage enthält, wonach im
+Labor gefragt wurde. Audio und Unterlagen verlassen die Maschine nicht, die
+Frage schon.
+
+**Suchen darf niemals schreiben** (`index.lesen()` statt `verbinden()`):
+`verbinden()` legt das Schema an und nimmt dabei eine Schreibsperre.
+
+### Offene Mängel (Stand 27.08.2026)
+
+1. **vLLMs Streaming-Parser für Werkzeugaufrufe verträgt die größere
+   Werkzeugliste nicht.** Mit einem Werkzeug lief er, mit dreien blieb die
+   Antwort komplett aus — ohne Fehler, und die Anfrage tauchte nicht einmal im
+   vLLM-Protokoll auf. Durch Halbierung belegt. **Umgehung:** die Werkzeugrunde
+   läuft ungestreamt (`llm._einmal`), nur die Schlussantwort wird gestreamt.
+   Das kostet in der ersten Runde einen zweiten Durchlauf.
+2. **Das Modell ruft `dokumente_suchen` im Sprachpfad oft nicht auf**, sondern
+   kündigt nur an: „Ich muss das in den Unterlagen nachsehen." Im direkten Test
+   (ohne Sprech-Prompt) ruft es zuverlässig auf — der kurze Sprechstil
+   („höchstens zwei Sätze") verdrängt den Werkzeugaufruf. Ein eingebautes
+   Nachfassen (`_ANGEKUENDIGT` in `gateway.py`) **greift nicht**, und warum, ist
+   ungeklärt: der Code steht an der richtigen Stelle, die Bedingung trifft im
+   Test zu, aber die Protokollzeile erscheint nie. **Ungelöst.**
+
+Belegt funktioniert die Anbindung im direkten Test: auf „Wie dick ist unser
+Siliziumnitrid-Fenster?" antwortet das Modell mit Suche „Ich habe keine
+belastbare Angabe gefunden" statt wie vorher eine Zahl zu erfinden.
+
 ## Dokumentationspfad
 
 `sprachdienst/protokoll.py`, Aufruf über `./dienste.sh protokoll [sitzung …] [--neu]`.

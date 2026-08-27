@@ -46,7 +46,10 @@ P_FERTIG_SCHWELLE = 0.1
 # "Hiwi" und "Kiwi" trennt EIN Buchstabe (Verhaeltnis 0,75), und im
 # Hochschulumfeld faellt "Hiwi" staendig. Eine lockerere Schwelle wuerde jede
 # Erwaehnung zur Ansprache machen.
-AKTIVIERUNG = ["kiwi", "kivi", "kiwie", "kiwi kiwi", "hey kiwi"]
+# "kiwi kiwi" war eine spekulative Variante und schadete: sie traf auf
+# "Kiwi, wie ..." (Aehnlichkeit 0,82) und schnitt zwei Woerter ab statt einem.
+# Varianten nur aufnehmen, wenn sie belegt sind.
+AKTIVIERUNG = ["kiwi", "kivi", "kiwie", "hey kiwi"]
 AKTIVIERUNG_MIN = 0.80   # unscharf, aber nicht zu lose: bei 0,75 galt
                          # schon "Der Hiwi ..." als Ansprache
 
@@ -59,6 +62,29 @@ GESPRAECH_MAX_WOERTER = 5      # laenger ist keine Verabschiedung, sondern eine 
 # Ohne Zeitgrenze wuerde der Assistent im Labor auf jedes Gespraech reagieren,
 # wenn jemand vergisst, sich zu verabschieden.
 GESPRAECH_STILLE_S = 45
+
+# Der Kern gegen erfundene Fachaussagen: das Modell weiss ueber dieses Labor
+# nichts und darf so tun, als wuesste es etwas. Ohne diese Anweisung kamen auf
+# die Frage nach dem Siliziumnitrid-Fenster "durchlaessig fuer Roentgenstrahlen"
+# und zwei verschiedene Dicken.
+WISSEN_PROMPT = (
+    "Für Fragen zu Geräten, Messwerten, Verfahren, Projekten oder früheren "
+    "Arbeiten rufst du ZUERST 'dokumente_suchen' auf. Antworte nur mit dem, was "
+    "die Unterlagen hergeben, und nenne die Quelle. Findest du nichts, sag das "
+    "offen — erfinde keine Zahlen, Materialeigenschaften oder Gerätedaten. "
+    "'web_suchen' nur für allgemeines Fachwissen, das nicht in den Unterlagen "
+    "steht; sag dann ausdrücklich dazu, dass es aus dem Internet stammt."
+)
+
+# --- Wissen -----------------------------------------------------------------
+SEARXNG = os.environ.get("KIHIWI_SEARXNG", "http://127.0.0.1:8088")
+# Einzeln abschaltbar: die Websuche ist die EINZIGE Stelle, an der etwas das
+# Netz verlaesst. Alles andere laeuft lokal.
+WEB_SUCHE = os.environ.get("KIHIWI_WEB", "1") not in ("0", "aus", "nein")
+
+# Hartes Zeitlimit fuer einen Antwortlauf inklusive Werkzeugen. vLLM haengt
+# sich gelegentlich auf; ohne Grenze bleibt der Assistent stumm stehen.
+ANTWORT_MAX_S = 45
 
 # --- Dateien ----------------------------------------------------------------
 AUFNAHMEN  = Path(os.environ.get("KIHIWI_AUFNAHMEN", WURZEL / "aufnahmen"))

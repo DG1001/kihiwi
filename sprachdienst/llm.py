@@ -5,8 +5,10 @@ Modell-Pruefstand; jedes `model-switch` nimmt dem Assistenten fuer ein bis zwei
 Minuten das Gehirn. Der Dienst muss das aushalten, ohne stumm zu werden --
 Aufzeichnung und Transkription laufen weiter, der Monitor zeigt es an.
 """
-import asyncio, json, re, threading, urllib.error, urllib.request
+import asyncio, json, logging, re, threading, urllib.error, urllib.request
 from . import konfig
+
+log = logging.getLogger("kihiwi.llm")
 
 # Satzende: Punkt/Frage/Ausruf gefolgt von Leerraum oder Textende. Die
 # Abkuerzungen davor abzufangen lohnt nicht -- ein zu frueh geschnittener Satz
@@ -17,6 +19,7 @@ _SATZENDE = re.compile(r'(?<=[.!?])\s+')
 # sein, die folgenden duerfen ganze Saetze bleiben. Gemessen kostete ein
 # 96-Zeichen-Satz 346 ms im LLM plus 268 ms im TTS, bevor der erste Ton kam.
 _TEILSATZ = re.compile(r'(?<=[,;:—–])\s+')
+_WERKZEUG_ROH = re.compile(r'<tool_call>\s*(.*?)\s*</tool_call>', re.S)
 ERSTER_MIN = 25          # kuerzer klingt abgehackt
 ERSTER_MAX = 60          # laenger kostet unnoetig Zeit
 
@@ -49,8 +52,18 @@ def _strom(nachrichten, max_tokens, temperatur, schieb, werkzeuge=None):
             d = delta.get("content")
             if d:
                 schieb(("text", d))
-    except (urllib.error.URLError, OSError, TimeoutError, KeyError, json.JSONDecodeError):
-        pass
+    except urllib.error.HTTPError as e:
+        # Stillschweigend zu scheitern hat schon einmal eine halbe Stunde
+        # gekostet: der Dienst antwortete einfach nicht mehr.
+        try:
+            log.error("vLLM %s: %s", e.code, e.read().decode()[:400])
+        except Exception:
+            log.error("vLLM %s", e.code)
+    except (urllib.error.URLError, OSError, TimeoutError, KeyError,
+            json.JSONDecodeError) as e:
+        log.error("LLM-Strom abgebrochen: %r", e)
+    except BaseException as e:
+        log.exception("LLM-Strom unerwartet: %r", e)
     finally:
         schieb(None)
 
@@ -192,6 +205,36 @@ class _Teiler:
         return r
 
 
+def _einmal(nachrichten, max_tokens, temperatur, werkzeuge, timeout=60):
+    """Eine Runde OHNE Streaming. Gibt (text, rufe) zurueck.
+
+    Der Streaming-Pfad von vLLM stellt sich mit mehreren Werkzeugen tot: mit
+    einem Werkzeug lief er, mit dreien blieb die Antwort komplett aus, ohne
+    Fehler und ohne dass die Anfrage im vLLM-Protokoll auftauchte. Halbierung
+    am 27.08.2026 belegt. Der ungestreamte Pfad ist davon nicht betroffen.
+    """
+    rumpf = {"model": konfig.LLM_MODEL, "max_tokens": max_tokens,
+             "temperature": temperatur, "messages": nachrichten}
+    if werkzeuge:
+        rumpf["tools"] = werkzeuge
+        rumpf["tool_choice"] = "auto"
+    req = urllib.request.Request(
+        f"{konfig.LLM_URL}/chat/completions", data=json.dumps(rumpf).encode(),
+        headers={"Content-Type": "application/json"})
+    a = json.load(urllib.request.urlopen(req, timeout=timeout))
+    m = a["choices"][0]["message"]
+    text = m.get("content") or ""
+    rufe = m.get("tool_calls") or []
+    # Der Parser laesst gelegentlich seine Rohmarkierung im Text stehen. Ohne
+    # das Herausschneiden spricht der Assistent woertlich "tool call" aus.
+    # Der Parser laesst seine Rohmarkierung gelegentlich im Text stehen; ohne
+    # Herausschneiden spricht der Assistent woertlich "tool call" aus. Nur
+    # entfernen, nicht daraus Aufrufe rekonstruieren -- ein Versuch, das zu
+    # bergen, hat die Werkzeugschleife zum Haengen gebracht.
+    text = _WERKZEUG_ROH.sub("", text).strip()
+    return text, rufe
+
+
 async def antwort_mit_werkzeugen(frage: str, verlauf, werkzeuge, ausfuehren,
                                  system: str | None = None,
                                  max_tokens: int = 200, runden: int = 3):
@@ -209,56 +252,43 @@ async def antwort_mit_werkzeugen(frage: str, verlauf, werkzeuge, ausfuehren,
     nachrichten += list(verlauf or [])
     nachrichten.append({"role": "user", "content": frage})
 
-    for _ in range(runden):
-        schleife = asyncio.get_running_loop()
-        q: asyncio.Queue = asyncio.Queue()
-        schieb = lambda x: schleife.call_soon_threadsafe(q.put_nowait, x)
-        threading.Thread(target=_strom,
-                         args=(nachrichten, max_tokens, 0.3, schieb, werkzeuge),
-                         daemon=True).start()
-
-        teiler = _Teiler()
-        gesagt: list[str] = []
-        rufe: dict[int, dict] = {}
-        while True:
-            posten = await q.get()
-            if posten is None:
-                break
-            if posten[0] == "werkzeug":
-                w = posten[1]
-                e = rufe.setdefault(w.get("index", 0), {"id": "", "name": "", "args": ""})
-                if w.get("id"):
-                    e["id"] = w["id"]
-                f = w.get("function") or {}
-                if f.get("name"):
-                    e["name"] = f["name"]
-                if f.get("arguments"):
-                    e["args"] += f["arguments"]
-                continue
-            for satz in teiler.dazu(posten[1]):
-                gesagt.append(satz)
-                yield ("satz", satz)
-        rest = teiler.rest()
-        if rest:
-            gesagt.append(rest)
-            yield ("satz", rest)
-
-        if not rufe:
+    for runde in range(runden):
+        try:
+            text, rufe = await asyncio.to_thread(
+                _einmal, nachrichten, max_tokens, 0.3, werkzeuge)
+        except Exception as e:
+            log.error("Werkzeugrunde gescheitert: %r", e)
             return
 
-        nachrichten.append({
-            "role": "assistant", "content": " ".join(gesagt),
-            "tool_calls": [{"id": e["id"] or f"ruf{i}", "type": "function",
-                            "function": {"name": e["name"], "arguments": e["args"] or "{}"}}
-                           for i, e in rufe.items()]})
-        for i, e in rufe.items():
+        if not rufe:
+            # Schlussantwort gestreamt, damit die Sprachausgabe beim ersten
+            # Teilsatz beginnt. Kostet in der ersten Runde einen zweiten
+            # Durchlauf -- ohne Streaming wartet der Nutzer laenger auf den
+            # ersten Ton, und das faellt mehr auf als die Rechenzeit.
+            if runde == 0:
+                async for satz in _saetze(nachrichten, max_tokens, 0.3):
+                    yield ("satz", satz)
+            else:
+                teiler = _Teiler()
+                for satz in teiler.dazu(text):
+                    yield ("satz", satz)
+                rest = teiler.rest()
+                if rest:
+                    yield ("satz", rest)
+            return
+
+        nachrichten.append({"role": "assistant", "content": text or "",
+                            "tool_calls": rufe})
+        for i, r in enumerate(rufe):
+            f = r.get("function") or {}
             try:
-                args = json.loads(e["args"] or "{}")
+                args = json.loads(f.get("arguments") or "{}")
             except json.JSONDecodeError:
                 args = {}
-            ergebnis = await ausfuehren(e["name"], args)
-            yield ("werkzeug", e["name"], args, ergebnis)
-            nachrichten.append({"role": "tool", "tool_call_id": e["id"] or f"ruf{i}",
+            ergebnis = await ausfuehren(f.get("name", ""), args)
+            yield ("werkzeug", f.get("name", ""), args, ergebnis)
+            nachrichten.append({"role": "tool",
+                                "tool_call_id": r.get("id") or f"ruf{i}",
                                 "content": str(ergebnis)})
 
 
