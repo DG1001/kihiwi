@@ -59,6 +59,17 @@ async def gesundheit():
 # Kuendigt die Antwort ein Nachschlagen an, ohne dass gesucht wurde? Dasselbe
 # Muster wie bei der Aufzeichnung: das Modell sagt, was es tun wird, statt es
 # zu tun. Der kurze Sprech-Prompt ("hoechstens zwei Saetze") verstaerkt das.
+# Verspricht die Antwort einen Rechercheauftrag, ohne dass einer gestellt wurde?
+# Zwei Bedingungen statt einer Wortfolge: "Ich gebe die Recherche ab" und
+# "Die Recherche gebe ich ab" sollen beide treffen.
+_R_THEMA = re.compile(r"recherche|rechercheauftrag|rechercheagent", re.I)
+_R_ZUSAGE = re.compile(r"abgeb|abgegeben|übergeb|beauftrag|gestartet|läuft|"
+                       r"gebe .{0,40}?ab\b|melde mich", re.I)
+
+
+def _recherche_versprochen(text: str) -> bool:
+    return bool(_R_THEMA.search(text) and _R_ZUSAGE.search(text))
+
 _ANGEKUENDIGT = re.compile(
     r"(schaue?|sehe?|gucke?|pruefe?|prüfe?)[^.]{0,30}"
     r"(nach|unterlagen|dokument)|(unterlagen|dokumenten)[^.]{0,20}(nachsehen|nachschauen)",
@@ -332,6 +343,7 @@ class Sitzung:
             # geschrieben wird. Nur bis dahin zaehlt die gefuehlte Latenz.
             t1 = _t.time(); erster = True
             werkzeug_gerufen = False
+            gerufene: set[str] = set()
             self.web_benutzt = False
             async for e in llm.antwort_mit_werkzeugen(
                     text, self.verlauf, WERKZEUGE, self.werkzeug,
@@ -346,6 +358,7 @@ class Sitzung:
                     continue
                 if e[0] == "werkzeug":
                     werkzeug_gerufen = True
+                    gerufene.add(e[1])
                     log.info("  Werkzeug %s%r -> %s", e[1], e[2], e[3])
                     await self.ws.send(json.dumps({"typ": "werkzeug", "name": e[1],
                                                    "args": e[2], "ergebnis": e[3]}))
@@ -365,8 +378,33 @@ class Sitzung:
             # wer glaubt, es werde nicht mehr aufgezeichnet, muss recht haben.
             antwort = " ".join(ganze)
 
+            # Rechercheauftrag versprochen, aber nicht gestellt: nachholen.
+            # Sonst wartet der Nutzer auf ein Ergebnis, das nie kommt --
+            # dieselbe Fehlerart wie bei der Aufzeichnung, nur mit laengerer
+            # Wirkung, weil man Minuten lang nichts merkt.
+            if ("rechercheauftrag" not in gerufene
+                    and not RECHERCHE.beschaeftigt
+                    and _recherche_versprochen(antwort)):
+                log.warning("Recherche versprochen ohne Auftrag — hole ihn nach")
+                args = await llm.erzwinge_werkzeug(text, self.verlauf, WERKZEUGE,
+                                                   "rechercheauftrag",
+                                                   system=self.system_prompt())
+                frage = (args or {}).get("frage") or text
+                ergebnis = await self.werkzeug("rechercheauftrag", {"frage": frage})
+                log.info("  nachgeholt: rechercheauftrag -> %s", ergebnis[:60])
+                await self.ws.send(json.dumps({"typ": "werkzeug",
+                                               "name": "rechercheauftrag",
+                                               "args": {"frage": frage},
+                                               "ergebnis": ergebnis,
+                                               "nachgeholt": True}))
+                gerufene.add("rechercheauftrag")
+
             # Angekuendigt statt getan: Suche nachholen und erneut antworten.
-            if not werkzeug_gerufen and _ANGEKUENDIGT.search(antwort):
+            # Je Werkzeug pruefen, nicht global -- das Modell ruft oft EIN
+            # Werkzeug und kuendigt zusaetzlich ein anderes an. Genau daran
+            # scheiterte diese Pruefung vorher stumm.
+            if ("dokumente_suchen" not in gerufene
+                    and _ANGEKUENDIGT.search(antwort)):
                 log.info("  Nachschlagen angekündigt — hole die Suche nach")
                 ergebnis = await self.werkzeug("dokumente_suchen", {"frage": text})
                 verlauf2 = list(self.verlauf) + [
