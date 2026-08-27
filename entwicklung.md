@@ -185,6 +185,27 @@ Ende und kann nicht mehr hängen. Beenden dauert jetzt 17 ms.
 **Warum das zählt:** Nicht nur lästig — ein Dienst, der sich nicht sauber beenden
 lässt, ist auch für systemd-Units untauglich, und die stehen noch an.
 
+### Problem: `dienste.sh` hing beim Starten — aber nur durch eine Pipe
+
+Mehrfach lief `./dienste.sh neustart` in die Zeitüberschreitung, während
+dasselbe mit Umleitung in eine Datei in Sekunden durchlief. Zwei falsche Fährten
+verfolgt (stdin nicht abgeklemmt, dann `setsid` ohne `--fork`), bevor die
+Diagnose kam: nachsehen, wer die Pipe offen hält.
+
+`sed` wartete auf Eingabe, die Schreibseite hielten zwei `bash ./dienste.sh` —
+beide im Zustand `do_wait`, mit whisper-server bzw. dem Gateway als **eigenem
+Kind**. Das Skript war also nicht fertig, es wartete auf die Dienste.
+
+**Ursache:** `setsid` forkt nur, wenn der Aufrufer bereits Prozessgruppenführer
+ist. Im Hintergrundjob einer nicht-interaktiven Shell ist er das nicht, also
+ersetzte sich `setsid` selbst und der Dienst blieb direktes Kind der Shell.
+**Fix:** `setsid --fork`, das immer forkt. Der Dienst wird an init durchgereicht,
+die Shell hat nichts mehr zu warten. 2 s statt Zeitüberschreitung.
+
+**Lehre:** Der Unterschied Datei/Pipe war der entscheidende Hinweis und ich habe
+ihn zweimal übergangen. Bei „hängt manchmal" lohnt es, sofort nachzusehen, wer
+den Deskriptor hält, statt plausible Ursachen der Reihe nach auszuprobieren.
+
 ### Problem: Seiten kamen als Quelltext an
 
 `respond()` aus websockets setzt `Content-Type: text/plain`. Fiel nicht auf, weil

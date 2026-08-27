@@ -84,9 +84,11 @@ start_whisper() {
     [ -x "$WHISPER/build/bin/whisper-server" ] || { fehl "whisper-server fehlt — erst bauen"; return 1; }
     [ -f "$MODELL" ] || { fehl "Modell fehlt: $MODELL"; return 1; }
     info "starte whisper-server"
-    # < /dev/null ist nicht kosmetisch: ohne das erbt der Dienst stdin, und die
-    # aufrufende Shell wartet auf ihn, obwohl er laengst laeuft.
-    ( cd "$WHISPER" && nohup ./build/bin/whisper-server \
+    # setsid --fork, nicht bloss setsid: ohne --fork forkt setsid nicht, der
+    # Dienst bleibt direktes Kind dieser Shell, und die haengt danach in
+    # do_wait auf ihn. Mit --fork wird er an init durchgereicht und die Shell
+    # ist sofort fertig. </dev/null klemmt zusaetzlich stdin ab.
+    ( cd "$WHISPER" && setsid --fork nohup ./build/bin/whisper-server \
         -m "$MODELL" --host 127.0.0.1 --port $P_WHISPER -l de -t 8 \
         </dev/null >"$LOGS/whisper.log" 2>&1 & )
     warte 60 bereit_whisper && ok "whisper-server bereit (:$P_WHISPER)" \
@@ -97,7 +99,7 @@ start_sprach() {
     if belegt $P_SPRACH; then ok "Sprachdienst laeuft bereits (:$P_SPRACH)"; return 0; fi
     [ -x "$VENV" ] || { fehl "venv fehlt: $VENV"; return 1; }
     info "starte Sprachdienst"
-    ( cd "$WURZEL" && nohup "$VENV" -m sprachdienst.gateway \
+    ( cd "$WURZEL" && setsid --fork nohup "$VENV" -m sprachdienst.gateway \
         </dev/null >"$LOGS/sprach.log" 2>&1 & )
     warte 30 bereit_sprach && ok "Sprachdienst bereit (:$P_SPRACH)" \
         || { fehl "Sprachdienst kam nicht hoch, siehe $LOGS/sprach.log"; return 1; }

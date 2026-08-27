@@ -213,9 +213,12 @@ Transkript weiterverwendet und das STT im Antwortpfad übersprungen** (0 ms stat
   Beenden **120 Sekunden** auf solche Threads. Richtig herum: der Thread
   *schiebt* per `loop.call_soon_threadsafe` in eine `asyncio.Queue`. Danach
   beendet sich der Dienst in 17 ms statt in zwei Minuten.
-- **Gestartete Dienste brauchen `< /dev/null`.** Sonst erbt der Hintergrund-
-  prozess stdin, und die aufrufende Shell wartet auf ihn, obwohl der Dienst
-  längst läuft.
+- **Dienste mit `setsid --fork nohup … < /dev/null` starten.** `setsid` allein
+  genügt nicht: ohne `--fork` forkt es nicht, der Dienst bleibt direktes Kind
+  der aufrufenden Shell, und die hängt danach in `do_wait` auf ihm. Sichtbar
+  wurde das nur beim Aufruf durch eine Pipe (`./dienste.sh neustart | tail`) —
+  mit Umleitung in eine Datei fiel es nicht auf. Mit `--fork` wird der Dienst an
+  init durchgereicht, der Aufruf ist in 2 s durch statt nach 120 s abgebrochen.
 - **`pkill -f` erwischt die eigene Shell**, wenn das Muster in deren
   Kommandozeile steht. Über den Port gehen:
   `ss -tlnpH "sport = :8920" | grep -oP 'pid=\K[0-9]+'`.
