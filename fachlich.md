@@ -10,7 +10,9 @@ Rechenarbeit läuft auf dem GX10 im Serverraum, verbunden übers Netz.
 ausdrücklich aktiviert. Daraus entstehen Transkripte und strukturierte Protokolle.
 
 **Dialog.** Der Assistent wird mit dem Aktivierungswort **„Kiwi"** oder per Taste
-angesprochen — „Kiwi, starte die Aufzeichnung". Er
+angesprochen — „Kiwi, starte die Aufzeichnung". Danach bleibt das Gespräch
+offen: Rückfragen brauchen kein Aktivierungswort mehr, bis „Danke, Kiwi" fällt
+oder 45 Sekunden nichts kommt. Er
 beantwortet Fragen und nimmt Anweisungen entgegen. Die Antwort kommt als Sprache
 über den Freisprecher; ergänzend kann der Assistent Inhalte auf dem Monitor
 anzeigen.

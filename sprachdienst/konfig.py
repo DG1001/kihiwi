@@ -50,6 +50,16 @@ AKTIVIERUNG = ["kiwi", "kivi", "kiwie", "kiwi kiwi", "hey kiwi"]
 AKTIVIERUNG_MIN = 0.80   # unscharf, aber nicht zu lose: bei 0,75 galt
                          # schon "Der Hiwi ..." als Ansprache
 
+# Nach einer Ansprache bleibt das Gespraech offen: Rueckfragen brauchen kein
+# Aktivierungswort mehr. Beendet wird es ausdruecklich ("Danke, Kiwi") oder
+# nach Ablauf der Stille.
+GESPRAECH_ENDE = ["danke", "ende", "beenden", "schluss", "fertig", "das wars",
+                  "das war's", "tschuess", "tschüss", "aus"]
+GESPRAECH_MAX_WOERTER = 5      # laenger ist keine Verabschiedung, sondern eine Frage
+# Ohne Zeitgrenze wuerde der Assistent im Labor auf jedes Gespraech reagieren,
+# wenn jemand vergisst, sich zu verabschieden.
+GESPRAECH_STILLE_S = 45
+
 # --- Dateien ----------------------------------------------------------------
 AUFNAHMEN  = Path(os.environ.get("KIHIWI_AUFNAHMEN", WURZEL / "aufnahmen"))
 VAD_MODELL = WURZEL / "vad" / "silero_vad.onnx"

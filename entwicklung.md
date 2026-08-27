@@ -366,6 +366,36 @@ bleibt unter `-home-nutzer-Developer-github-com-aihiwi` liegen; neue Sitzungen
 bekommen ein neues Verzeichnis. Die dauerhaften Notizen sind davon nicht
 betroffen — sie liegen bewusst im Home-Scope.
 
+### Gesprächsmodus und Beimischung der Antworten
+
+Fred wollte zweierlei: „Kiwi" nur zum Eröffnen, danach Rückfragen ohne
+Aktivierungswort bis zu „Danke, Kiwi" — und die Zwiegespräche in der
+Aufzeichnung.
+
+**Beim Zweiten war die Hälfte schon erfüllt und die andere eine echte Lücke.**
+Die Fragen an Kiwi standen bereits im Mitschnitt, weil der Rekorder unabhängig
+von der Gesprächsphase läuft. Kiwis Antworten fehlten: sie gehen als TTS zum
+Lautsprecher, und genau die Echounterdrückung, die Barge-In erst möglich macht,
+hält sie aus dem Mikrofonsignal heraus. Gelöst durch Beimischung ins
+Mikrofonsignal — **gemischt, nicht angehängt**, sonst verschieben sich alle
+Zeitstempel.
+
+**Der Testclient hat dabei einen falschen Eindruck erzeugt.** Weil er zwischen
+den Äußerungen pausiert, staute sich die Beimischung und landete später über der
+nächsten Frage — im Transkript fehlte eine Frage. Mit durchgehendem Strom, wie
+ihn ein echter Client liefert, stimmt die Reihenfolge. Als Sicherung verwirft
+`MAX_STAU_S` den Überhang, wenn der Strom stockt.
+
+**Zeitgrenze für das Gespräch (45 s)** ist bewusst gesetzt: ohne sie reagierte
+der Assistent im Labor auf jedes Gespräch, sobald jemand vergisst, sich zu
+verabschieden.
+
+**Nebenbefund, unbehoben:** Das Modell erfindet Fachaussagen. Auf die Frage nach
+dem Siliziumnitrid-Fenster kam „durchlässig für Röntgenstrahlen" und einmal
+1 µm, einmal 3 µm Dicke. Für einen Laborassistenten ist das die eigentliche
+offene Baustelle — sie braucht Anbindung an echte Dokumente, nicht mehr
+Modellgröße.
+
 ### Offen
 
 - Autostart (systemd-Units) — bewusst zurückgestellt.

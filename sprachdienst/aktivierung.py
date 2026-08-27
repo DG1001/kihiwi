@@ -69,3 +69,25 @@ def erkannt(text: str) -> tuple[bool, str]:
                     rest = _WORT.sub("", rest, count=1)
                 return True, rest.lstrip(" ,.;:!?-–—").strip()
     return False, ""
+
+
+def ende(text: str) -> bool:
+    """Erkennt die Verabschiedung: "Danke, Kiwi", "Kiwi, Ende", "Kiwi, beenden".
+
+    Verlangt BEIDES -- das Aktivierungswort und ein Abschiedswort -- und einen
+    kurzen Satz. Sonst wuerde "Danke Kiwi, kannst du noch schauen ob ..." das
+    Gespraech mitten in der naechsten Frage beenden.
+    """
+    woerter = _WORT.findall(text)
+    if not woerter or len(woerter) > konfig.GESPRAECH_MAX_WOERTER:
+        return False
+    n = [_normal(w) for w in woerter]
+    hat_wort = any(
+        any(difflib.SequenceMatcher(None, w, _normal(k)).ratio() >= konfig.AKTIVIERUNG_MIN
+            for k in konfig.AKTIVIERUNG if " " not in k)
+        for w in n)
+    hat_ende = any(
+        any(difflib.SequenceMatcher(None, w, _normal(e)).ratio() >= 0.85
+            for e in konfig.GESPRAECH_ENDE)
+        for w in n)
+    return hat_wort and hat_ende

@@ -12,7 +12,7 @@ Protokoll auf /audio
                                     der vorangehenden "ton"-Nachricht)
 Auf /monitor liegt nur der Zustand -- fuer den Bildschirm im Labor.
 """
-import asyncio, http, json, logging, re, signal
+import asyncio, http, json, logging, re, signal, time
 import numpy as np
 import websockets
 from websockets.asyncio.server import serve
@@ -74,6 +74,7 @@ class Sitzung:
         self.rek = doku.Rekorder()
         self.verlauf: list[dict] = []
         self.antwort_task: asyncio.Task | None = None
+        self.letzte_ansprache = 0.0
 
     async def schliessen(self):
         self.rek.stop()
@@ -86,7 +87,7 @@ class Sitzung:
             an = bool(b.get("an"))
             HALTER.setzen(mikro=an, phase=Phase.BEREIT if an else Phase.LEERLAUF)
             if not an:
-                self.rek.stop(); HALTER.setzen(aufnahme=False)
+                self.rek.stop(); HALTER.setzen(aufnahme=False, gespraech=False)
                 self.turn.reset()
         elif art == "aufnahme":
             an = bool(b.get("an"))
@@ -122,20 +123,57 @@ class Sitzung:
 
             gerufen = HALTER.z.phase is Phase.HOEREN     # Knopf gedrueckt
             text = ep.text or await stt.transkribiere(ep.samples)
+            if not text.strip():
+                continue
+
             if not gerufen:
                 # Mikrofon offen: jede Aeusserung wird transkribiert, aber nur
-                # eine mit Aktivierungswort gilt als Ansprache. Der Text kostet
-                # nichts extra -- die lexikalische Endpoint-Pruefung hat ihn
-                # ohnehin schon erzeugt.
-                ja, rest = aktivierung.erkannt(text)
-                if not ja:
-                    continue
-                log.info("Aktivierungswort erkannt: %r", text[:60])
-                text = rest
+                # eine mit Aktivierungswort gilt als Ansprache -- ausser das
+                # Gespraech laeuft noch, dann genuegt Weitersprechen.
+                if self.im_gespraech():
+                    if aktivierung.ende(text):
+                        log.info("Gespräch beendet: %r", text[:40])
+                        await self.gespraech_beenden()
+                        continue
+                    # Ein vorangestelltes "Kiwi," stoert nicht, muss aber weg.
+                    ja, rest = aktivierung.erkannt(text)
+                    if ja:
+                        text = rest
+                else:
+                    ja, rest = aktivierung.erkannt(text)
+                    if not ja:
+                        continue
+                    log.info("Aktivierungswort erkannt: %r", text[:60])
+                    text = rest
+                    HALTER.setzen(gespraech=True)
+
+            self.letzte_ansprache = time.time()
+            if not text.strip():
+                # Nur gerufen, ohne Anweisung -- kurz quittieren statt das
+                # Modell mit einem leeren Satz zu behelligen.
+                HALTER.setzen(gespraech=True, phase=Phase.ANTWORTEN)
+                await self.sag("Ja?")
+                HALTER.setzen(phase=Phase.BEREIT)
+                continue
             ep.text = text
             log.info("Endpoint: %s nach %.0f ms Aeusserung", ep.grund, ep.dauer_ms)
             HALTER.setzen(phase=Phase.DENKEN)
             self.antwort_task = asyncio.create_task(self.antworten(ep))
+
+    def im_gespraech(self) -> bool:
+        """Laeuft das Gespraech noch? Die Stillegrenze ist keine Bequemlichkeit,
+        sondern noetig: ohne sie reagierte der Assistent im Labor auf jedes
+        Gespraech, sobald jemand vergisst, sich zu verabschieden."""
+        return (HALTER.z.gespraech
+                and time.time() - self.letzte_ansprache < konfig.GESPRAECH_STILLE_S)
+
+    async def gespraech_beenden(self, sagen: str | None = "Bis dann."):
+        HALTER.setzen(gespraech=False, phase=Phase.ANTWORTEN if sagen else Phase.BEREIT)
+        if sagen:
+            await self.ws.send(json.dumps({"typ": "text", "rolle": "assistent",
+                                           "text": sagen}))
+            await self.sag(sagen)
+            HALTER.setzen(phase=Phase.BEREIT if HALTER.z.mikro else Phase.LEERLAUF)
 
     async def antworten(self, ep):
         import time as _t
@@ -216,6 +254,7 @@ class Sitzung:
         except Exception as e:                      # pragma: no cover
             log.exception("Antwort fehlgeschlagen: %s", e)
         finally:
+            self.letzte_ansprache = time.time()
             if HALTER.z.phase in (Phase.DENKEN, Phase.ANTWORTEN):
                 HALTER.setzen(phase=Phase.BEREIT if HALTER.z.mikro else Phase.LEERLAUF)
 
@@ -256,6 +295,10 @@ class Sitzung:
                 await self.ws.send(json.dumps({"typ": "ton", "rate": rate}))
                 erster = False
             await self.ws.send(pcm)
+            # Antworten gehoeren in die Aufzeichnung -- sonst steht im
+            # Protokoll nur die Haelfte des Gesprächs.
+            if self.rek.laeuft:
+                self.rek.mische(pcm, rate)
         await self.ws.send(json.dumps({"typ": "ton_ende"}))
 
 
@@ -294,7 +337,8 @@ async def behandeln(ws):
     finally:
         senden.cancel()
         await s.schliessen()
-        HALTER.setzen(phase=Phase.LEERLAUF, mikro=False, aufnahme=False)
+        HALTER.setzen(phase=Phase.LEERLAUF, mikro=False, aufnahme=False,
+                      gespraech=False)
 
 
 async def http_seite(verbindung, anfrage):

@@ -54,7 +54,7 @@
 <script>
 const TEXTE = {
   leerlauf:  ["Mikrofon aus",        "Es wird nichts gehört."],
-  bereit:    ["Bereit",              "Wartet darauf, angesprochen zu werden."],
+  bereit:    ["Bereit",              "Sag „Kiwi“, um Kiwi anzusprechen."],
   hoeren:    ["Hört zu",             "Die Äußerung wird aufgenommen."],
   denken:    ["Denkt nach",          "Spracherkennung und Modell laufen."],
   antworten: ["Antwortet",           "Sprachausgabe läuft."],
@@ -71,7 +71,13 @@ function verbinden() {
     if (z.typ !== "zustand") return;
     $("balken").classList.toggle("an", z.aufnahme);
     $("balkentext").textContent = z.aufnahme ? "AUFZEICHNUNG LÄUFT" : "Keine Aufzeichnung";
-    const [t, d] = TEXTE[z.phase] || [z.phase, ""];
+    let [t, d] = TEXTE[z.phase] || [z.phase, ""];
+    // Im laufenden Gespräch braucht es kein Aktivierungswort mehr — das muss
+    // im Raum sichtbar sein, sonst weiß niemand, dass Kiwi mithört.
+    if (z.gespraech && z.phase === "bereit") {
+      t = "Im Gespräch";
+      d = "Rückfragen ohne „Kiwi“ möglich. Beenden mit „Danke, Kiwi“.";
+    }
     $("phase").firstChild.textContent = t;
     $("phasedetail").textContent = d;
     $("hinweis").textContent = z.hinweis || "";

@@ -151,6 +151,23 @@ Testen ohne Hardware:
 
     .venv/bin/python -m sprachdienst.klient_test testaudio/s3.wav [--aufnahme]
 
+### Die Antworten gehören in die Aufzeichnung
+
+Die Fragen an Kiwi landen ohnehin im Mitschnitt — der Rekorder läuft unabhängig
+von der Gesprächsphase. Kiwis **Antworten** aber nicht: die gehen als TTS direkt
+zum Lautsprecher, und die Echounterdrückung des Freisprechers hält sie aus dem
+Mikrofonsignal heraus. Im Protokoll stünde nur die halbe Unterhaltung.
+
+`Rekorder.mische()` legt die Sprachausgabe deshalb ins Mikrofonsignal —
+**gemischt, nicht angehängt**: Anhängen ließe die Datei schneller wachsen als
+die Zeit vergeht und verschöbe alle Zeitstempel. Pegel 0,6, damit nichts
+übersteuert.
+
+Das setzt einen **durchgehenden Audiostrom** vom Client voraus, weil die
+Beimischung nur beim Schreiben eines Mikrofonblocks abgebaut wird. Ein echter
+Client streamt durchgehend; stockt er doch, verwirft `MAX_STAU_S` (4 s) den
+Überhang, statt ihn später über eine fremde Stelle zu legen.
+
 ## Dokumentationspfad
 
 `sprachdienst/protokoll.py`, Aufruf über `./dienste.sh protokoll [sitzung …] [--neu]`.
@@ -239,6 +256,25 @@ Drei Dinge, die dabei zählen:
   `vokabular.txt` (in `stt._vokabular` erzwungen). Ohne das hörte die Erkennung
   aus „Kiwi, stoppe die Aufzeichnung" ein „TV stoppe die Aufzeichnung" — der
   Assistent war taub.
+
+### Gespräch statt Einzelbefehl
+
+Nach einer Ansprache bleibt das Gespräch offen: **Rückfragen brauchen kein
+Aktivierungswort mehr.** Beendet wird es durch
+
+- eine Verabschiedung — „Danke, Kiwi", „Kiwi, Ende", „Kiwi, beenden" —, erkannt
+  von `aktivierung.ende()`. Verlangt **beides**, Aktivierungswort und
+  Abschiedswort, und höchstens fünf Wörter; sonst würde „Danke Kiwi, kannst du
+  noch schauen ob …" mitten in der nächsten Frage abbrechen;
+- oder `GESPRAECH_STILLE_S` (45 s) ohne Ansprache. **Die Zeitgrenze ist keine
+  Bequemlichkeit:** ohne sie reagierte der Assistent auf jedes Laborgespräch,
+  sobald jemand vergisst, sich zu verabschieden.
+
+Der offene Gesprächszustand steht auf Monitor und Client — im Raum muss
+sichtbar sein, dass Kiwi ohne Zuruf mithört.
+
+Wird nur „Kiwi" gerufen, ohne Anweisung, quittiert der Dienst mit „Ja?", ohne
+das Modell zu bemühen.
 
 ### Werkzeuge
 

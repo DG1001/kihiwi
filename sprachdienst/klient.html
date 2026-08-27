@@ -59,8 +59,9 @@
 
 <p class="matt" id="hilfe" style="font-size:.85rem;margin-bottom:1rem">
   Sag <b>„Kiwi“</b> und dann deine Anweisung — „Kiwi, starte die Aufzeichnung“.
-  Der Knopf tut dasselbe ohne Aktivierungswort, nützlich wenn es laut ist.
-  Einmal drücken, dann sprechen; der Dienst erkennt selbst, wann du fertig bist.</p>
+  Danach bleibt das Gespräch offen: Rückfragen brauchen kein „Kiwi“ mehr, bis du
+  <b>„Danke, Kiwi“</b> sagst oder 45 Sekunden nichts kommt. Der Knopf tut dasselbe
+  ohne Aktivierungswort, nützlich wenn es laut ist.</p>
 
 <div id="leds">
   <span><span class="led" id="led-ws"></span>Verbindung</span>
@@ -177,7 +178,8 @@ function verbinden() {
     if (e.data instanceof ArrayBuffer) { abspielen(e.data); return; }
     const d = JSON.parse(e.data);
     if (d.typ === "zustand") {
-      $("phase").textContent = TEXTE[d.phase] || d.phase;
+      $("phase").textContent = (d.gespraech && d.phase === "bereit")
+        ? "Im Gespräch" : (TEXTE[d.phase] || d.phase);
       $("phase").className = d.phase === "leerlauf" ? "matt" : "";
       $("aufnahme").classList.toggle("rot", d.aufnahme);
       $("aufnahme").textContent = d.aufnahme ? "Aufzeichnung läuft — stoppen"
