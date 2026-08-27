@@ -59,16 +59,18 @@ async def gesundheit():
 # Kuendigt die Antwort ein Nachschlagen an, ohne dass gesucht wurde? Dasselbe
 # Muster wie bei der Aufzeichnung: das Modell sagt, was es tun wird, statt es
 # zu tun. Der kurze Sprech-Prompt ("hoechstens zwei Saetze") verstaerkt das.
-# Verspricht die Antwort einen Rechercheauftrag, ohne dass einer gestellt wurde?
-# Zwei Bedingungen statt einer Wortfolge: "Ich gebe die Recherche ab" und
-# "Die Recherche gebe ich ab" sollen beide treffen.
-_R_THEMA = re.compile(r"recherche|rechercheauftrag|rechercheagent", re.I)
-_R_ZUSAGE = re.compile(r"abgeb|abgegeben|übergeb|beauftrag|gestartet|läuft|"
-                       r"gebe .{0,40}?ab\b|melde mich", re.I)
+# Redet die Antwort ueber eine Recherche, ohne dass eine gestellt wurde?
+#
+# Bewusst weit gefasst. Ein Versuch mit zwei Bedingungen (Thema UND Zusagewort)
+# war zu eng: "Ich gebe dir dafuer einen Rechercheauftrag" und "Ich gebe die
+# Recherche jetzt auf" enthalten weder "ab" noch "melde mich", und beide Male
+# passierte nichts. Wenn das Modell von einer Recherche spricht und keine
+# laeuft, ist der Auftrag gemeint -- also stellen wir ihn.
+_R_THEMA = re.compile(r"recherche|rechercheauftrag|rechercheagent|recherchier", re.I)
 
 
 def _recherche_versprochen(text: str) -> bool:
-    return bool(_R_THEMA.search(text) and _R_ZUSAGE.search(text))
+    return bool(_R_THEMA.search(text))
 
 _ANGEKUENDIGT = re.compile(
     r"(schaue?|sehe?|gucke?|pruefe?|prüfe?)[^.]{0,30}"
