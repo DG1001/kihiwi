@@ -7,7 +7,9 @@ Rechenarbeit läuft auf dem GX10 im Serverraum, verbunden übers Netz.
 ## Die beiden Aufgaben
 
 **Dokumentation.** Kontinuierlicher Mitschnitt des Laborgesprächs, aber nur wenn
-ausdrücklich aktiviert. Daraus entstehen Transkripte und strukturierte Protokolle.
+ausdrücklich aktiviert. Beim Stoppen entsteht **automatisch** ein Protokoll mit
+Transkript und Zusammenfassung; es ist danach sofort abrufbar — „Kiwi, was habe
+ich vorhin über das Rasterelektronenmikroskop gesagt?"
 
 **Dialog.** Der Assistent wird mit dem Aktivierungswort **„Kiwi"** oder per Taste
 angesprochen — „Kiwi, starte die Aufzeichnung". Danach bleibt das Gespräch

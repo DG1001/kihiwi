@@ -34,6 +34,7 @@
            border-radius:2rem; font-size:.9rem; font-weight:600; }
   .marke.an { display:inline-flex; }
   #m-gespraech { background:#14351f; color:#7ddc9a; border:1px solid #2c6b40; }
+  #m-transkript { background:#12283a; color:#7ab8e8; border:1px solid #1a4a6b; }
   #m-recherche { background:#3a2a12; color:#e8b339; border:1px solid #6b4c1a; }
   .puls { width:.5em; height:.5em; border-radius:50%; background:currentColor;
           animation:blink 1.4s ease-in-out infinite; }
@@ -78,6 +79,8 @@
 <div id="marken">
   <span class="marke" id="m-gespraech"><span class="puls"></span>
     Im Gespräch — kein „Kiwi“ nötig</span>
+  <span class="marke" id="m-transkript"><span class="puls"></span>
+    Protokoll wird erstellt</span>
   <span class="marke" id="m-recherche"><span class="puls"></span>
     Recherche läuft <span id="m-rzeit"></span>
     <span class="frage" id="m-rfrage"></span></span>
@@ -239,6 +242,7 @@ function verbinden() {
       // das andere.
       $("m-gespraech").classList.toggle("an", !!d.gespraech);
       $("m-recherche").classList.toggle("an", !!d.recherche);
+      $("m-transkript").classList.toggle("an", !!d.transkription);
       $("m-rfrage").textContent = d.recherche || "";
       rSeit = d.recherche_seit || 0;
       $("phase").className = d.phase === "leerlauf" ? "matt" : "";

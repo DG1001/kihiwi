@@ -17,8 +17,11 @@ import numpy as np
 import websockets
 from websockets.asyncio.server import serve
 
+from wissen import einlesen as wissen_einlesen
 from wissen import index as wissen_index, recherche as wissen_recherche
 from wissen import web as wissen_web
+
+from . import protokoll as protokoll_modul
 
 from . import absicht as absicht_modul
 from . import aktivierung, doku, konfig, llm, stt, tts
@@ -34,6 +37,9 @@ RECHERCHE = wissen_recherche.Recherche()
 # Zuhoerer, nicht an die Sitzung, die den Auftrag gab -- die kann laengst weg
 # sein, waehrend jemand anders im Labor steht.
 SITZUNGEN: set = set()
+# Hoechstens eine Nachbereitung gleichzeitig: sie braucht STT und das Modell,
+# beides teilt sie sich mit dem Sprachpfad.
+NACHBEREITUNG = asyncio.Lock()
 SEITEN = {"/": "monitor.html", "/index.html": "monitor.html",
           "/klient": "klient.html", "/klient.html": "klient.html"}
 
@@ -183,7 +189,7 @@ class Sitzung:
         self.web_benutzt = False
 
     async def schliessen(self):
-        self.rek.stop()
+        self.aufzeichnung_stoppen()
         if self.antwort_task and not self.antwort_task.done():
             self.antwort_task.cancel()
 
@@ -193,15 +199,16 @@ class Sitzung:
             an = bool(b.get("an"))
             HALTER.setzen(mikro=an, phase=Phase.BEREIT if an else Phase.LEERLAUF)
             if not an:
-                self.rek.stop(); HALTER.setzen(aufnahme=False, gespraech=False)
+                self.aufzeichnung_stoppen()
+                HALTER.setzen(gespraech=False)
                 self.turn.reset()
         elif art == "aufnahme":
             an = bool(b.get("an"))
             if an and HALTER.z.mikro:
                 self.rek.start()
+                HALTER.setzen(aufnahme=self.rek.laeuft)
             else:
-                self.rek.stop()
-            HALTER.setzen(aufnahme=self.rek.laeuft)
+                self.aufzeichnung_stoppen()
         elif art == "ansprechen":
             # Taste am Client -- gleichwertig zum Aktivierungswort, aber ohne
             # dass es gesagt werden muss. Bleibt nuetzlich, wenn es laut ist.
@@ -305,6 +312,17 @@ class Sitzung:
         if genau and genau != kurzfassung:
             log.info("nachgeschärft: %r -> %r", kurzfassung[:45], genau[:45])
         return genau or kurzfassung
+
+    def aufzeichnung_stoppen(self):
+        """Stoppt und stoesst die Nachbereitung an. Eine Stelle, damit kein
+        Weg am automatischen Transkribieren vorbeifuehrt."""
+        if not self.rek.laeuft:
+            return
+        verz = self.rek.verzeichnis
+        self.rek.stop()
+        HALTER.setzen(aufnahme=False)
+        if verz:
+            asyncio.create_task(nachbereiten(verz))
 
     def im_gespraech(self) -> bool:
         """Laeuft das Gespraech noch? Die Stillegrenze ist keine Bequemlichkeit,
@@ -577,9 +595,9 @@ class Sitzung:
             return "Fehlgeschlagen: das Mikrofon ist aus."
         if an:
             self.rek.start()
+            HALTER.setzen(aufnahme=self.rek.laeuft)
         else:
-            self.rek.stop()
-        HALTER.setzen(aufnahme=self.rek.laeuft)
+            self.aufzeichnung_stoppen()
         # Die Aufzeichnung ist rechtlich heikel; sie darf nie still anlaufen.
         # Der Monitor zeigt es ohnehin, die Bestaetigung sagt es zusaetzlich.
         return "Aufzeichnung läuft jetzt." if self.rek.laeuft else "Aufzeichnung ist gestoppt."
@@ -611,6 +629,42 @@ class Sitzung:
 
 
 # ---------------------------------------------------------------- Verbindungen
+async def nachbereiten(verz):
+    """Nach dem Stoppen: transkribieren, Protokoll bauen, neu indizieren.
+
+    Im Hintergrund, weil es je nach Laenge Minuten dauert -- der Assistent
+    bleibt waehrenddessen ansprechbar. Danach ist die Sitzung ueber
+    'dokumente_suchen' auffindbar, ohne dass jemand daran denken muss.
+    """
+    if NACHBEREITUNG.locked():
+        log.info("Nachbereitung laeuft schon, %s wartet", verz.name)
+    async with NACHBEREITUNG:
+        HALTER.setzen(transkription=verz.name)
+        t0 = time.time()
+        ziel = None
+        try:
+            ziel = await protokoll_modul.verarbeite_sitzung(verz)
+            # Sofort indizieren, sonst findet Kiwi das eigene Protokoll nicht.
+            await asyncio.to_thread(wissen_einlesen.alles, "protokolle")
+        except Exception as e:
+            log.exception("Nachbereitung gescheitert: %r", e)
+        finally:
+            HALTER.setzen(transkription="")
+        log.info("Nachbereitung %s fertig nach %.0f s", verz.name, time.time() - t0)
+        satz = ("Das Protokoll der Aufzeichnung ist fertig, du kannst mich danach fragen."
+                if ziel else "Die Aufzeichnung enthielt nichts zum Protokollieren.")
+        for s in list(SITZUNGEN):
+            try:
+                await s.ws.send(json.dumps({"typ": "text", "rolle": "assistent",
+                                            "text": satz}))
+                vorher = HALTER.z.phase
+                HALTER.setzen(phase=Phase.ANTWORTEN)
+                await s.sag(satz)
+                HALTER.setzen(phase=vorher)
+            except Exception:
+                pass
+
+
 async def recherche_verteilen(auftrag):
     """Rueckmeldung an alle, die gerade verbunden sind.
 

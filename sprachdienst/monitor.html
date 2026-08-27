@@ -33,6 +33,7 @@
            border-radius:2rem; font-size:min(2.8vh,1.3rem); font-weight:600; }
   .marke.an { display:inline-flex; }
   #m-gespraech { background:#14351f; color:#7ddc9a; border:2px solid #2c6b40; }
+  #m-transkript { background:#12283a; color:#7ab8e8; border:1px solid #1a4a6b; }
   #m-recherche { background:#3a2a12; color:#e8b339; border:2px solid #6b4c1a; }
   .puls { width:.5em; height:.5em; border-radius:50%; background:currentColor;
           animation:blink 1.4s ease-in-out infinite; }
@@ -53,7 +54,11 @@
   <div id="marken">
     <span class="marke" id="m-gespraech"><span class="puls"></span>
       Im Gespräch — Kiwi hört ohne Zuruf mit</span>
-    <span class="marke" id="m-recherche"><span class="puls"></span>
+    <span class="marke" id="m-transkript"><span class="puls"></span>
+      Protokoll wird erstellt</span>
+    <span class="marke" id="m-transkript"><span class="puls"></span>
+    Protokoll wird erstellt</span>
+  <span class="marke" id="m-recherche"><span class="puls"></span>
       Recherche läuft <span id="m-rzeit"></span></span>
   </div>
   <div class="zeile"><div class="wer">Verstanden</div><div id="nutzer">—</div></div>
@@ -101,6 +106,7 @@ function verbinden() {
     }
     $("m-gespraech").classList.toggle("an", !!z.gespraech);
     $("m-recherche").classList.toggle("an", !!z.recherche);
+    $("m-transkript").classList.toggle("an", !!z.transkription);
     rSeit = z.recherche_seit || 0;
     $("phase").firstChild.textContent = t;
     $("phasedetail").textContent = d;

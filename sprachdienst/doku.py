@@ -99,6 +99,11 @@ class Rekorder:
     def laeuft(self) -> bool:
         return self.w is not None
 
+    @property
+    def verzeichnis(self):
+        """Verzeichnis der laufenden bzw. zuletzt beendeten Sitzung."""
+        return (self.verz / self.sitzung) if self.sitzung else None
+
 
 def offene_segmente(verz: Path | None = None):
     """Alle noch nicht transkribierten Aufnahmen -- Arbeitsvorrat fuer den

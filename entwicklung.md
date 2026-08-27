@@ -543,6 +543,24 @@ wird für die Antwort eine saubere Folge gebaut: Frage, Befunde als Text, fertig
 nach der Wegansage aber 5,3 s. Das sah zweimal wie ein Dienstfehler aus. Grenze
 auf 10 s.
 
+### Automatisch transkribieren beim Stoppen
+
+Bisher musste jemand `./dienste.sh protokoll` aufrufen, sonst blieb die
+Aufzeichnung unauffindbar. Jetzt stösst das Stoppen die Nachbereitung selbst an:
+transkribieren, Protokoll bauen, neu indizieren, Bescheid sagen.
+
+Im Hintergrund, weil es je nach Länge Minuten dauert und der Assistent
+ansprechbar bleiben soll; höchstens eine gleichzeitig, weil sie sich STT und
+Modell mit dem Sprachpfad teilt.
+
+**Alle Wege zum Stoppen** — Werkzeugaufruf, Knopf, Mikrofon aus,
+Verbindungsabbruch — laufen jetzt über `aufzeichnung_stoppen()`. Vorher rief
+jeder Weg `rek.stop()` einzeln auf; ein neuer Weg hätte das Transkribieren
+stillschweigend übersprungen.
+
+Gemessen: Stopp bei +5,4 s, Protokoll fertig bei +8,8 s, danach über
+`dokumente_suchen` auffindbar.
+
 ### Offen
 
 - Autostart (systemd-Units) — bewusst zurückgestellt.

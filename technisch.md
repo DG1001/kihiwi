@@ -283,8 +283,17 @@ getrennt — nur der Prompt war für beide derselbe.
 Kiwi frühere Laborgespräche über dieselbe `dokumente_suchen`. „Was habe ich
 vorhin über das Rasterelektronenmikroskop gesagt?" wird daraus beantwortet.
 
-**Voraussetzung: `./dienste.sh protokoll` muss gelaufen sein.** Eine frische
-Aufnahme ist erst danach auffindbar.
+**Das geschieht automatisch beim Stoppen der Aufzeichnung** (`nachbereiten()` in
+`gateway.py`): transkribieren, Protokoll bauen, neu indizieren, und der Assistent
+sagt Bescheid. Im Hintergrund, damit er ansprechbar bleibt; höchstens eine
+Nachbereitung gleichzeitig, weil sie sich STT und Modell mit dem Sprachpfad teilt.
+Gemessen: 3,4 s für eine 5-s-Aufnahme.
+
+Alle Wege zum Stoppen laufen über `Sitzung.aufzeichnung_stoppen()` — Werkzeug,
+Knopf, Mikrofon aus, Verbindungsabbruch. Eine Stelle, damit kein Weg am
+Transkribieren vorbeiführt.
+
+Von Hand geht es weiterhin mit `./dienste.sh protokoll`.
 
 **Zeitstempel doppelt:** absolute Ortszeit (`[27.08. 20:29:06]`) und Versatz in
 der Aufnahme (`(bei 00:01)`). Die Uhrzeit sagt WANN, der Versatz WO im Audio —
