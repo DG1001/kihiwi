@@ -495,6 +495,12 @@ Transkript weiterverwendet und das STT im Antwortpfad übersprungen** (0 ms stat
   wurde das nur beim Aufruf durch eine Pipe (`./dienste.sh neustart | tail`) —
   mit Umleitung in eine Datei fiel es nicht auf. Mit `--fork` wird der Dienst an
   init durchgereicht, der Aufruf ist in 2 s durch statt nach 120 s abgebrochen.
+- **Audiopuffer im Browser nicht nach Länge zurücksetzen.** Die TTS-Stücke
+  kommen 25-mal schneller als Echtzeit; eine lange Antwort läuft zu Recht zehn
+  Sekunden voraus. Eine Grenze von 8 s hielt das für einen Hänger, setzte die
+  Terminierung zurück, und der Rest spielte ÜBER dem schon Geplanten — zwei
+  Stimmen gleichzeitig. Nur zurücksetzen, wenn die Warteschlange leergelaufen
+  oder der AudioContext angehalten war.
 - **`pkill -f` und `pgrep -f` erwischen die eigene Shell**, wenn das Suchmuster
   in deren Kommandozeile steht — an einem Tag dreimal passiert, zuletzt bei
   einer `until ! pgrep -f hermes-agent`-Warteschleife, die deshalb nie endete.

@@ -96,6 +96,7 @@
 const $ = id => document.getElementById(id);
 const RATE = 16000, BLOCK = 512;
 let ws, ctx, quelle, knoten, strom, spielt = 0, tonRate = 22050, rSeit = 0;
+let warAn = false;   // lief der AudioContext beim letzten Puffer?
 
 // Laufende Zeit der Recherche: sie dauert Minuten, und ohne Uhr wirkt jeder
 // Zwischenstand wie ein Hänger.
@@ -153,6 +154,7 @@ async function mikroAn() {
 
   await ctx.audioWorklet.addModule(URL.createObjectURL(
     new Blob([WORKLET], {type: "application/javascript"})));
+  spielt = 0; warAn = false;
   quelle = ctx.createMediaStreamSource(strom);
   knoten = new AudioWorkletNode(ctx, "sender");
   knoten.port.onmessage = e => {
@@ -177,7 +179,7 @@ function abspielen(puffer) {
   // Browser halten den AudioContext an (Tab im Hintergrund, Energiesparen).
   // Dann wird zwar alles terminiert, aber nichts ist hörbar — der Text kommt,
   // der Ton nicht. Ohne resume() ist das von aussen nicht zu unterscheiden.
-  if (ctx.state === "suspended") ctx.resume();
+  if (ctx.state === "suspended") { ctx.resume(); warAn = false; }
 
   const roh = new Int16Array(puffer);
   const b = ctx.createBuffer(1, roh.length, tonRate);
@@ -187,10 +189,12 @@ function abspielen(puffer) {
   q.buffer = b; q.connect(ctx.destination);
 
   const jetzt = ctx.currentTime;
-  // Driftsicherung: die Warteschlange holt nur auf, wenn sie zurückfällt.
-  // Läuft sie einmal weit voraus (angehaltener Context, verschluckte Puffer),
-  // spielt alles Weitere Minuten später — für den Nutzer schlicht Stille.
-  if (spielt < jetzt || spielt - jetzt > 8) spielt = jetzt + 0.02;
+  // Zurücksetzen NUR, wenn die Warteschlange leergelaufen ist oder der Context
+  // angehalten war. Ein voller Puffer ist normal: die TTS-Stücke kommen 25x
+  // schneller als Echtzeit, eine lange Antwort läuft zu Recht zehn Sekunden
+  // voraus. Eine Grenze von 8 s hielt das für einen Hänger, setzte zurück —
+  // und der Rest spielte ÜBER dem schon Terminierten. Zwei Stimmen zugleich.
+  if (spielt < jetzt || !warAn) { spielt = jetzt + 0.02; warAn = true; }
   q.start(spielt);
   spielt += b.duration;
   tonZustand();

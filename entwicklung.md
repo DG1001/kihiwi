@@ -502,6 +502,25 @@ compression attempts reached" und reichte die Fehlermeldung als
 Rechercheergebnis durch. 64K ist seine Untergrenze, nicht sein Arbeitsbereich —
 jetzt 131072, und solche Meldungen werden als Fehler erkannt statt weitergegeben.
 
+### Zwei überlappende Sprachausgaben
+
+Beim Rechercheergebnis sprach Kiwi doppelt. Ursache war meine eigene Korrektur
+von vorhin: Gegen die Stille nach einem angehaltenen AudioContext hatte ich eine
+Driftsicherung eingebaut, die bei mehr als 8 s Vorlauf zurücksetzt.
+
+Die Regel war zu grob. TTS-Stücke kommen 25-mal schneller als Echtzeit, eine
+lange Antwort läuft zu Recht darüber hinaus — die Sicherung hielt das für einen
+Hänger und terminierte den Rest über das schon Geplante. Bei kurzen Antworten
+fiel es nie auf, weil sie die Grenze nie erreichen; erst das Rechercheergebnis
+mit seinen langen Sätzen stolperte darüber.
+
+Jetzt wird nur zurückgesetzt, wenn die Warteschlange leergelaufen ist oder der
+Context angehalten war. Die Stille-Behebung bleibt damit erhalten.
+
+**Lehre:** Eine Schwelle auf eine Größe zu legen, die im Normalbetrieb
+schwankt (Pufferlänge), ist fragil. Besser auf das Ereignis prüfen, das man
+wirklich meint — hier: war der Context angehalten.
+
 ### Offen
 
 - Autostart (systemd-Units) — bewusst zurückgestellt.
