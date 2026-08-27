@@ -165,21 +165,43 @@ Drei Stufen, in dieser Reihenfolge:
    600 ms Abstand werden verbunden, kürzer als 400 ms verworfen, länger als
    60 s geteilt.
 2. **Transkription** je Bereich mit der Vokabelliste als `initial_prompt`.
-3. **Korrektur** durch das Modell — **bewusst vorsichtig**: ersetzt wird nur,
-   wenn genau ein Begriff der Vokabelliste eindeutig gemeint sein kann. Roh- und
-   korrigierter Text werden beide gespeichert und im Protokoll untereinander
-   gezeigt.
+3. **Korrektur** durch das Modell, mit zwei Wächtern **im Code**, nicht im
+   Prompt: eine Ersetzung wird nur übernommen, wenn (a) sie dem Original
+   ähnlich genug ist (`difflib`-Verhältnis ≥ 0,65) **und** (b) der Ersatz in
+   `vokabular.txt` steht. Einfügungen und Löschungen werden grundsätzlich
+   verworfen. Roh- und korrigierter Text stehen beide im Protokoll.
+
+**Warum die Wächter im Code stehen und nicht im Prompt:** Auf echten Aufnahmen
+machte das Modell trotz vorsichtiger Anweisung aus „Fenstertechnologie" ein
+„Fenster-Attention-Heads" — ein Begriff aus der damals fachfremden Vokabelliste.
+Und aus einem korrekten „Hochvakuum" ein falsches „Hochvacuum": ähnlich genug für
+Wächter (a), aber nirgends belegt, deshalb braucht es (b). Zurückhaltung wird
+erzwungen, nicht erbeten.
 
 Erzeugt wird `aufnahmen/<sitzung>/protokoll.md` mit Zusammenfassung (als
 **abgeleitet** gekennzeichnet, jede Aussage mit Zeitstempel) und dem
 vollständigen Transkript. Unsichere Stellen landen unter „Unklare Stellen"
 statt geraten zu werden. Roh-Audio bleibt liegen.
 
-Gemessen: 65 s Audio mit 11 Äußerungen → 11 Abschnitte, komplett in **13 s**.
+Gemessen: 65 s Audio mit 11 Äußerungen → 11 Abschnitte, komplett in **13 s**;
+vier echte Aufnahmen (zusammen 65 s) in 22 s.
 
-Ein Längenwächter fängt Ausreißer ab: weicht der korrigierte Text um mehr als
-40 % von der Rohlänge ab, hat das Modell umformuliert statt korrigiert, und der
-Rohtext bleibt stehen.
+Ein Längenwächter davor fängt grobe Ausreißer ab: weicht der korrigierte Text um
+mehr als 40 % von der Rohlänge ab, hat das Modell umformuliert statt korrigiert.
+
+### Die Vokabelliste ist der Hebel
+
+`vokabular.txt` im Projektwurzelverzeichnis, ein Begriff je Zeile, `#` ist
+Kommentar. Sie speist den `initial_prompt` der Spracherkennung **und** begrenzt,
+was die Korrektur überhaupt ersetzen darf.
+
+**Sie muss zur Fachdomäne des Labors passen.** Eine fachfremde Liste ist nicht
+bloß nutzlos, sondern schädlich — sie zieht Erkennung und Korrektur in die
+falsche Richtung. Belegt: mit einer ML-Liste wurde aus „Fenstertechnologie" ein
+„Fenster-Attention-Heads"; mit der passenden REM-Liste kamen
+„Rasterelektronenmikroskop" und „Siliziumnitrid-Fenster" direkt und korrekt aus
+der Spracherkennung, ganz ohne Korrekturstufe. **Der Hebel sitzt vorn, nicht
+hinten.**
 
 ## Latenzbudget (warm gemessen, 27.08.2026)
 

@@ -15,9 +15,11 @@ def _vokabular() -> str:
     """Fachbegriffe fuer den initial_prompt. Groesster Qualitaetshebel bei
     deutschem Fachvokabular, kostet nichts."""
     try:
-        return konfig.VOKABULAR.read_text(encoding="utf-8").strip()
+        zeilen = konfig.VOKABULAR.read_text(encoding="utf-8").splitlines()
     except OSError:
         return ""
+    begriffe = [z.strip() for z in zeilen if z.strip() and not z.startswith("#")]
+    return ("Fachbegriffe: " + ", ".join(begriffe) + ".") if begriffe else ""
 
 
 def _mehrteilig(felder: dict, wav: bytes) -> tuple[bytes, str]:

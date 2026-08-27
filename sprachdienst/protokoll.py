@@ -22,7 +22,7 @@ plausibel klingt und erfunden ist, waere schlechter als gar keins.
 """
 from __future__ import annotations
 
-import asyncio, json, sys, wave
+import asyncio, difflib, json, sys, wave
 from dataclasses import dataclass, asdict
 from datetime import datetime, timezone
 from pathlib import Path
@@ -124,6 +124,63 @@ KORREKTUR = (
 )
 
 
+AEHNLICH_MIN = 0.65   # gemessen: echte Korrekturen 0,73-0,88, Erfindung 0,54
+
+
+def begriffe() -> list[str]:
+    """Die Vokabelliste, ohne Kommentare."""
+    try:
+        zeilen = konfig.VOKABULAR.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return []
+    return [z.strip() for z in zeilen if z.strip() and not z.startswith("#")]
+
+
+def sichere_korrektur(roh: str, neu: str, liste: list[str] | None = None) -> tuple[str, int]:
+    """Uebernimmt nur Ersetzungen, die dem Original aehnlich genug sind.
+
+    Der Prompt allein reicht nicht. Auf einer echten Aufnahme machte das Modell
+    trotz vorsichtiger Anweisung aus "Fenstertechnologie" ein
+    "Fenster-Attention-Heads" -- ein Begriff aus der Vokabelliste, der mit dem
+    Gesagten nichts zu tun hatte. Ein Protokoll darf so etwas nicht enthalten,
+    also wird die Zurueckhaltung hier erzwungen statt erbeten.
+
+    Einfuegungen und Loeschungen werden grundsaetzlich verworfen: die Korrektur
+    darf Woerter ersetzen, aber nichts hinzufuegen und nichts weglassen.
+    """
+    vok = [x.lower() for x in (liste if liste is not None else begriffe())]
+
+    def in_liste(wort: str) -> bool:
+        """Steht der Ersatz in der Vokabelliste? Zusammensetzungen zaehlen:
+        'Silizium-Nitrid-Fenster' passt zu 'Siliziumnitrid'."""
+        w = wort.lower().strip(".,;:!?\"')(")
+        teile = [w] + w.replace("-", " ").split()
+        return any(any(t and (t in v or v in t) for v in vok) for t in teile)
+
+    a, b = roh.split(), neu.split()
+    sm = difflib.SequenceMatcher(None, [w.lower() for w in a], [w.lower() for w in b])
+    aus, verworfen = [], 0
+    for tag, i1, i2, j1, j2 in sm.get_opcodes():
+        if tag == "equal":
+            aus.extend(a[i1:i2])
+        elif tag == "replace":
+            va, vb = " ".join(a[i1:i2]).lower(), " ".join(b[j1:j2]).lower()
+            # Zwei Bedingungen: aehnlich genug UND der Ersatz steht in der
+            # Vokabelliste. Ohne die zweite machte das Modell aus einem
+            # korrekten "Hochvakuum" ein falsches "Hochvacuum" -- aehnlich
+            # genug, aber nirgends belegt.
+            if (difflib.SequenceMatcher(None, va, vb).ratio() >= AEHNLICH_MIN
+                    and all(in_liste(w) for w in b[j1:j2])):
+                aus.extend(b[j1:j2])
+            else:
+                aus.extend(a[i1:i2]); verworfen += 1
+        elif tag == "delete":
+            aus.extend(a[i1:i2]); verworfen += 1
+        elif tag == "insert":
+            verworfen += 1
+    return " ".join(aus), verworfen
+
+
 async def korrigiere(abschnitte: list[Abschnitt]) -> None:
     """Setzt .text je Abschnitt. Bei Zweifel bleibt der Rohtext stehen."""
     try:
@@ -138,10 +195,13 @@ async def korrigiere(abschnitte: list[Abschnitt]) -> None:
                  f"Transkript:\n{a.text_roh}") if vok else a.text_roh
         neu = await llm.antwort_text(KORREKTUR, frage,
                                      max_tokens=len(a.text_roh) + 200)
-        # Schutz gegen Ausreisser: wenn das Modell die Laenge stark veraendert,
-        # hat es umformuliert statt korrigiert. Dann lieber den Rohtext.
+        # Zwei Stufen: grober Laengenwaechter gegen komplettes Umformulieren,
+        # danach wortweise Pruefung jeder einzelnen Ersetzung.
         if neu and 0.6 * len(a.text_roh) <= len(neu) <= 1.6 * len(a.text_roh):
-            a.text = neu
+            gepruft, verworfen = sichere_korrektur(a.text_roh, neu)
+            a.text = gepruft
+            if verworfen:
+                print(f"    [{a.zeit}] {verworfen} Änderung(en) verworfen", flush=True)
 
 
 # --- Zusammenfassung ---------------------------------------------------------

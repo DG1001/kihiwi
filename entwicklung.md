@@ -257,6 +257,39 @@ Nebenbei: Das Modell setzte trotz Anweisung gelegentlich `#`-Überschriften mitt
 in die Datei und brach damit die Gliederung. Sicherheitsnetz per Regex, das
 Ebene 1 und 2 auf Ebene 3 herunterstuft.
 
+### Erste echte Aufnahmen: STT ist gut, meine Vokabelliste war das Problem
+
+Vier Aufnahmen über das Jabra am Notebook, damit ist die seit dem Vormittag
+offene Frage nach der echten Erkennungsgenauigkeit beantwortet: **sie ist gut.**
+Ein langer Fachsatz über Rasterelektronenmikroskopie kam praktisch fehlerfrei an
+— „Hochvakuum", „Strahlengang", „Elektronenröhre", „reflektierte Elektronen".
+Der synthetische Test vom Vormittag hatte Whisper deutlich unterschätzt, weil er
+in Wahrheit Piper gemessen hat.
+
+**Aber die Korrekturstufe hat etwas erfunden:** aus „Fenstertechnologie" wurde
+„Fenster-Attention-Heads". Ursache war meine Vokabelliste — sie enthielt
+ML-Jargon aus meinen eigenen Testsätzen, während das Labor über
+Elektronenmikroskopie spricht. Das Modell sollte gegen eine fachfremde Liste
+korrigieren und griff daneben.
+
+**Zwei Wächter, beide im Code statt im Prompt:**
+
+1. Wortweiser Ähnlichkeitsvergleich (`difflib`, Schwelle 0,65). Gemessen an den
+   echten Fällen trennt das sauber: Erfindung 0,54, echte Korrekturen 0,73–0,88.
+2. Der Ersatz muss in `vokabular.txt` stehen. Ohne diesen zweiten Wächter machte
+   das Modell aus einem **korrekten** „Hochvakuum" ein falsches „Hochvacuum" —
+   ähnlich genug für Wächter 1, aber nirgends belegt.
+
+Einfügungen und Löschungen werden grundsätzlich verworfen: die Korrektur darf
+Wörter ersetzen, nichts hinzufügen und nichts weglassen.
+
+**Die eigentliche Lehre:** Mit einer passenden Vokabelliste kamen
+„Rasterelektronenmikroskop" und „Siliziumnitrid-Fenster" direkt aus der
+Spracherkennung — die Korrekturstufe hatte gar nichts mehr zu tun. Der Hebel
+sitzt im `initial_prompt`, nicht in der Nachbearbeitung. `vokabular.txt` ist
+deshalb aus `testaudio/` ins Projektwurzelverzeichnis gewandert: es ist ein
+fachliches Artefakt, kein Testmaterial.
+
 ### Offen
 
 - Autostart (systemd-Units) — bewusst zurückgestellt.

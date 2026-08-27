@@ -41,7 +41,7 @@ P_FERTIG_SCHWELLE = 0.1
 AUFNAHMEN  = Path(os.environ.get("AIHIWI_AUFNAHMEN", WURZEL / "aufnahmen"))
 VAD_MODELL = WURZEL / "vad" / "silero_vad.onnx"
 STIMME     = WURZEL / "voices" / "de_DE-thorsten-medium.onnx"
-VOKABULAR  = WURZEL / "testaudio" / "vokabular.txt"
+VOKABULAR  = WURZEL / "vokabular.txt"
 
 # Umlaute hier BEWUSST korrekt, auch wenn der Rest der Datei ASCII ist: das
 # Modell ahmt den Stil des System-Prompts nach. Mit "Aufzaehlungen" im Prompt

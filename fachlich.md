@@ -36,7 +36,7 @@ das umgekehrte Problem — eine deutsche Stimme spricht „Layer" als „La-yer"
 
 ## Die Vokabelliste
 
-`testaudio/vokabular.txt` ist **fachlicher Projektbestandteil**, kein Hilfsmittel.
+`vokabular.txt` ist **fachlicher Projektbestandteil**, kein Hilfsmittel.
 Sie speist drei Stellen:
 
 1. den `initial_prompt` der Spracherkennung — größter Qualitätshebel bei
@@ -44,7 +44,10 @@ Sie speist drei Stellen:
 2. die Nachkorrektur des Transkripts durch das Sprachmodell im Dokumentationspfad;
 3. später die Aussprache-Overrides der Sprachausgabe.
 
-Sie muss gepflegt werden, wenn neue Begriffe im Labor auftauchen.
+Sie muss zur Fachdomäne passen und gepflegt werden, wenn neue Begriffe
+auftauchen. Eine fachfremde Liste ist nicht neutral, sondern schädlich: Sie zieht
+Erkennung und Korrektur in die falsche Richtung. Stand 27.08.2026 ist sie ein
+**Entwurf**, aus den ersten Aufnahmen zur Rasterelektronenmikroskopie gezogen.
 
 ## Latenzziel
 

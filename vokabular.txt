@@ -1,0 +1,37 @@
+# Fachvokabular des Labors.
+#
+# Speist drei Stellen: den initial_prompt der Spracherkennung, die
+# Korrekturstufe des Dokumentationspfads und spaeter die Aussprache-Overrides
+# der Sprachausgabe. Die Korrektur ersetzt ein Wort NUR, wenn der Ersatz hier
+# steht -- die Liste ist damit die harte Grenze dessen, was der Assistent an
+# einem Transkript veraendern darf.
+#
+# Zeilen mit # sind Kommentar. Ein Begriff je Zeile.
+# ENTWURF, aus den ersten Aufnahmen gezogen -- bitte pruefen und ergaenzen.
+
+# --- Rasterelektronenmikroskopie ---
+Rasterelektronenmikroskop
+Rasterelektronenmikroskopie
+REM
+Elektronenstrahl
+Elektronenröhre
+Strahlengang
+Hochvakuum
+Vakuumkammer
+Siliziumnitrid
+Siliziumnitrid-Fenster
+Sekundärelektronen
+Rückstreuelektronen
+Detektor
+Blende
+Fokussierung
+Arbeitsabstand
+Beschleunigungsspannung
+Probenkammer
+Partikel
+
+# --- Rechnerseite ---
+KV-Cache
+Batch-Size
+Kontext
+Token pro Sekunde
