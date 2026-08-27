@@ -44,10 +44,19 @@ def _normal(s: str) -> str:
 
 # Aufzeichnung: braucht ein Objekt UND eine Handlung -- "die Aufzeichnung läuft
 # ja noch" ist eine Feststellung, kein Befehl.
-_AUF_OBJEKT = re.compile(r"aufzeichnung|aufnahme|mitschnitt|mitschneid|protokollier")
+# Auch verbale Formen: "zeichnest du auf", "nimmst du auf", "schneidest du mit".
+_AUF_OBJEKT = re.compile(r"aufzeichnung|aufnahme|mitschnitt|mitschneid|protokollier|"
+                         r"zeichnest du|nimmst du auf|schneidest du mit|"
+                         r"zeichne .{0,12}auf|nimm .{0,12}auf")
 _AUF_TUN    = re.compile(r"\b(start|starte|starten|beginn|beginne|an|ein|einschalt|"
                          r"anschalt|aktivier|stopp|stoppe|stoppen|beend|beende|aus|"
                          r"ausschalt|abschalt|halt|anhalt|pausier)\w*")
+# Auch die reine Statusfrage gehoert hierher. Sonst landete "Laeuft die
+# Aufzeichnung?" bei WISSEN, wo es kein Aufzeichnungswerkzeug gibt -- das Modell
+# antwortete "kann ich nicht pruefen", und diese Absage vergiftete den Verlauf:
+# ab da wiederholte es sie auch bei echten Befehlen.
+_AUF_STATUS = re.compile(r"\b(laeuft|lauft|luft|an|aus|aktiv|zeichnest du auf|"
+                         r"nimmst du auf|wird aufgezeichnet)\b")
 
 # Recherche: ausdrücklich verlangt oder erkennbar mehrschrittig.
 #
@@ -80,7 +89,9 @@ def erkennen(text: str) -> Absicht:
 
     # Reihenfolge ist Absicht: ein Aufzeichnungsbefehl bleibt einer, auch wenn
     # er als Frage formuliert ist ("kannst du die Aufzeichnung starten?").
-    if _AUF_OBJEKT.search(t) and _AUF_TUN.search(t):
+    # Jede Aeusserung, die die Aufzeichnung erwaehnt, betrifft die Aufzeichnung.
+    # Feiner zu unterscheiden brachte nur Luecken ("Zeichnest du gerade auf?").
+    if _AUF_OBJEKT.search(t):
         return Absicht.AUFZEICHNUNG
     if _RECH.search(t):
         return Absicht.RECHERCHE
@@ -106,8 +117,10 @@ WERKZEUGE_JE_ABSICHT = {
 # Kurzer Zusatz je Absicht statt eines langen Alleskoenner-Prompts.
 ZUSATZ_JE_ABSICHT = {
     Absicht.AUFZEICHNUNG:
-        " Der Nutzer will die Aufzeichnung ändern. Rufe dafür das Werkzeug auf —"
-        " behaupte niemals eine Änderung, die du nicht ausgeführt hast.",
+        " Es geht um die Aufzeichnung. Soll sie geändert werden, rufe das"
+        " Werkzeug auf — behaupte niemals eine Änderung, die du nicht ausgeführt"
+        " hast. Wird nur gefragt, ob sie läuft, antworte aus dem oben genannten"
+        " Zustand, ohne Werkzeug. Du KANNST die Aufzeichnung steuern.",
     Absicht.RECHERCHE:
         " Der Nutzer will eine Recherche. Rufe 'rechercheauftrag' auf und sage"
         " danach nur zu, dich zu melden. Antworte NICHT inhaltlich.",
@@ -122,3 +135,32 @@ ZUSATZ_JE_ABSICHT = {
         " nichts hergeben; sag dann, dass es aus dem Internet stammt.",
     Absicht.PLAUDEREI: "",
 }
+
+
+# "auf" darf nicht als Tuwort in _AUF_TUN stehen -- es steckt in
+# "Aufzeichnung" und wuerde jede Erwaehnung zum Befehl machen. Verbale
+# Aufforderungen deshalb einzeln.
+_AUF_BEFEHL = re.compile(r"\b(nimm|zeichne|schneide?|starte?|mach)\b.{0,15}\bauf\b")
+
+
+def will_aendern(text: str) -> bool:
+    """Verlangt die Aeusserung eine Aenderung (statt nur nach dem Zustand zu
+    fragen)? Nur dann wird gehandelt."""
+    t = _normal(text)
+    if not _AUF_OBJEKT.search(t) and not _AUF_BEFEHL.search(t):
+        return False
+    return bool(_AUF_TUN.search(t) or _AUF_BEFEHL.search(t))
+
+
+_AUS = re.compile(r"\b(stopp|stoppe|stoppen|beend|beende|beenden|aus|ausschalt|"
+                  r"abschalt|halt|anhalt|pausier|schluss)\w*")
+
+
+def soll_anschalten(text: str) -> bool:
+    """An oder aus? Ausschalten wird ausdruecklich verlangt, sonst einschalten.
+
+    Bewusst so herum: "Aufzeichnung" ohne Zusatz meint eher starten, und ein
+    faelschlich gestarteter Mitschnitt ist harmloser als ein faelschlich
+    gestoppter -- er ist sichtbar, das Fehlen nicht.
+    """
+    return not bool(_AUS.search(_normal(text)))

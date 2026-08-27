@@ -561,6 +561,31 @@ stillschweigend übersprungen.
 Gemessen: Stopp bei +5,4 s, Protokoll fertig bei +8,8 s, danach über
 `dokumente_suchen` auffindbar.
 
+### Die Aufzeichnung ließ sich nicht mehr steuern
+
+Fred meldete: „Ich kann keine Aufzeichnung starten, das liegt außerhalb meiner
+Möglichkeiten" — auf jeden Befehl.
+
+**Die Diagnose war lehrreich.** Der Router arbeitete richtig, das Werkzeug wurde
+gerufen, das Protokoll zeigte `aufzeichnung{'an': True} -> Aufzeichnung läuft
+jetzt.` Die Absage entstand erst in der Schlussantwort: sie bekommt die
+Werkzeugergebnisse als Text, erkannte sie aber nicht als eigene Handlung.
+
+Ausgelöst hatte es eine Statusfrage. „Läuft die Aufzeichnung?" ging an WISSEN,
+wo es kein Aufzeichnungswerkzeug gibt — die Antwort „kann ich nicht prüfen"
+landete im Gesprächsverlauf, und ab da wiederholte das Modell sie auch bei
+echten Befehlen. **Eine einzelne falsche Antwort vergiftete alle folgenden.**
+
+**Behoben, indem das Modell aus dem Weg genommen wurde.** Befehle und
+Statusfragen zur Aufzeichnung beantwortet der Dienst jetzt selbst: Router
+erkennt die Absicht, `will_aendern()` unterscheidet Befehl von Frage,
+`soll_anschalten()` an von aus. Für zwei mögliche Werte trägt ein Sprachmodell
+nichts bei.
+
+**Lehre:** Wo eine Handlung deterministisch ist, gehört sie nicht ins Modell.
+Und ein Gesprächsverlauf verstärkt Fehler — eine falsche Antwort bleibt stehen
+und wird zur Vorlage für die nächste.
+
 ### Offen
 
 - Autostart (systemd-Units) — bewusst zurückgestellt.

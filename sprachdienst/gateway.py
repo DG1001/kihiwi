@@ -396,6 +396,56 @@ class Sitzung:
             gerufene: set[str] = set()
             self.web_benutzt = False
             wofuer = absicht_modul.erkennen(text)
+
+            # Aufzeichnungsbefehle direkt ausfuehren, ohne das Modell.
+            #
+            # Das Werkzeug wurde zwar zuverlaessig gerufen, aber die
+            # Schlussantwort erkannte das Ergebnis nicht als eigene Handlung
+            # und sagte "das liegt ausserhalb meiner Moeglichkeiten" -- was
+            # dann im Verlauf stand und sich wiederholte. Fuer einen Befehl mit
+            # zwei moeglichen Werten traegt das Modell ohnehin nichts bei:
+            # ausfuehren, bestaetigen, fertig. Schneller und nicht ablehnbar.
+            if wofuer is absicht_modul.Absicht.AUFZEICHNUNG \
+                    and not absicht_modul.will_aendern(text):
+                # Reine Statusfrage: aus dem Zustand beantworten. Ueber das
+                # Modell ging es schief, weil der Zustand nur im Werkzeug-
+                # Prompt stand, nicht im Antwort-Prompt -- es sagte dann "kann
+                # ich nicht sehen". Den eigenen Zustand kennt der Dienst besser.
+                if HALTER.z.transkription:
+                    ergebnis = ("Die Aufzeichnung ist gestoppt, das Protokoll "
+                                "wird gerade erstellt.")
+                elif HALTER.z.aufnahme:
+                    ergebnis = "Ja, die Aufzeichnung läuft."
+                else:
+                    ergebnis = "Nein, es wird gerade nicht aufgezeichnet."
+                log.info("  Aufzeichnungsstatus direkt: %s", ergebnis)
+                await self.ws.send(json.dumps({"typ": "text", "rolle": "assistent",
+                                               "text": ergebnis}))
+                await self.sag(ergebnis)
+                HALTER.setzen(letzte_antwort=ergebnis)
+                self.verlauf += [{"role": "user", "content": text},
+                                 {"role": "assistant", "content": ergebnis}]
+                del self.verlauf[:-8]
+                return
+
+            if wofuer is absicht_modul.Absicht.AUFZEICHNUNG \
+                    and absicht_modul.will_aendern(text):
+                an = absicht_modul.soll_anschalten(text)
+                ergebnis = await self.werkzeug("aufzeichnung", {"an": an})
+                log.info("  Aufzeichnung direkt: an=%s -> %s", an, ergebnis)
+                await self.ws.send(json.dumps({"typ": "werkzeug",
+                                               "name": "aufzeichnung",
+                                               "args": {"an": an},
+                                               "ergebnis": ergebnis}))
+                await self.ws.send(json.dumps({"typ": "text", "rolle": "assistent",
+                                               "text": ergebnis}))
+                await self.sag(ergebnis)
+                HALTER.setzen(letzte_antwort=ergebnis)
+                self.verlauf += [{"role": "user", "content": text},
+                                 {"role": "assistant", "content": ergebnis}]
+                del self.verlauf[:-8]
+                return
+
             werkzeuge = self.werkzeuge_fuer(wofuer)
             log.info("  Absicht %s -> %d Werkzeug(e)", wofuer.value, len(werkzeuge))
             async for e in llm.antwort_mit_werkzeugen(
@@ -431,6 +481,31 @@ class Sitzung:
             # Prompt half, aber darauf allein darf sich das nicht stuetzen --
             # wer glaubt, es werde nicht mehr aufgezeichnet, muss recht haben.
             antwort = " ".join(ganze)
+
+            # Absage bei einem klaren Aufzeichnungsbefehl: erzwingen.
+            # Sagt das Modell einmal "kann ich nicht", steht das im Verlauf und
+            # es wiederholt sich -- die Absage vergiftet alle folgenden Turns.
+            if (wofuer is absicht_modul.Absicht.AUFZEICHNUNG
+                    and "aufzeichnung" not in gerufene
+                    and absicht_modul.will_aendern(text)):
+                log.warning("Aufzeichnungsbefehl ohne Werkzeug — erzwinge ihn")
+                args = await llm.erzwinge_werkzeug(text, [], WERKZEUGE,
+                                                   "aufzeichnung",
+                                                   system=self.system_prompt(wofuer))
+                if args is not None:
+                    ergebnis = await self.werkzeug("aufzeichnung", args)
+                    log.info("  nachgeholt: aufzeichnung%r -> %s", args, ergebnis)
+                    await self.ws.send(json.dumps({"typ": "werkzeug",
+                                                   "name": "aufzeichnung", "args": args,
+                                                   "ergebnis": ergebnis,
+                                                   "nachgeholt": True}))
+                    ganze = [ergebnis]
+                    antwort = ergebnis
+                    await self.ws.send(json.dumps({"typ": "text",
+                                                   "rolle": "assistent",
+                                                   "text": ergebnis}))
+                    await self.sag(ergebnis)
+                    gerufene.add("aufzeichnung")
 
             # Rechercheauftrag versprochen, aber nicht gestellt: nachholen.
             # Sonst wartet der Nutzer auf ein Ergebnis, das nie kommt --

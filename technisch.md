@@ -437,6 +437,26 @@ sichtbar sein, dass Kiwi ohne Zuruf mithört.
 Wird nur „Kiwi" gerufen, ohne Anweisung, quittiert der Dienst mit „Ja?", ohne
 das Modell zu bemühen.
 
+### Aufzeichnung läuft ohne das Modell
+
+**Befehle und Statusfragen zur Aufzeichnung werden direkt beantwortet**, ohne
+LLM-Aufruf. Der Router erkennt die Absicht, `will_aendern()` unterscheidet
+Befehl von Statusfrage, `soll_anschalten()` an von aus — dann handelt der Dienst
+und bestätigt.
+
+**Warum:** Das Werkzeug wurde zwar zuverlässig gerufen, aber die Schlussantwort
+erkannte das Ergebnis nicht als eigene Handlung und sagte „das liegt außerhalb
+meiner Möglichkeiten". Diese Absage landete im Gesprächsverlauf und wiederholte
+sich danach bei jedem Befehl — eine sich selbst verstärkende Störung. Bei der
+Statusfrage kam dasselbe heraus, weil der Zustand nur im Werkzeug-Prompt stand
+und nicht im Antwort-Prompt.
+
+Für einen Befehl mit zwei möglichen Werten trägt das Modell ohnehin nichts bei.
+Ausführen, bestätigen, fertig — schneller, und nicht ablehnbar.
+
+`soll_anschalten()` schaltet im Zweifel **ein**: ein fälschlich gestarteter
+Mitschnitt ist sichtbar, ein fälschlich gestoppter nicht.
+
 ### Werkzeuge
 
 Ornith läuft mit `--enable-auto-tool-choice --tool-call-parser qwen3_xml`.
