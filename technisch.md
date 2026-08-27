@@ -197,6 +197,38 @@ Frage schon.
 **Suchen darf niemals schreiben** (`index.lesen()` statt `verbinden()`):
 `verbinden()` legt das Schema an und nimmt dabei eine Schreibsperre.
 
+### Rechercheaufträge (Stufe 2)
+
+`wissen/recherche.py` — aufwendige Fragen gehen an den **Hermes-Agenten**, der
+Internet und Unterlagen durchsucht. Werkzeug `rechercheauftrag(frage)`.
+
+**Asynchron, weil eine Sprachschnittstelle nicht warten kann.** Gemessen 31–40 s
+je Auftrag. Der Assistent sagt zu und meldet sich; das Ergebnis kommt später von
+selbst — an **alle gerade verbundenen** Clients, nicht an die Sitzung, die den
+Auftrag gab (die kann längst weg sein, während jemand anders im Labor steht).
+Abgelegt wird es immer unter `recherchen/`.
+
+**Höchstens einer gleichzeitig.** Hermes und der Sprachpfad teilen sich ein
+Modell auf einer GPU; ein zweiter Auftrag wird abgelehnt und der Assistent sagt,
+dass er beschäftigt ist. Der laufende Auftrag steht im System-Prompt und auf dem
+Monitor.
+
+**Hermes braucht mindestens 64K Kontext** — deshalb steht `ornith-voice` auf
+65536. Aufruf mit `hermes chat -Q` (programmatischer Modus, nur die Antwort).
+
+Was zurückkommt, ist **abgeleitet**: die Datei trägt einen Warnhinweis und die
+Quellenpflicht steckt im Auftragstext. Nie ungeprüft ins Protokoll.
+
+Gesprochen werden nur die ersten zwei Sätze — acht Sätze vorzulesen dauert vierzig
+Sekunden. `_sprechbar()` räumt vorher Markdown, DOIs und URLs weg, sonst liest
+Piper Sternchen mit vor.
+
+**Abgrenzung der drei Wissenswerkzeuge:** `dokumente_suchen` für alles aus den
+Unterlagen, `web_suchen` für EINE schnell nachzuschlagende Tatsache,
+`rechercheauftrag` für Vergleiche und mehrschrittige Recherche. Ohne diese
+Schärfung griff das Modell zur Websuche und antwortete synchron nach 9,5 s,
+statt den Auftrag abzugeben.
+
 ### Offene Mängel (Stand 27.08.2026)
 
 1. **vLLMs Streaming-Parser für Werkzeugaufrufe verträgt die größere

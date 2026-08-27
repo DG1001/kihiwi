@@ -427,6 +427,32 @@ Jetzt wird protokolliert.
 Sprachpfad oft nicht auf (der kurze Sprechstil verdrängt den Werkzeugaufruf),
 und das dagegen eingebaute Nachfassen greift aus ungeklärtem Grund nicht.
 
+### Rechercheaufträge an Hermes
+
+Freds Idee, aufwendige Anfragen an einen anderen Agenten zu geben, ist umgesetzt
+— aber als **zweite Stufe**, nicht als Weiterleitung. Einschrittiges
+Nachschlagen bleibt inline bei 3 s; nur Vergleiche und mehrschrittige Recherche
+gehen an Hermes.
+
+**Der Test hat meinen Vorbehalt gegen Hermes entkräftet.** Er recherchierte in
+18,7 s über drei Werkzeugaufrufe, nannte konkrete Zahlen und Quellen und erfand
+nichts — von der befürchteten Konfabulation keine Spur. Voraussetzung war
+CTX=65536, weil er unter 64K den Dienst verweigert.
+
+**Asynchron ist der Kern.** 31–40 s sind für einen Sprachdialog zu lang, für
+einen Auftrag mit Rückmeldung völlig in Ordnung: „Ich melde mich" — später kommt
+das Ergebnis.
+
+**Ein Entwurfsfehler unterwegs:** Die Rückmeldung hing zuerst an der Sitzung, die
+den Auftrag gab. Im Protokoll stand dann „Ergebnis nur abgelegt, kein Client
+verbunden". Im Labor soll das Ergebnis an den gehen, der **gerade** da ist —
+jetzt wird an alle verbundenen Clients verteilt.
+
+**Werkzeugbeschreibungen mussten geschärft werden.** Zuerst griff das Modell zur
+synchronen Websuche und antwortete nach 9,5 s selbst, statt den Auftrag
+abzugeben. Erst die klare Abgrenzung — eine Tatsache gegen mehrschrittige
+Recherche — brachte es dazu, `rechercheauftrag` zu wählen.
+
 ### Offen
 
 - Autostart (systemd-Units) — bewusst zurückgestellt.

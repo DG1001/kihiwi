@@ -77,8 +77,11 @@ WISSEN_PROMPT = (
     "Arbeiten rufst du ZUERST 'dokumente_suchen' auf. Antworte nur mit dem, was "
     "die Unterlagen hergeben, und nenne die Quelle. Findest du nichts, sag das "
     "offen — erfinde keine Zahlen, Materialeigenschaften oder Gerätedaten. "
-    "'web_suchen' nur für allgemeines Fachwissen, das nicht in den Unterlagen "
-    "steht; sag dann ausdrücklich dazu, dass es aus dem Internet stammt."
+    "'web_suchen' nur für EINE schnell nachzuschlagende Tatsache, die nicht in "
+    "den Unterlagen steht; sag dann ausdrücklich dazu, dass es aus dem Internet "
+    "stammt. Verlangt die Frage einen Vergleich, mehrere Suchschritte oder sagt "
+    "der Nutzer 'recherchiere', dann gibst du sie mit 'rechercheauftrag' ab und "
+    "sagst nur zu, dich zu melden."
 )
 
 # --- Wissen -----------------------------------------------------------------

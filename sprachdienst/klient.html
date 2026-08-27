@@ -165,7 +165,10 @@ function zeile(wer, text) {
   const d = document.createElement("div");
   d.className = "zeile " + wer;
   d.innerHTML = `<div class="wer">${wer === "nutzer" ? "Du" : "Assistent"}</div>`;
-  d.appendChild(document.createTextNode(text));
+  const p = document.createElement("div");
+  p.style.whiteSpace = "pre-wrap";
+  p.textContent = text;
+  d.appendChild(p);
   $("verlauf").prepend(d);
 }
 
@@ -178,8 +181,9 @@ function verbinden() {
     if (e.data instanceof ArrayBuffer) { abspielen(e.data); return; }
     const d = JSON.parse(e.data);
     if (d.typ === "zustand") {
-      $("phase").textContent = (d.gespraech && d.phase === "bereit")
-        ? "Im Gespräch" : (TEXTE[d.phase] || d.phase);
+      $("phase").textContent = d.recherche ? "Recherchiert"
+        : (d.gespraech && d.phase === "bereit") ? "Im Gespräch"
+        : (TEXTE[d.phase] || d.phase);
       $("phase").className = d.phase === "leerlauf" ? "matt" : "";
       $("aufnahme").classList.toggle("rot", d.aufnahme);
       $("aufnahme").textContent = d.aufnahme ? "Aufzeichnung läuft — stoppen"
@@ -188,6 +192,8 @@ function verbinden() {
       $("led-llm").classList.toggle("da", d.llm_da);
     } else if (d.typ === "text") {
       zeile(d.rolle, d.text);
+    } else if (d.typ === "recherche") {
+      zeile("assistent", `Rechercheergebnis (${d.dauer}s) zu „${d.frage}“:\n\n${d.text}`);
     } else if (d.typ === "ton") {
       tonRate = d.rate;
     }

@@ -17,7 +17,8 @@ import numpy as np
 import websockets
 from websockets.asyncio.server import serve
 
-from wissen import index as wissen_index, web as wissen_web
+from wissen import index as wissen_index, recherche as wissen_recherche
+from wissen import web as wissen_web
 
 from . import aktivierung, doku, konfig, llm, stt, tts
 from .turn import Turnerkenner
@@ -25,6 +26,13 @@ from .zustand import Phase, Zustandshalter
 
 log = logging.getLogger("kihiwi")
 HALTER = Zustandshalter()
+# Global, nicht je Sitzung: Hermes und der Sprachpfad teilen sich ein Modell,
+# zwei parallele Auftraege wuerden die Sprachantworten unbrauchbar traege machen.
+RECHERCHE = wissen_recherche.Recherche()
+# Wer gerade verbunden ist. Ein Rechercheergebnis geht an die AKTUELLEN
+# Zuhoerer, nicht an die Sitzung, die den Auftrag gab -- die kann laengst weg
+# sein, waehrend jemand anders im Labor steht.
+SITZUNGEN: set = set()
 SEITEN = {"/": "monitor.html", "/index.html": "monitor.html",
           "/klient": "klient.html", "/klient.html": "klient.html"}
 
@@ -77,11 +85,31 @@ WERKZEUGE = [{
     "type": "function",
     "function": {
         "name": "web_suchen",
-        "description": ("Sucht im Internet. Nur benutzen, wenn die Unterlagen des "
-                        "Labors nichts hergeben und es um allgemeines Fachwissen geht."),
+        "description": ("Schlägt EINE Tatsache schnell im Internet nach — ein Wert, "
+                        "eine Definition, ein Datum. Nur wenn die Unterlagen des "
+                        "Labors nichts hergeben. Für alles, was Vergleichen, "
+                        "Nachlesen oder mehrere Suchschritte braucht, ist "
+                        "'rechercheauftrag' zuständig."),
         "parameters": {
             "type": "object",
             "properties": {"frage": {"type": "string", "description": "Suchbegriffe"}},
+            "required": ["frage"]},
+    }}, {
+    "type": "function",
+    "function": {
+        "name": "rechercheauftrag",
+        "description": ("Gibt eine aufwendige Frage an einen Rechercheagenten ab. "
+                        "IMMER benutzen, wenn der Nutzer 'recherchiere', 'vergleiche', "
+                        "'schau ausführlich nach' oder Ähnliches sagt, und immer dann, "
+                        "wenn eine Frage mehrere Suchschritte, das Lesen von Quellen "
+                        "oder einen Vergleich zwischen Unterlagen und Literatur "
+                        "verlangt. Der Auftrag läuft im Hintergrund und dauert "
+                        "Minuten; das Ergebnis kommt später von selbst. Du antwortest "
+                        "danach NUR mit einer Zusage, nicht mit Inhalten."),
+        "parameters": {
+            "type": "object",
+            "properties": {"frage": {"type": "string",
+                                     "description": "Der Rechercheauftrag, ausformuliert"}},
             "required": ["frage"]},
     }}, {
     "type": "function",
@@ -195,6 +223,17 @@ class Sitzung:
             log.info("Endpoint: %s nach %.0f ms Aeusserung", ep.grund, ep.dauer_ms)
             HALTER.setzen(phase=Phase.DENKEN)
             self.antwort_task = asyncio.create_task(self.antworten(ep))
+
+    async def recherche_melden(self, auftrag, text, kurz):
+        """Ergebnis an DIESE Verbindung ausgeben."""
+        await self.ws.send(json.dumps({"typ": "recherche", "frage": auftrag.frage,
+                                       "text": text, "dauer": round(auftrag.dauer)}))
+        await self.ws.send(json.dumps({"typ": "text", "rolle": "assistent",
+                                       "text": kurz}))
+        vorher = HALTER.z.phase
+        HALTER.setzen(phase=Phase.ANTWORTEN)
+        await self.sag("Die Recherche ist fertig. " + kurz)
+        HALTER.setzen(phase=vorher)
 
     async def nachschaerfen(self, ep, kurzfassung: str) -> str:
         """Zweiter Durchgang mit dem VOLLEN Fachvokabular.
@@ -361,12 +400,15 @@ class Sitzung:
         """Der Zustand gehoert in den Prompt, nicht in ein Werkzeug: sonst
         fragt das Modell erst nach, ob aufgezeichnet wird, bevor es handelt."""
         lauft = "läuft gerade" if HALTER.z.aufnahme else "läuft gerade nicht"
+        rech = (f" Eine Recherche läuft gerade: „{HALTER.z.recherche[:60]}“ — "
+                "nimm keinen zweiten Auftrag an." if HALTER.z.recherche else "")
         return (konfig.SYSTEM_PROMPT + " " + konfig.WISSEN_PROMPT +
                 f" Die Audioaufzeichnung des Laborgesprächs {lauft}. "
                 "Willst du daran etwas ändern, MUSST du das Werkzeug 'aufzeichnung' "
                 "aufrufen. Behaupte niemals eine Änderung, die du nicht über das "
                 "Werkzeug ausgeführt hast — das Protokoll und die Anzeige im Labor "
-                "hängen daran. Sag danach in einem kurzen Satz, was geschehen ist.")
+                "hängen daran. Sag danach in einem kurzen Satz, was geschehen ist."
+                + rech)
 
     async def werkzeug(self, name: str, args: dict) -> str:
         """Fuehrt einen Werkzeugaufruf aus. Rueckgabe geht ans Modell zurueck."""
@@ -396,6 +438,21 @@ class Sitzung:
             return "\n\n".join(
                 f"[Web: {t['titel']}]\n{t['text']}\nQuelle: {t['url']}"
                 for t in treffer)
+
+        if name == "rechercheauftrag":
+            frage = str(args.get("frage", "")).strip()
+            if not frage:
+                return "Keine Frage angegeben."
+            auftrag = await RECHERCHE.starten(frage, recherche_verteilen)
+            if auftrag is None:
+                laeuft = RECHERCHE.laufend.frage[:80] if RECHERCHE.laufend else ""
+                return ("Es läuft schon eine Recherche zu: " + laeuft +
+                        ". Sag dem Nutzer, dass er warten muss, bis die fertig ist.")
+            HALTER.setzen(recherche=frage)
+            log.info("Recherche gestartet: %r", frage[:80])
+            return ("Auftrag läuft. Sag in einem kurzen Satz zu, dich zu melden, "
+                    "wenn das Ergebnis da ist. Nenne KEINE inhaltliche Antwort — "
+                    "du hast noch keine.")
 
         if name != "aufzeichnung":
             return f"Unbekanntes Werkzeug {name}."
@@ -429,6 +486,47 @@ class Sitzung:
 
 
 # ---------------------------------------------------------------- Verbindungen
+def _sprechbar(text: str) -> str:
+    """Markdown fuer die Sprachausgabe abraeumen.
+
+    Hermes antwortet mit Aufzaehlungen und Fettschrift; ungefiltert liest Piper
+    Sternchen und Bindestriche mit vor.
+    """
+    text = re.sub(r"\*\*|__|`", "", text)
+    text = re.sub(r"^\s*[-*•]\s*", "", text, flags=re.M)
+    text = re.sub(r"^#{1,6}\s*", "", text, flags=re.M)
+    text = re.sub(r"\((?:doi|https?)[^)]*\)", "", text)   # DOIs und URLs
+    text = re.sub(r"https?://\S+", "", text)
+    return re.sub(r"\s{2,}", " ", text.replace("\n", " ")).strip()
+
+
+async def recherche_verteilen(auftrag):
+    """Rueckmeldung an alle, die gerade verbunden sind.
+
+    Gesprochen wird nur der Anfang -- acht Saetze vorzulesen dauert vierzig
+    Sekunden. Das Ganze steht auf dem Monitor und in `recherchen/`.
+    """
+    HALTER.setzen(recherche="")
+    if auftrag.fehler:
+        text = f"Die Recherche ist gescheitert: {auftrag.fehler}"
+        kurz = "Die Recherche hat nicht geklappt."
+    else:
+        text = auftrag.ergebnis
+        saetze = re.split(r'(?<=[.!?])\s+', _sprechbar(text))
+        kurz = " ".join(saetze[:2])
+        if len(saetze) > 2:
+            kurz += " Das Ausführliche steht auf dem Monitor."
+    HALTER.setzen(letzte_antwort=text)
+    log.info("Recherche fertig nach %.0f s, %d Zuhörer", auftrag.dauer, len(SITZUNGEN))
+    for s in list(SITZUNGEN):
+        try:
+            await s.recherche_melden(auftrag, text, kurz)
+        except Exception:
+            pass
+    if not SITZUNGEN:
+        log.info("niemand verbunden — Ergebnis liegt in recherchen/")
+
+
 async def zustand_senden(ws):
     q = HALTER.abonnieren()
     try:
@@ -451,6 +549,7 @@ async def behandeln(ws):
         return
 
     s = Sitzung(ws)
+    SITZUNGEN.add(s)
     senden = asyncio.create_task(zustand_senden(ws))
     try:
         async for nachricht in ws:
@@ -461,6 +560,7 @@ async def behandeln(ws):
     except websockets.ConnectionClosed:
         pass
     finally:
+        SITZUNGEN.discard(s)
         senden.cancel()
         await s.schliessen()
         HALTER.setzen(phase=Phase.LEERLAUF, mikro=False, aufnahme=False,

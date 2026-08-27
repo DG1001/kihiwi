@@ -78,6 +78,11 @@ function verbinden() {
       t = "Im Gespräch";
       d = "Rückfragen ohne „Kiwi“ möglich. Beenden mit „Danke, Kiwi“.";
     }
+    // Eine laufende Recherche muss im Raum sichtbar sein — sie dauert Minuten,
+    // und solange sie läuft, sind die Sprachantworten langsamer.
+    if (z.recherche) {
+      d = (d ? d + " " : "") + "Recherche läuft: " + z.recherche;
+    }
     $("phase").firstChild.textContent = t;
     $("phasedetail").textContent = d;
     $("hinweis").textContent = z.hinweis || "";

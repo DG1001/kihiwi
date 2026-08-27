@@ -30,3 +30,6 @@ vad/*.onnx
 testaudio/*.wav
 testaudio/turns/
 testaudio/liste.txt
+
+# --- Rechercheergebnisse: erzeugt, oft mit fremden Inhalten ------------------
+recherchen/

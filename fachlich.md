@@ -87,6 +87,19 @@ Anforderungen:
 Stehende Auflage: **nichts verlässt das Netz.** Alle Modelle laufen lokal, es
 gibt keinen Cloud-Dienst im Pfad.
 
+## Zwei Stufen beim Antworten
+
+**Nachschlagen** (Sekunden): Der Assistent durchsucht die Unterlagen und
+antwortet mit Quellenangabe. Deckt den Laboralltag ab.
+
+**Rechercheauftrag** (Minuten): Fragen, die Vergleichen, Nachlesen oder mehrere
+Suchschritte brauchen, gehen an einen Rechercheagenten. Der Assistent sagt zu
+und meldet sich, wenn das Ergebnis da ist — man arbeitet währenddessen weiter.
+Es läuft immer nur ein Auftrag; der Monitor zeigt ihn an.
+
+Ergebnisse von Stufe 2 sind **abgeleitet** und werden als solche gekennzeichnet.
+Vor der Verwendung im Protokoll gegen die genannten Quellen prüfen.
+
 ## Offene fachliche Fragen
 
 - **Soll der Assistent sehen können?** Whiteboard, Geräteanzeige, Messkurve
