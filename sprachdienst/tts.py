@@ -7,7 +7,7 @@ Python- und ONNX-Start.
 Piper laeuft bewusst auf der CPU: der GX10 hat 20 Kerne, die weitgehend
 leerlaufen, und der Speicher ist die knappe Ressource.
 """
-import asyncio, queue, threading
+import asyncio, threading
 import numpy as np
 from . import konfig
 
@@ -24,29 +24,34 @@ def laden():
     return _stimme
 
 
-def _synth(text: str, q: queue.Queue):
-    try:
-        for stueck in laden().synthesize(text):
-            q.put((stueck.audio_int16_bytes, stueck.sample_rate))
-    except Exception as e:                     # pragma: no cover
-        q.put(("fehler", repr(e)))
-    finally:
-        q.put(None)
-
-
 async def sprich(text: str):
     """Liefert (pcm_bytes, rate) stueckweise, sobald sie fertig sind.
 
     Stueckweise ist der Punkt: der erste Teil geht raus, waehrend der Rest
     noch rechnet. Der Nutzer hoert nach ~110 ms etwas, nicht nach dem ganzen
     Satz.
+
+    Der Arbeitsthread SCHIEBT in eine asyncio.Queue, statt dass die Schleife
+    ihn per to_thread(q.get) abfragt. Andernfalls bleibt der Thread auf einer
+    leeren Queue haengen, sobald der Verbraucher vorzeitig aufhoert -- und
+    asyncio.run wartet beim Beenden 120 Sekunden auf genau solche Threads.
     """
-    q: queue.Queue = queue.Queue()
-    threading.Thread(target=_synth, args=(text, q), daemon=True).start()
+    schleife = asyncio.get_running_loop()
+    q: asyncio.Queue = asyncio.Queue()
+
+    def lauf():
+        try:
+            for stueck in laden().synthesize(text):
+                schleife.call_soon_threadsafe(
+                    q.put_nowait, (stueck.audio_int16_bytes, stueck.sample_rate))
+        except Exception:                       # pragma: no cover
+            pass
+        finally:
+            schleife.call_soon_threadsafe(q.put_nowait, None)
+
+    threading.Thread(target=lauf, daemon=True).start()
     while True:
-        stueck = await asyncio.to_thread(q.get)
+        stueck = await q.get()
         if stueck is None:
-            return
-        if stueck[0] == "fehler":
             return
         yield stueck

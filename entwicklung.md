@@ -169,6 +169,30 @@ Seite, die Mikrofon und Lautsprecher des aufrufenden Rechners benutzt.
 die ohnehin bestehende SSH-Verbindung und lässt den Dienst auf `127.0.0.1`
 gebunden — besser als Bindung aufweichen oder ein Zertifikat basteln.
 
+### Problem: der Dienst brauchte zwei Minuten zum Beenden
+
+Fiel als scheinbar hängender `dienste.sh neustart` auf, mehrfach hintereinander.
+**Ursache:** `tts.sprich` und `llm.antwort_saetze` liefen als Thread, der in eine
+`queue.Queue` legte, während die Schleife per `await asyncio.to_thread(q.get)`
+abfragte. Hört der Verbraucher vorzeitig auf — abgebrochene Antwort, geschlossene
+Verbindung — blockiert der Thread für immer auf der leeren Queue, und
+`asyncio.run` wartet beim Beenden 120 Sekunden auf genau solche Threads.
+
+**Fix:** Richtung umdrehen. Der Thread *schiebt* per `loop.call_soon_threadsafe`
+in eine `asyncio.Queue`, die Schleife wartet asynchron. Der Thread läuft immer zu
+Ende und kann nicht mehr hängen. Beenden dauert jetzt 17 ms.
+
+**Warum das zählt:** Nicht nur lästig — ein Dienst, der sich nicht sauber beenden
+lässt, ist auch für systemd-Units untauglich, und die stehen noch an.
+
+### Problem: Seiten kamen als Quelltext an
+
+`respond()` aus websockets setzt `Content-Type: text/plain`. Fiel nicht auf, weil
+Monitor und Client bis dahin nur mit `curl` geprüft worden waren — ein Frontend
+ohne Frontend getestet. Beim Korrigieren die zweite Falle:
+`Headers.__setitem__` hängt an statt zu ersetzen, ein blosses Setzen hätte zwei
+Content-Type-Zeilen ergeben.
+
 ### Zum Futro-Client: Einschätzung korrigiert
 
 Ich hatte den Futro S520 für zu schwach für einen Browser gehalten. Nach den

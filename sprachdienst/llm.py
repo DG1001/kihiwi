@@ -5,7 +5,7 @@ Modell-Pruefstand; jedes `model-switch` nimmt dem Assistenten fuer ein bis zwei
 Minuten das Gehirn. Der Dienst muss das aushalten, ohne stumm zu werden --
 Aufzeichnung und Transkription laufen weiter, der Monitor zeigt es an.
 """
-import asyncio, json, queue, re, threading, urllib.error, urllib.request
+import asyncio, json, re, threading, urllib.error, urllib.request
 from . import konfig
 
 # Satzende: Punkt/Frage/Ausruf gefolgt von Leerraum oder Textende. Die
@@ -21,7 +21,8 @@ ERSTER_MIN = 25          # kuerzer klingt abgehackt
 ERSTER_MAX = 60          # laenger kostet unnoetig Zeit
 
 
-def _strom(nachrichten, max_tokens, q: queue.Queue):
+def _strom(nachrichten, max_tokens, schieb):
+    """schieb(x) legt x threadsicher in die asyncio.Queue des Aufrufers."""
     try:
         req = urllib.request.Request(
             f"{konfig.LLM_URL}/chat/completions",
@@ -35,11 +36,11 @@ def _strom(nachrichten, max_tokens, q: queue.Queue):
                 continue
             d = json.loads(zeile[6:])["choices"][0]["delta"].get("content")
             if d:
-                q.put(d)
+                schieb(d)
     except (urllib.error.URLError, OSError, TimeoutError, KeyError, json.JSONDecodeError):
         pass
     finally:
-        q.put(None)
+        schieb(None)
 
 
 async def antwort_saetze(frage: str, verlauf=None, max_tokens: int = 160):
@@ -52,13 +53,19 @@ async def antwort_saetze(frage: str, verlauf=None, max_tokens: int = 160):
     nachrichten += list(verlauf or [])
     nachrichten.append({"role": "user", "content": frage})
 
-    q: queue.Queue = queue.Queue()
-    threading.Thread(target=_strom, args=(nachrichten, max_tokens, q), daemon=True).start()
+    # Der Thread SCHIEBT, die Schleife fragt nicht ab -- sonst haengt er auf
+    # einer leeren Queue, wenn die Antwort abgebrochen wird, und blockiert das
+    # Beenden des Dienstes um 120 Sekunden.
+    schleife = asyncio.get_running_loop()
+    q: asyncio.Queue = asyncio.Queue()
+    schieb = lambda x: schleife.call_soon_threadsafe(q.put_nowait, x)
+    threading.Thread(target=_strom, args=(nachrichten, max_tokens, schieb),
+                     daemon=True).start()
 
     puffer = ""
     erster = True
     while True:
-        stueck = await asyncio.to_thread(q.get)
+        stueck = await q.get()
         if stueck is None:
             break
         puffer += stueck

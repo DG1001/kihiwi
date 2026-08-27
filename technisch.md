@@ -207,6 +207,15 @@ Transkript weiterverwendet und das STT im Antwortpfad übersprungen** (0 ms stat
   „fuer" dann als „Fu-er". Umlaute im Prompt sind Pflicht.
 - **vLLM ist bei `temperature: 0` nicht deterministisch.** Grenzfälle schwanken
   über die halbe Wahrscheinlichkeitsskala. Keine feinen Schwellen darauf bauen.
+- **Worker-Threads dürfen nicht auf einer Queue blockieren.** `await
+  asyncio.to_thread(q.get)` auf einer `queue.Queue` lässt den Thread ewig hängen,
+  sobald der Verbraucher vorzeitig aufhört — und `asyncio.run` wartet beim
+  Beenden **120 Sekunden** auf solche Threads. Richtig herum: der Thread
+  *schiebt* per `loop.call_soon_threadsafe` in eine `asyncio.Queue`. Danach
+  beendet sich der Dienst in 17 ms statt in zwei Minuten.
+- **Gestartete Dienste brauchen `< /dev/null`.** Sonst erbt der Hintergrund-
+  prozess stdin, und die aufrufende Shell wartet auf ihn, obwohl der Dienst
+  längst läuft.
 - **`pkill -f` erwischt die eigene Shell**, wenn das Muster in deren
   Kommandozeile steht. Über den Port gehen:
   `ss -tlnpH "sport = :8920" | grep -oP 'pid=\K[0-9]+'`.
