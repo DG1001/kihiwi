@@ -260,10 +260,27 @@ async def antwort_mit_werkzeugen(frage: str, verlauf, werkzeuge, ausfuehren,
     nachrichten += list(verlauf or [])
     nachrichten.append({"role": "user", "content": frage})
 
-    def _mit_antwortstil(msgs):
-        if not system_antwort:
-            return msgs
-        return [{"role": "system", "content": system_antwort}] + msgs[1:]
+    # Ergebnisse der Werkzeuge, als reiner Text gesammelt.
+    befunde: list[str] = []
+
+    def _antwortlauf():
+        """Saubere Nachrichtenfolge fuer die Schlussantwort.
+
+        Die Werkzeug-Strukturen (tool_calls, role=tool) werden NICHT
+        mitgeschleppt: ein Aufruf ohne `tools`, aber mit solchen Eintraegen in
+        der Vorgeschichte, lieferte eine leere Antwort -- ohne Fehler, ohne
+        Protokollzeile. Stattdessen stehen die Befunde als Text in der Frage.
+        """
+        frage_mit_befunden = frage
+        if befunde:
+            frage_mit_befunden = (
+                "Das haben deine Werkzeuge geliefert:\n\n"
+                + "\n\n".join(befunde)
+                + f"\n\nBeantworte damit: {frage}")
+        return ([{"role": "system", "content": system_antwort or system
+                  or konfig.SYSTEM_PROMPT}]
+                + list(verlauf or [])
+                + [{"role": "user", "content": frage_mit_befunden}])
 
     for runde in range(runden):
         try:
@@ -274,20 +291,13 @@ async def antwort_mit_werkzeugen(frage: str, verlauf, werkzeuge, ausfuehren,
             return
 
         if not rufe:
-            # Schlussantwort gestreamt, damit die Sprachausgabe beim ersten
-            # Teilsatz beginnt. Kostet in der ersten Runde einen zweiten
-            # Durchlauf -- ohne Streaming wartet der Nutzer laenger auf den
-            # ersten Ton, und das faellt mehr auf als die Rechenzeit.
-            if runde == 0:
-                async for satz in _saetze(_mit_antwortstil(nachrichten), max_tokens, 0.3):
-                    yield ("satz", satz)
-            else:
-                teiler = _Teiler()
-                for satz in teiler.dazu(text):
-                    yield ("satz", satz)
-                rest = teiler.rest()
-                if rest:
-                    yield ("satz", rest)
+            # Schlussantwort IMMER neu und gestreamt, mit dem Antwort-Prompt.
+            # Den Text aus der Werkzeugrunde zu uebernehmen sparte zwar einen
+            # Durchlauf, brachte aber Aufzaehlungen und Fettschrift in die
+            # Sprachausgabe -- die Werkzeugrunde traegt bewusst keinen
+            # Sprechstil, sonst ruft das Modell keine Werkzeuge auf.
+            async for satz in _saetze(_antwortlauf(), max_tokens, 0.3):
+                yield ("satz", satz)
             return
 
         nachrichten.append({"role": "assistant", "content": text or "",
@@ -303,6 +313,7 @@ async def antwort_mit_werkzeugen(frage: str, verlauf, werkzeuge, ausfuehren,
             # welchen Weg der Assistent nimmt, wartet ins Leere.
             yield ("werkzeug_beginnt", f.get("name", ""), args)
             ergebnis = await ausfuehren(f.get("name", ""), args)
+            befunde.append(str(ergebnis))
             yield ("werkzeug", f.get("name", ""), args, ergebnis)
             nachrichten.append({"role": "tool",
                                 "tool_call_id": r.get("id") or f"ruf{i}",
@@ -311,11 +322,8 @@ async def antwort_mit_werkzeugen(frage: str, verlauf, werkzeuge, ausfuehren,
     # Runden aufgebraucht, ohne dass eine Antwort kam: das Modell hat sich in
     # Suchen verrannt. Statt zu schweigen einmal ohne Werkzeuge antworten
     # lassen -- es hat inzwischen genug Material gesehen.
-    nachrichten.append({"role": "user", "content":
-                        "Antworte jetzt mit dem, was du gefunden hast. Wenn nichts "
-                        "Belastbares dabei war, sag genau das. Suche nicht weiter."})
     try:
-        async for satz in _saetze(_mit_antwortstil(nachrichten), max_tokens, 0.3):
+        async for satz in _saetze(_antwortlauf(), max_tokens, 0.3):
             yield ("satz", satz)
     except Exception as e:
         log.error("Schlussantwort gescheitert: %r", e)

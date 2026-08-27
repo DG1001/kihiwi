@@ -116,7 +116,10 @@ def lokal(q: dict, c) -> int:
     aus = set(q.get("aus", [])) | {".git", ".venv", "node_modules", "__pycache__"}
     n = 0
     for p, rel in _dateien(wurzel, q.get("muster"), aus):
-        n += _eintragen(c, q["name"], f"{q['name']}:{rel}", p.name, str(p),
+        # Der relative Pfad statt des Dateinamens: sonst heissen alle
+        # Laborprotokolle "protokoll.md" und die Quellenangabe sagt nichts
+        # darueber, aus welcher Sitzung sie stammen.
+        n += _eintragen(c, q["name"], f"{q['name']}:{rel}", str(rel), str(p),
                         str(int(p.stat().st_mtime)), text_aus(p))
     return n
 

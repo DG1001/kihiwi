@@ -277,6 +277,29 @@ Werkzeugrunden (sachlich, ohne Stilvorgabe), `system_antwort` für die
 Schlussantwort (Sprechstil). Die beiden Runden waren architektonisch längst
 getrennt — nur der Prompt war für beide derselbe.
 
+### Eigene Protokolle sind Wissensquelle
+
+`aufnahmen/` steht als Quelle `protokolle` in `quellen.json` — damit findet
+Kiwi frühere Laborgespräche über dieselbe `dokumente_suchen`. „Was habe ich
+vorhin über das Rasterelektronenmikroskop gesagt?" wird daraus beantwortet.
+
+**Voraussetzung: `./dienste.sh protokoll` muss gelaufen sein.** Eine frische
+Aufnahme ist erst danach auffindbar.
+
+**Zeitstempel doppelt:** absolute Ortszeit (`[27.08. 20:29:06]`) und Versatz in
+der Aufnahme (`(bei 00:01)`). Die Uhrzeit sagt WANN, der Versatz WO im Audio —
+ein Versatz allein beantwortet „was war heute früh" nicht.
+
+### Zwei Prompts, zwei Nachrichtenfolgen
+
+Die Schlussantwort wird **immer neu erzeugt**, mit dem Sprechstil-Prompt und
+auf einer **sauberen** Nachrichtenfolge: Frage, Werkzeugbefunde als Text,
+fertig. Die Werkzeug-Strukturen (`tool_calls`, `role=tool`) werden nicht
+mitgeschleppt — ein Aufruf ohne `tools`, aber mit solchen Einträgen in der
+Vorgeschichte, lieferte eine **leere Antwort ohne Fehler und ohne
+Protokollzeile**. Den Text aus der Werkzeugrunde zu übernehmen ginge zwar
+schneller, brachte aber Aufzählungen und Fettschrift in die Sprachausgabe.
+
 ### Offene Mängel (Stand 27.08.2026)
 
 1. **vLLMs Streaming-Parser für Werkzeugaufrufe verträgt die größere

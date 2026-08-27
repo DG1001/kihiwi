@@ -81,7 +81,11 @@ async def lauf(pfad, aufnahme=False, ansprechen=True):
         while time.time() < ende:
             await asyncio.sleep(0.5)
             letzter = marken.get("letzter_ton")
-            if letzter and time.time() - letzter > 4:
+            # 10 s: nach der Wegansage kann die eigentliche Antwort mehrere
+            # Sekunden brauchen (Werkzeugrunde plus Schlussantwort). Bei 4 s
+            # brach der Test ab, bevor sie kam -- und sah aus wie ein Fehler
+            # im Dienst.
+            if letzter and time.time() - letzter > 10:
                 break
         else:
             print("  ! keine vollstaendige Antwort innerhalb von 40 s")

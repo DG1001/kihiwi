@@ -521,6 +521,28 @@ Context angehalten war. Die Stille-Behebung bleibt damit erhalten.
 schwankt (Pufferlänge), ist fragil. Besser auf das Ereignis prüfen, das man
 wirklich meint — hier: war der Context angehalten.
 
+### Transkripte über Kiwi abrufbar
+
+Fred fragte, ob er sein Transkript über Kiwi abrufen kann. Der eleganteste Weg
+war, `aufnahmen/` schlicht als Wissensquelle einzutragen — dann findet die
+vorhandene Dokumentensuche die Protokolle mit. „Was habe ich vorhin über das
+Rasterelektronenmikroskop gesagt?" wird jetzt daraus beantwortet.
+
+**Zeitstempel absolut, nicht nur relativ** (Freds Hinweis): `[00:01]` sagt nicht,
+WANN etwas gesagt wurde. Das Protokoll trägt jetzt beides — Ortszeit für die
+Orientierung, Versatz zum Wiederfinden im Audio.
+
+**Zwei Fehler dabei behoben.** Erstens kam die Antwort nach einem Werkzeugaufruf
+als Aufzählung: sie stammte aus der Werkzeugrunde, und die trägt bewusst keinen
+Sprechstil. Zweitens lieferte die neu erzeugte Schlussantwort **gar nichts** —
+ohne Fehler und ohne Protokollzeile —, weil die Nachrichtenfolge noch die
+Werkzeug-Strukturen enthielt, der Aufruf aber keine `tools` mehr mitgab. Jetzt
+wird für die Antwort eine saubere Folge gebaut: Frage, Befunde als Text, fertig.
+
+**Und wieder der Testclient:** er brach nach 4 s Ruhe ab, die Antwort brauchte
+nach der Wegansage aber 5,3 s. Das sah zweimal wie ein Dienstfehler aus. Grenze
+auf 10 s.
+
 ### Offen
 
 - Autostart (systemd-Units) — bewusst zurückgestellt.

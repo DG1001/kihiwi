@@ -17,6 +17,16 @@
       ]
     },
     {
+      "name": "protokolle",
+      "art": "lokal",
+      "aktiv": true,
+      "_hinweis": "Die eigenen Laborprotokolle. Entstehen aus './dienste.sh protokoll'; eine frische Aufnahme ist erst danach auffindbar.",
+      "pfad": "~/Developer/github.com/kihiwi/aufnahmen",
+      "muster": [
+        "protokoll.md"
+      ]
+    },
+    {
       "name": "haupt-repo",
       "art": "git",
       "aktiv": true,

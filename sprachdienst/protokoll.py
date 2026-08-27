@@ -24,7 +24,7 @@ from __future__ import annotations
 
 import asyncio, difflib, json, sys, wave
 from dataclasses import dataclass, asdict
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import numpy as np
@@ -44,11 +44,25 @@ class Abschnitt:
     ende_ms:  int
     text_roh: str = ""
     text:     str = ""      # nach der Korrektur; leer bis dahin
+    beginn_utc: str = ""    # Startzeit der Aufnahme, fuer die absolute Uhrzeit
 
     @property
     def zeit(self) -> str:
+        """Versatz in der Aufnahme -- damit findet man die Stelle im Audio."""
         s = self.start_ms // 1000
         return f"{s // 60:02d}:{s % 60:02d}"
+
+    @property
+    def uhrzeit(self) -> str:
+        """Absolute Ortszeit. Ein Versatz von 00:01 sagt nicht, WANN etwas
+        gesagt wurde -- und genau danach fragt man ("was war heute frueh?")."""
+        if not self.beginn_utc:
+            return ""
+        try:
+            t0 = datetime.fromisoformat(self.beginn_utc)
+        except ValueError:
+            return ""
+        return (t0 + timedelta(milliseconds=self.start_ms)).astimezone().strftime("%d.%m. %H:%M:%S")
 
 
 def lies_wav(pfad: Path) -> np.ndarray:
@@ -98,7 +112,7 @@ def sprachbereiche(x: np.ndarray) -> list[tuple[int, int]]:
 
 
 # --- Transkription -----------------------------------------------------------
-async def transkribiere_datei(wav: Path) -> list[Abschnitt]:
+async def transkribiere_datei(wav: Path, beginn_utc: str = "") -> list[Abschnitt]:
     x = lies_wav(wav)
     abschnitte = []
     for t0, t1 in sprachbereiche(x):
@@ -106,7 +120,8 @@ async def transkribiere_datei(wav: Path) -> list[Abschnitt]:
         text = await stt.transkribiere(stueck, mit_vokabular=True, timeout=120)
         text = text.strip()
         if text:
-            abschnitte.append(Abschnitt(t0, t1, text_roh=text))
+            abschnitte.append(Abschnitt(t0, t1, text_roh=text,
+                                        beginn_utc=beginn_utc))
     return abschnitte
 
 
@@ -222,7 +237,7 @@ BERICHT = (
 async def zusammenfassung(abschnitte: list[Abschnitt]) -> str:
     if not abschnitte or not await llm.erreichbar():
         return ""
-    roh = "\n".join(f"[{a.zeit}] {a.text}" for a in abschnitte)
+    roh = "\n".join(f"[{a.uhrzeit or a.zeit}] {a.text}" for a in abschnitte)
     text = await llm.antwort_text(BERICHT, roh, max_tokens=1200)
     # Sicherheitsnetz: das Modell setzt trotz Anweisung gelegentlich '#' oder
     # '##' und bricht damit die Gliederung der Protokolldatei auf.
@@ -241,7 +256,7 @@ async def verarbeite(wav: Path, neu: bool = False) -> list[Abschnitt] | None:
         return None
 
     print(f"  {wav.name} ... ", end="", flush=True)
-    abschnitte = await transkribiere_datei(wav)
+    abschnitte = await transkribiere_datei(wav, meta.get("begonnen_utc", ""))
     if not abschnitte:
         print("keine Sprache gefunden")
         meta.update(transkribiert=True, abschnitte=0,
@@ -271,7 +286,7 @@ async def verarbeite_sitzung(sitzung: Path, neu: bool = False) -> Path | None:
             print(f"  {wav.name} ... schon transkribiert ({len(a)} Abschnitte)")
         for x in (a or []):
             alle.append(Abschnitt(x.start_ms + versatz, x.ende_ms + versatz,
-                                  x.text_roh, x.text))
+                                  x.text_roh, x.text, x.beginn_utc))
         with wave.open(str(wav)) as w:
             versatz += w.getnframes() * 1000 // konfig.RATE
 
@@ -302,8 +317,11 @@ async def verarbeite_sitzung(sitzung: Path, neu: bool = False) -> Path | None:
             bericht, "",
         ]
     zeilen += ["## Transkript", ""]
-    zeilen += [f"**[{a.zeit}]** {a.text}" + ("" if a.text == a.text_roh
-               else f"  \n<sub>roh: {a.text_roh}</sub>") for a in alle]
+    # Beide Zeitangaben: die Uhrzeit sagt WANN, der Versatz WO im Audio.
+    zeilen += [f"**[{a.uhrzeit or a.zeit}]**" + (f" *(bei {a.zeit})*" if a.uhrzeit else "")
+               + f" {a.text}"
+               + ("" if a.text == a.text_roh else f"  \n<sub>roh: {a.text_roh}</sub>")
+               for a in alle]
     zeilen += ["", "---", "",
                "Roh-Audio liegt neben dieser Datei und wird nicht gelöscht.",
                "Korrigierte Stellen zeigen den Rohtext darunter."]
