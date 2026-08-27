@@ -1,0 +1,85 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>aihiwi — Laborassistent</title>
+<style>
+  :root { --bg:#101014; --fg:#e8e8ea; --matt:#8a8a95; --linie:#2a2a33; }
+  * { box-sizing:border-box; margin:0; }
+  html,body { height:100%; }
+  body { background:var(--bg); color:var(--fg); font:16px/1.5 system-ui,sans-serif;
+         display:flex; flex-direction:column; }
+
+  /* Der Aufnahmebalken ist die wichtigste Anzeige im Raum. Er nimmt bewusst
+     ein Drittel des Bildschirms ein und ist aus jeder Ecke lesbar. */
+  #balken { flex:0 0 34vh; display:flex; align-items:center; justify-content:center;
+            gap:2rem; font-size:min(9vh,5rem); font-weight:700; letter-spacing:.02em;
+            background:#17171d; color:var(--matt); transition:background .2s; }
+  #balken.an { background:#b3211f; color:#fff; animation:puls 2s ease-in-out infinite; }
+  @keyframes puls { 50% { background:#8d1a18; } }
+  #punkt { width:.7em; height:.7em; border-radius:50%; background:currentColor;
+           opacity:.35; }
+  #balken.an #punkt { opacity:1; }
+
+  #mitte { flex:1; display:flex; flex-direction:column; justify-content:center;
+           padding:0 6vw; gap:1.2rem; }
+  #phase { font-size:min(5vh,2.4rem); font-weight:600; }
+  #phase small { display:block; font-size:1rem; font-weight:400; color:var(--matt);
+                 margin-top:.3rem; }
+  .zeile { font-size:min(3vh,1.4rem); }
+  .wer { color:var(--matt); font-size:.8em; text-transform:uppercase;
+         letter-spacing:.08em; }
+  #hinweis { color:#e8b339; font-size:min(2.6vh,1.2rem); min-height:1.5em; }
+
+  #fuss { flex:0 0 auto; border-top:1px solid var(--linie); padding:.8rem 6vw;
+          display:flex; gap:2rem; color:var(--matt); font-size:.9rem; }
+  .led { display:inline-block; width:.6em; height:.6em; border-radius:50%;
+         background:#6b2020; margin-right:.4em; vertical-align:baseline; }
+  .led.da { background:#3d9a54; }
+</style>
+
+<div id="balken"><span id="punkt"></span><span id="balkentext">Keine Aufzeichnung</span></div>
+
+<div id="mitte">
+  <div id="phase">Mikrofon aus<small id="phasedetail"></small></div>
+  <div id="hinweis"></div>
+  <div class="zeile"><div class="wer">Verstanden</div><div id="nutzer">—</div></div>
+  <div class="zeile"><div class="wer">Antwort</div><div id="assistent">—</div></div>
+</div>
+
+<div id="fuss">
+  <span><span class="led" id="led-stt"></span>Spracherkennung</span>
+  <span><span class="led" id="led-llm"></span>Modell</span>
+  <span><span class="led" id="led-ws"></span>Verbindung</span>
+</div>
+
+<script>
+const TEXTE = {
+  leerlauf:  ["Mikrofon aus",        "Es wird nichts gehört."],
+  bereit:    ["Bereit",              "Wartet darauf, angesprochen zu werden."],
+  hoeren:    ["Hört zu",             "Die Äußerung wird aufgenommen."],
+  denken:    ["Denkt nach",          "Spracherkennung und Modell laufen."],
+  antworten: ["Antwortet",           "Sprachausgabe läuft."],
+};
+const $ = id => document.getElementById(id);
+let ws;
+
+function verbinden() {
+  ws = new WebSocket(`ws://${location.host}/monitor`);
+  ws.onopen  = () => $("led-ws").classList.add("da");
+  ws.onclose = () => { $("led-ws").classList.remove("da"); setTimeout(verbinden, 1500); };
+  ws.onmessage = e => {
+    const z = JSON.parse(e.data);
+    if (z.typ !== "zustand") return;
+    $("balken").classList.toggle("an", z.aufnahme);
+    $("balkentext").textContent = z.aufnahme ? "AUFZEICHNUNG LÄUFT" : "Keine Aufzeichnung";
+    const [t, d] = TEXTE[z.phase] || [z.phase, ""];
+    $("phase").firstChild.textContent = t;
+    $("phasedetail").textContent = d;
+    $("hinweis").textContent = z.hinweis || "";
+    $("nutzer").textContent = z.letzter_text || "—";
+    $("assistent").textContent = z.letzte_antwort || "—";
+    $("led-stt").classList.toggle("da", z.stt_da);
+    $("led-llm").classList.toggle("da", z.llm_da);
+  };
+}
+verbinden();
+</script>

@@ -1,0 +1,55 @@
+"""Einstellungen des Sprachdienstes.
+
+Absichtlich eine einzige Datei ohne Ladelogik -- solange es keine zweite
+Installation gibt, ist eine Konfigurationsdatei nur eine weitere Fehlerquelle.
+"""
+import os
+from pathlib import Path
+
+WURZEL = Path(__file__).resolve().parent.parent
+
+# --- Netz -------------------------------------------------------------------
+# NIEMALS 0.0.0.0 oder [::]. Der GX10 hat eine weltweit geroutete IPv6 ohne NAT
+# davor; ein Dienst, der Laboraudio fuehrt, gehoert nicht versehentlich dorthin.
+# Fuer den Laborclient spaeter auf die Tailnet-Adresse <tailnet-adresse> umstellen.
+BIND      = os.environ.get("AIHIWI_BIND", "127.0.0.1")
+PORT      = int(os.environ.get("AIHIWI_PORT", "8920"))
+
+STT_URL   = os.environ.get("AIHIWI_STT", "http://127.0.0.1:8910/inference")
+LLM_URL   = os.environ.get("AIHIWI_LLM", "http://127.0.0.1:8889/v1")
+LLM_MODEL = os.environ.get("AIHIWI_MODEL", "ornith-1.5-35b-a3b")
+
+# --- Audio ------------------------------------------------------------------
+RATE       = 16000
+BLOCK      = 512               # Samples; 32 ms. Silero ist darauf trainiert.
+BLOCK_MS   = BLOCK * 1000 // RATE
+
+# --- Endpointing ------------------------------------------------------------
+# Gemessen am 27.08.2026: naiv kostet Fehlerfreiheit 1183 ms, mit lexikalischer
+# Pruefung ~510 ms. Siehe CLAUDE.md, Abschnitt "VAD und Endpointing".
+T_KURZ_MS   = 300      # Stille, ab der lexikalisch geprueft wird
+DECKE_MS    = 1200     # danach wird ohnehin abgeschlossen
+VAD_EIN     = 0.5      # Schwelle zum Eintritt in Sprache
+VAD_AUS     = 0.35     # Hysterese: niedriger, damit kurze Luecken nicht trennen
+MIN_SPRACHE_MS = 160   # kuerzeres gilt als Stoergeraeusch
+# Niedrig, weil das Modell nur als Veto gegen offensichtlich Unfertiges taugt:
+# vLLM ist bei temperature 0 nicht deterministisch, Grenzfaelle schwanken
+# ueber die halbe Skala. Kein feiner Regler.
+P_FERTIG_SCHWELLE = 0.1
+
+# --- Dateien ----------------------------------------------------------------
+AUFNAHMEN  = Path(os.environ.get("AIHIWI_AUFNAHMEN", WURZEL / "aufnahmen"))
+VAD_MODELL = WURZEL / "vad" / "silero_vad.onnx"
+STIMME     = WURZEL / "voices" / "de_DE-thorsten-medium.onnx"
+VOKABULAR  = WURZEL / "testaudio" / "vokabular.txt"
+
+# Umlaute hier BEWUSST korrekt, auch wenn der Rest der Datei ASCII ist: das
+# Modell ahmt den Stil des System-Prompts nach. Mit "Aufzaehlungen" im Prompt
+# antwortete es "Ich kann das nicht fuer dich ausfuehren" -- und Piper spricht
+# "fuer" als "Fu-er" aus. Was hier steht, landet im Lautsprecher.
+SYSTEM_PROMPT = (
+    "Du bist der Laborassistent im KI-Labor. Du antwortest kurz und zum Sprechen, "
+    "nicht zum Lesen: keine Aufzählungen, keine Formatierung, keine Sonderzeichen, "
+    "höchstens zwei Sätze. Zahlen schreibst du als Wort, wenn sie klein sind. "
+    "Wenn du etwas nicht weißt, sagst du das."
+)

@@ -1,0 +1,5 @@
+Bitte starte die Aufzeichnung und notiere, dass wir heute den Layer-Norm-Patch im Attention-Head testen.
+Der Throughput lag bei achtundsiebzig Token pro Sekunde, die Batch-Size war zweiunddreißig.
+Kannst du den Sweep über die Learning-Rate nochmal mit Early-Stopping laufen lassen?
+Wir haben das Modell auf NVFP4 quantisiert, der KV-Cache läuft auf FP8.
+Schreib ins Protokoll: Baseline reproduziert, aber der Dataloader hat einen Bottleneck.

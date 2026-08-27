@@ -1,0 +1,24 @@
+# --- Laboraufnahmen: NIEMALS ins Repo ---------------------------------------
+# Mitschnitte aus dem Labor. Aufzeichnung des nichtoeffentlich gesprochenen
+# Wortes faellt unter § 201 StGB; sie gehoeren nicht in eine Versionsverwaltung,
+# aus der sie sich praktisch nicht mehr entfernen lassen.
+aufnahmen/
+
+# --- Umgebung und Laufzeit ---------------------------------------------------
+.venv/
+logs/
+__pycache__/
+*.pyc
+
+# --- Modelle: gross und jederzeit nachladbar ---------------------------------
+# Wiederherstellen siehe CLAUDE.md, Abschnitt "Einrichten".
+voices/*.onnx
+voices/*.onnx.json
+vad/*.onnx
+
+# --- erzeugtes Testmaterial --------------------------------------------------
+# testaudio/*.py und die Textdateien bleiben versioniert, die WAVs nicht --
+# sie entstehen reproduzierbar aus turns.py und Piper.
+testaudio/*.wav
+testaudio/turns/
+testaudio/liste.txt

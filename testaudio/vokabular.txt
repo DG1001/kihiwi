@@ -1,0 +1,1 @@
+Wir arbeiten im ML-Labor mit Attention-Heads, Layer-Norm, Learning-Rate, Batch-Size, Early-Stopping, Throughput, Dataloader, Bottleneck, Baseline, NVFP4-Quantisierung und einem KV-Cache in FP8.
