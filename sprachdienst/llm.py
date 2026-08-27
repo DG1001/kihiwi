@@ -21,22 +21,34 @@ ERSTER_MIN = 25          # kuerzer klingt abgehackt
 ERSTER_MAX = 60          # laenger kostet unnoetig Zeit
 
 
-def _strom(nachrichten, max_tokens, temperatur, schieb):
-    """schieb(x) legt x threadsicher in die asyncio.Queue des Aufrufers."""
+def _strom(nachrichten, max_tokens, temperatur, schieb, werkzeuge=None):
+    """schieb(x) legt x threadsicher in die asyncio.Queue des Aufrufers.
+
+    Geschoben wird ("text", stueck) oder ("werkzeug", teilstueck). Werkzeug-
+    aufrufe kommen bei vLLM stueckweise: erst Name und Kennung, dann die
+    Argumente als JSON-Fragmente ueber mehrere Deltas.
+    """
     try:
+        rumpf = {"model": konfig.LLM_MODEL, "stream": True,
+                 "max_tokens": max_tokens, "temperature": temperatur,
+                 "messages": nachrichten}
+        if werkzeuge:
+            rumpf["tools"] = werkzeuge
+            rumpf["tool_choice"] = "auto"
         req = urllib.request.Request(
             f"{konfig.LLM_URL}/chat/completions",
-            data=json.dumps({"model": konfig.LLM_MODEL, "stream": True,
-                             "max_tokens": max_tokens, "temperature": temperatur,
-                             "messages": nachrichten}).encode(),
+            data=json.dumps(rumpf).encode(),
             headers={"Content-Type": "application/json"})
         for roh in urllib.request.urlopen(req, timeout=60):
             zeile = roh.decode().strip()
             if not zeile.startswith("data: ") or zeile.endswith("[DONE]"):
                 continue
-            d = json.loads(zeile[6:])["choices"][0]["delta"].get("content")
+            delta = json.loads(zeile[6:])["choices"][0]["delta"]
+            for w in (delta.get("tool_calls") or []):
+                schieb(("werkzeug", w))
+            d = delta.get("content")
             if d:
-                schieb(d)
+                schieb(("text", d))
     except (urllib.error.URLError, OSError, TimeoutError, KeyError, json.JSONDecodeError):
         pass
     finally:
@@ -70,7 +82,8 @@ async def _roh(nachrichten, max_tokens, temperatur):
         stueck = await q.get()
         if stueck is None:
             return
-        yield stueck
+        if stueck[0] == "text":
+            yield stueck[1]
 
 
 async def antwort_saetze_roh(system: str, frage: str, max_tokens: int = 400,
@@ -114,9 +127,12 @@ async def _saetze(nachrichten, max_tokens, temperatur):
     puffer = ""
     erster = True
     while True:
-        stueck = await q.get()
-        if stueck is None:
+        posten = await q.get()
+        if posten is None:
             break
+        if posten[0] != "text":
+            continue
+        stueck = posten[1]
         puffer += stueck
 
         if erster and len(puffer) >= ERSTER_MIN:
@@ -138,6 +154,147 @@ async def _saetze(nachrichten, max_tokens, temperatur):
                 yield satz
     if puffer.strip():
         yield puffer.strip()
+
+
+class _Teiler:
+    """Zerlegt einen Token-Strom satzweise, ersten Brocken frueher.
+
+    Ausgelagert, weil Dialog und Werkzeugschleife dieselbe Logik brauchen:
+    der erste Brocken bestimmt die gefuehlte Latenz und wird schon am Komma
+    getrennt, die folgenden erst am Satzende.
+    """
+
+    def __init__(self):
+        self.puffer = ""
+        self.erster = True
+
+    def dazu(self, stueck: str):
+        self.puffer += stueck
+        if self.erster and len(self.puffer) >= ERSTER_MIN:
+            teile = _TEILSATZ.split(self.puffer, maxsplit=1)
+            if len(teile) == 2 and ERSTER_MIN <= len(teile[0]) <= ERSTER_MAX:
+                kopf, self.puffer = teile[0].strip(), teile[1]
+                self.erster = False
+                if kopf:
+                    yield kopf
+                    return
+        while True:
+            teile = _SATZENDE.split(self.puffer, maxsplit=1)
+            if len(teile) < 2:
+                break
+            satz, self.puffer = teile[0].strip(), teile[1]
+            if satz:
+                self.erster = False
+                yield satz
+
+    def rest(self):
+        r, self.puffer = self.puffer.strip(), ""
+        return r
+
+
+async def antwort_mit_werkzeugen(frage: str, verlauf, werkzeuge, ausfuehren,
+                                 system: str | None = None,
+                                 max_tokens: int = 200, runden: int = 3):
+    """Wie antwort_saetze, aber das Modell darf Werkzeuge aufrufen.
+
+    Liefert ("satz", text) fuer Sprachausgabe und ("werkzeug", name, args,
+    ergebnis) nach jeder Ausfuehrung. `ausfuehren(name, args)` ist eine
+    Korutine des Aufrufers -- der Sprachdienst weiss, wie man aufzeichnet,
+    dieses Modul nicht.
+
+    `runden` bremst die Schleife: ohne Deckel koennte das Modell endlos
+    Werkzeuge aufrufen.
+    """
+    nachrichten = [{"role": "system", "content": system or konfig.SYSTEM_PROMPT}]
+    nachrichten += list(verlauf or [])
+    nachrichten.append({"role": "user", "content": frage})
+
+    for _ in range(runden):
+        schleife = asyncio.get_running_loop()
+        q: asyncio.Queue = asyncio.Queue()
+        schieb = lambda x: schleife.call_soon_threadsafe(q.put_nowait, x)
+        threading.Thread(target=_strom,
+                         args=(nachrichten, max_tokens, 0.3, schieb, werkzeuge),
+                         daemon=True).start()
+
+        teiler = _Teiler()
+        gesagt: list[str] = []
+        rufe: dict[int, dict] = {}
+        while True:
+            posten = await q.get()
+            if posten is None:
+                break
+            if posten[0] == "werkzeug":
+                w = posten[1]
+                e = rufe.setdefault(w.get("index", 0), {"id": "", "name": "", "args": ""})
+                if w.get("id"):
+                    e["id"] = w["id"]
+                f = w.get("function") or {}
+                if f.get("name"):
+                    e["name"] = f["name"]
+                if f.get("arguments"):
+                    e["args"] += f["arguments"]
+                continue
+            for satz in teiler.dazu(posten[1]):
+                gesagt.append(satz)
+                yield ("satz", satz)
+        rest = teiler.rest()
+        if rest:
+            gesagt.append(rest)
+            yield ("satz", rest)
+
+        if not rufe:
+            return
+
+        nachrichten.append({
+            "role": "assistant", "content": " ".join(gesagt),
+            "tool_calls": [{"id": e["id"] or f"ruf{i}", "type": "function",
+                            "function": {"name": e["name"], "arguments": e["args"] or "{}"}}
+                           for i, e in rufe.items()]})
+        for i, e in rufe.items():
+            try:
+                args = json.loads(e["args"] or "{}")
+            except json.JSONDecodeError:
+                args = {}
+            ergebnis = await ausfuehren(e["name"], args)
+            yield ("werkzeug", e["name"], args, ergebnis)
+            nachrichten.append({"role": "tool", "tool_call_id": e["id"] or f"ruf{i}",
+                                "content": str(ergebnis)})
+
+
+async def erzwinge_werkzeug(frage: str, verlauf, werkzeuge, name: str,
+                            system: str | None = None, timeout: float = 20.0):
+    """Zwingt das Modell, genau dieses Werkzeug aufzurufen, und gibt die
+    Argumente zurueck (oder None).
+
+    Gebraucht als Nachfassen: das Modell behauptet gelegentlich eine Aenderung,
+    ohne das Werkzeug aufgerufen zu haben. Statt nur zu widersprechen, wird der
+    Aufruf hier nachgeholt -- der Nutzer bekommt, worum er gebeten hat.
+    """
+    nachrichten = [{"role": "system", "content": system or konfig.SYSTEM_PROMPT}]
+    nachrichten += list(verlauf or [])
+    nachrichten.append({"role": "user", "content": frage})
+
+    def _p():
+        req = urllib.request.Request(
+            f"{konfig.LLM_URL}/chat/completions",
+            data=json.dumps({
+                "model": konfig.LLM_MODEL, "max_tokens": 80, "temperature": 0,
+                "messages": nachrichten, "tools": werkzeuge,
+                "tool_choice": {"type": "function", "function": {"name": name}},
+            }).encode(),
+            headers={"Content-Type": "application/json"})
+        a = json.load(urllib.request.urlopen(req, timeout=timeout))
+        rufe = a["choices"][0]["message"].get("tool_calls") or []
+        for r in rufe:
+            if r["function"]["name"] == name:
+                return json.loads(r["function"]["arguments"] or "{}")
+        return None
+
+    try:
+        return await asyncio.to_thread(_p)
+    except Exception:
+        return None
 
 
 async def erreichbar(timeout: float = 2.0) -> bool:

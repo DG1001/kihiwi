@@ -304,6 +304,46 @@ bestätigt: es ist ein JEOL.
 Die Methode ist übernommen worden: Kandidaten einzeln testen, und die
 **Nicht**-Treffer sind der eigentliche Beleg.
 
+### Aktivierungswort „Kiwi" und Werkzeugsteuerung
+
+Mikrofon dauerhaft offen, Ansprache per Wort, Aufzeichnung über einen
+Werkzeugaufruf des Modells.
+
+**Entscheidung: kein Wake-Word-Modell.** Die vortrainierten sind englisch, ein
+deutsches Wort bräuchte eigenes Training. Stattdessen wird der Text benutzt, den
+die Spracherkennung ohnehin liefert — die lexikalische Endpoint-Prüfung
+transkribiert bereits mitten im Satz, das Erkennen kostet also fast nichts.
+
+Fred schlug „Kiwi" statt „Hiwi" vor (aus KI-Hiwi). Phonetisch die bessere Wahl:
+zwei klare Silben, fällt im Labor sonst nicht.
+
+**Falle 1: „Der Hiwi hat das gemacht" galt als Ansprache.** Mit Schwelle 0,75
+traf „der hiwi" auf den Kandidaten „hey hiwi". Behoben durch Wortzahl-Abgleich
+und Schwelle 0,80.
+
+**Falle 2: „Kivi" wurde verfehlt.** Die Schwelle zu senken wäre hier gefährlich —
+„Hiwi" und „Kiwi" trennt ein Buchstabe (0,75), und im Hochschulalltag fällt
+„Hiwi" ständig. Stattdessen Schreibvarianten aufgezählt.
+
+**Falle 3: „TV stoppe die Aufzeichnung".** Das Aktivierungswort stand nicht im
+Vokabular-Prompt, also hatte Whisper keinen Grund, es zu bevorzugen — derselbe
+Mechanismus wie bei JEOL. Jetzt wird es in `stt._vokabular` **immer**
+angehängt, unabhängig von `vokabular.txt`.
+
+**Der ernsteste Fund: das Modell behauptete Handlungen.** Beim Stoppen sagte es
+„die Aufzeichnung ist jetzt gestoppt", **ohne das Werkzeug aufzurufen** — der
+Zustand blieb an. Bei einer Funktion mit § 201 im Rücken ist das inakzeptabel.
+
+Ein verschärfter Prompt half isoliert (5/5), im echten Ablauf mit
+Gesprächsverlauf aber nicht. Deshalb zwei Netze im Code: Erkennung der
+Behauptung per Regex, dann **Nachfassen mit erzwungenem Werkzeugaufruf** über
+vLLMs `tool_choice`. Damit wird die Handlung nachgeholt statt bloß widersprochen.
+Im Durchlauf greift genau das: das Modell behauptet, der Dienst holt den Aufruf
+nach, die Aufzeichnung stoppt wirklich.
+
+**Allgemeiner:** Bei folgenreichen Werkzeugen nicht darauf bauen, dass das Modell
+den Aufruf macht — prüfen, ob er stattgefunden hat, und ihn andernfalls erzwingen.
+
 ### Offen
 
 - Autostart (systemd-Units) — bewusst zurückgestellt.

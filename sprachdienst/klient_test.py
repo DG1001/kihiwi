@@ -23,7 +23,7 @@ def lies(pfad):
         return np.frombuffer(w.readframes(w.getnframes()), dtype=np.int16)
 
 
-async def lauf(pfad, aufnahme=False):
+async def lauf(pfad, aufnahme=False, ansprechen=True):
     x = lies(pfad)
     x = np.concatenate([x, np.zeros(int(konfig.RATE * NACHLAUF_S), dtype=np.int16)])
 
@@ -56,7 +56,10 @@ async def lauf(pfad, aufnahme=False):
         await ws.send(json.dumps({"befehl": "mikro", "an": True}))
         if aufnahme:
             await ws.send(json.dumps({"befehl": "aufnahme", "an": True}))
-        await ws.send(json.dumps({"befehl": "ansprechen"}))
+        if ansprechen:
+            await ws.send(json.dumps({"befehl": "ansprechen"}))
+        else:
+            print("  (kein Knopf — es zaehlt nur das Aktivierungswort)")
 
         print(f"  sende {len(x)/konfig.RATE:.1f}s Audio in Echtzeit ...")
         t0 = time.time()
@@ -93,4 +96,5 @@ async def lauf(pfad, aufnahme=False):
 
 if __name__ == "__main__":
     datei = sys.argv[1] if len(sys.argv) > 1 else "testaudio/s1.wav"
-    asyncio.run(lauf(datei, aufnahme="--aufnahme" in sys.argv))
+    asyncio.run(lauf(datei, aufnahme="--aufnahme" in sys.argv,
+                     ansprechen="--wach" not in sys.argv))

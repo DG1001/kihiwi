@@ -37,6 +37,19 @@ MIN_SPRACHE_MS = 160   # kuerzeres gilt als Stoergeraeusch
 # ueber die halbe Skala. Kein feiner Regler.
 P_FERTIG_SCHWELLE = 0.1
 
+# --- Aktivierungswort -------------------------------------------------------
+# "Kiwi" (aus KI-Hiwi) ist als Aktivierungswort guenstig: zwei klare Silben,
+# phonetisch eindeutig, und im Labor faellt das Wort sonst nicht. "Computer"
+# waere in einem technischen Umfeld staendig ein Fehlausloeser, "Hiwi" kommt
+# im Hochschulalltag zu haeufig vor.
+# Schreibvarianten ausdruecklich aufzaehlen statt die Schwelle zu senken:
+# "Hiwi" und "Kiwi" trennt EIN Buchstabe (Verhaeltnis 0,75), und im
+# Hochschulumfeld faellt "Hiwi" staendig. Eine lockerere Schwelle wuerde jede
+# Erwaehnung zur Ansprache machen.
+AKTIVIERUNG = ["kiwi", "kivi", "kiwie", "kiwi kiwi", "hey kiwi"]
+AKTIVIERUNG_MIN = 0.80   # unscharf, aber nicht zu lose: bei 0,75 galt
+                         # schon "Der Hiwi ..." als Ansprache
+
 # --- Dateien ----------------------------------------------------------------
 AUFNAHMEN  = Path(os.environ.get("AIHIWI_AUFNAHMEN", WURZEL / "aufnahmen"))
 VAD_MODELL = WURZEL / "vad" / "silero_vad.onnx"

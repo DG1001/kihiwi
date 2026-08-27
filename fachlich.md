@@ -9,7 +9,8 @@ Rechenarbeit läuft auf dem GX10 im Serverraum, verbunden übers Netz.
 **Dokumentation.** Kontinuierlicher Mitschnitt des Laborgesprächs, aber nur wenn
 ausdrücklich aktiviert. Daraus entstehen Transkripte und strukturierte Protokolle.
 
-**Dialog.** Der Assistent wird per Aktivierungswort oder Taste angesprochen,
+**Dialog.** Der Assistent wird mit dem Aktivierungswort **„Kiwi"** oder per Taste
+angesprochen — „Kiwi, starte die Aufzeichnung". Er
 beantwortet Fragen und nimmt Anweisungen entgegen. Die Antwort kommt als Sprache
 über den Freisprecher; ergänzend kann der Assistent Inhalte auf dem Monitor
 anzeigen.
@@ -90,8 +91,5 @@ gibt keinen Cloud-Dienst im Pfad.
   abfotografieren und fragen „was steht da". Auf dem GX10 läuft immer nur ein
   großes Modell, also ist das eine Entscheidung gegen Textqualität und nicht
   zusätzlich möglich.
-- **Welches Aktivierungswort?** Die vortrainierten Modelle sind englisch. Ein
-  deutsches Wort braucht eigenes Training; pragmatisch wäre ein Wort, das in
-  beiden Sprachen gleich klingt.
 - **Zugriff auf die Inhalte von außen.** Der Assistent braucht einen Index über
   die Inhalte, keinen Dateiserver — eine Nextcloud allein löst das nicht.

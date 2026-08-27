@@ -12,12 +12,12 @@ Protokoll auf /audio
                                     der vorangehenden "ton"-Nachricht)
 Auf /monitor liegt nur der Zustand -- fuer den Bildschirm im Labor.
 """
-import asyncio, http, json, logging, signal
+import asyncio, http, json, logging, re, signal
 import numpy as np
 import websockets
 from websockets.asyncio.server import serve
 
-from . import doku, konfig, llm, stt, tts
+from . import aktivierung, doku, konfig, llm, stt, tts
 from .turn import Turnerkenner
 from .zustand import Phase, Zustandshalter
 
@@ -41,6 +41,27 @@ async def gesundheit():
             hinweis = "Modell nicht erreichbar — es wird weiter aufgezeichnet"
         HALTER.setzen(llm_da=llm_da, stt_da=stt_da, hinweis=hinweis)
         await asyncio.sleep(5)
+
+
+# Behauptet die Antwort eine Aenderung an der Aufzeichnung? Grob, absichtlich:
+# lieber einmal zu viel den wahren Zustand nachschieben als eine unbemerkte
+# Falschaussage stehen lassen.
+_BEHAUPTUNG = re.compile(
+    r"(aufzeichnung|aufnahme|mitschnitt)[^.]{0,40}"
+    r"(gestartet|gestoppt|angelaufen|beendet|läuft|aus|an)", re.I)
+
+WERKZEUGE = [{
+    "type": "function",
+    "function": {
+        "name": "aufzeichnung",
+        "description": ("Schaltet die Audioaufzeichnung des Laborgesprächs an oder "
+                        "aus. Nur benutzen, wenn ausdrücklich darum gebeten wird."),
+        "parameters": {
+            "type": "object",
+            "properties": {"an": {"type": "boolean",
+                                  "description": "true startet, false stoppt"}},
+            "required": ["an"]},
+    }}]
 
 
 # ---------------------------------------------------------------- Sitzung
@@ -75,8 +96,8 @@ class Sitzung:
                 self.rek.stop()
             HALTER.setzen(aufnahme=self.rek.laeuft)
         elif art == "ansprechen":
-            # Ersatz fuer das Aktivierungswort, solange es keins gibt: der
-            # Client meldet Taste oder Wake-Word, der Dienst hoert ab jetzt zu.
+            # Taste am Client -- gleichwertig zum Aktivierungswort, aber ohne
+            # dass es gesagt werden muss. Bleibt nuetzlich, wenn es laut ist.
             if HALTER.z.mikro:
                 self.turn.reset()
                 HALTER.setzen(phase=Phase.HOEREN)
@@ -92,14 +113,29 @@ class Sitzung:
             # Dokumentationspfad laeuft unabhaengig vom Dialog weiter.
             if self.rek.laeuft:
                 self.rek.block(block)
-            if HALTER.z.phase is not Phase.HOEREN:
+            # Waehrend der Assistent spricht, nicht auf sich selbst reagieren.
+            if HALTER.z.phase in (Phase.DENKEN, Phase.ANTWORTEN):
                 continue
             ep = await self.turn.block(block)
-            if ep is not None:
-                log.info("Endpoint: %s nach %.0f ms Aeusserung, Text %s",
-                         ep.grund, ep.dauer_ms, "vorhanden" if ep.text else "fehlt")
-                HALTER.setzen(phase=Phase.DENKEN)
-                self.antwort_task = asyncio.create_task(self.antworten(ep))
+            if ep is None:
+                continue
+
+            gerufen = HALTER.z.phase is Phase.HOEREN     # Knopf gedrueckt
+            text = ep.text or await stt.transkribiere(ep.samples)
+            if not gerufen:
+                # Mikrofon offen: jede Aeusserung wird transkribiert, aber nur
+                # eine mit Aktivierungswort gilt als Ansprache. Der Text kostet
+                # nichts extra -- die lexikalische Endpoint-Pruefung hat ihn
+                # ohnehin schon erzeugt.
+                ja, rest = aktivierung.erkannt(text)
+                if not ja:
+                    continue
+                log.info("Aktivierungswort erkannt: %r", text[:60])
+                text = rest
+            ep.text = text
+            log.info("Endpoint: %s nach %.0f ms Aeusserung", ep.grund, ep.dauer_ms)
+            HALTER.setzen(phase=Phase.DENKEN)
+            self.antwort_task = asyncio.create_task(self.antworten(ep))
 
     async def antworten(self, ep):
         import time as _t
@@ -125,7 +161,17 @@ class Sitzung:
             # Satzweise: der erste Satz geht raus, waehrend der Rest noch
             # geschrieben wird. Nur bis dahin zaehlt die gefuehlte Latenz.
             t1 = _t.time(); erster = True
-            async for satz in llm.antwort_saetze(text, self.verlauf):
+            werkzeug_gerufen = False
+            async for e in llm.antwort_mit_werkzeugen(
+                    text, self.verlauf, WERKZEUGE, self.werkzeug,
+                    system=self.system_prompt()):
+                if e[0] == "werkzeug":
+                    werkzeug_gerufen = True
+                    log.info("  Werkzeug %s%r -> %s", e[1], e[2], e[3])
+                    await self.ws.send(json.dumps({"typ": "werkzeug", "name": e[1],
+                                                   "args": e[2], "ergebnis": e[3]}))
+                    continue
+                satz = e[1]
                 if erster:
                     log.info("  LLM erster Satz nach %.0f ms (%d Zeichen)",
                              (_t.time()-t1)*1000, len(satz)); erster = False
@@ -134,6 +180,34 @@ class Sitzung:
                 await self.ws.send(json.dumps({"typ": "text", "rolle": "assistent",
                                                "text": satz}))
                 await self.sag(satz)
+            # Sicherheitsnetz: das Modell hat schon behauptet, die Aufzeichnung
+            # gestoppt zu haben, ohne das Werkzeug aufzurufen. Ein verschaerfter
+            # Prompt half, aber darauf allein darf sich das nicht stuetzen --
+            # wer glaubt, es werde nicht mehr aufgezeichnet, muss recht haben.
+            antwort = " ".join(ganze)
+            if not werkzeug_gerufen and _BEHAUPTUNG.search(antwort):
+                log.warning("Behauptung ohne Werkzeugaufruf — hole ihn nach")
+                args = await llm.erzwinge_werkzeug(text, self.verlauf, WERKZEUGE,
+                                                   "aufzeichnung",
+                                                   system=self.system_prompt())
+                if args is not None:
+                    ergebnis = await self.werkzeug("aufzeichnung", args)
+                    log.info("  nachgeholt: aufzeichnung%r -> %s", args, ergebnis)
+                    await self.ws.send(json.dumps({"typ": "werkzeug",
+                                                   "name": "aufzeichnung",
+                                                   "args": args, "ergebnis": ergebnis,
+                                                   "nachgeholt": True}))
+                else:
+                    # Auch das Nachfassen kann scheitern. Dann wenigstens nicht
+                    # die Falschaussage stehen lassen.
+                    wahr = ("Zur Sicherheit: die Aufzeichnung läuft weiterhin."
+                            if HALTER.z.aufnahme else
+                            "Zur Sicherheit: es wird gerade nicht aufgezeichnet.")
+                    await self.ws.send(json.dumps({"typ": "text", "rolle": "assistent",
+                                                   "text": wahr}))
+                    await self.sag(wahr)
+                    ganze.append(wahr)
+
             self.verlauf += [{"role": "user", "content": text},
                              {"role": "assistant", "content": " ".join(ganze)}]
             del self.verlauf[:-8]
@@ -144,6 +218,33 @@ class Sitzung:
         finally:
             if HALTER.z.phase in (Phase.DENKEN, Phase.ANTWORTEN):
                 HALTER.setzen(phase=Phase.BEREIT if HALTER.z.mikro else Phase.LEERLAUF)
+
+    def system_prompt(self) -> str:
+        """Der Zustand gehoert in den Prompt, nicht in ein Werkzeug: sonst
+        fragt das Modell erst nach, ob aufgezeichnet wird, bevor es handelt."""
+        lauft = "läuft gerade" if HALTER.z.aufnahme else "läuft gerade nicht"
+        return (konfig.SYSTEM_PROMPT +
+                f" Die Audioaufzeichnung des Laborgesprächs {lauft}. "
+                "Willst du daran etwas ändern, MUSST du das Werkzeug 'aufzeichnung' "
+                "aufrufen. Behaupte niemals eine Änderung, die du nicht über das "
+                "Werkzeug ausgeführt hast — das Protokoll und die Anzeige im Labor "
+                "hängen daran. Sag danach in einem kurzen Satz, was geschehen ist.")
+
+    async def werkzeug(self, name: str, args: dict) -> str:
+        """Fuehrt einen Werkzeugaufruf aus. Rueckgabe geht ans Modell zurueck."""
+        if name != "aufzeichnung":
+            return f"Unbekanntes Werkzeug {name}."
+        an = bool(args.get("an"))
+        if an and not HALTER.z.mikro:
+            return "Fehlgeschlagen: das Mikrofon ist aus."
+        if an:
+            self.rek.start()
+        else:
+            self.rek.stop()
+        HALTER.setzen(aufnahme=self.rek.laeuft)
+        # Die Aufzeichnung ist rechtlich heikel; sie darf nie still anlaufen.
+        # Der Monitor zeigt es ohnehin, die Bestaetigung sagt es zusaetzlich.
+        return "Aufzeichnung läuft jetzt." if self.rek.laeuft else "Aufzeichnung ist gestoppt."
 
     async def sag(self, satz: str):
         import time as _t

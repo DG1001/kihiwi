@@ -19,6 +19,11 @@ def _vokabular() -> str:
     except OSError:
         return ""
     begriffe = [z.strip() for z in zeilen if z.strip() and not z.startswith("#")]
+    # Das Aktivierungswort gehoert IMMER dazu, unabhaengig von der Datei.
+    # Ohne es hoerte die Erkennung aus "Kiwi, stoppe die Aufzeichnung" ein
+    # "TV stoppe die Aufzeichnung" -- der Assistent war dann taub.
+    begriffe = list(dict.fromkeys(
+        [w.title() for w in konfig.AKTIVIERUNG if " " not in w] + begriffe))
     return ("Fachbegriffe: " + ", ".join(begriffe) + ".") if begriffe else ""
 
 

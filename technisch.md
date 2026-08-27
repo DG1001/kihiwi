@@ -217,6 +217,51 @@ falsche Richtung. Belegt: mit einer ML-Liste wurde aus „Fenstertechnologie" ei
 der Spracherkennung, ganz ohne Korrekturstufe. **Der Hebel sitzt vorn, nicht
 hinten.**
 
+## Aktivierungswort und Werkzeuge
+
+**Aktivierungswort ist „Kiwi"** (`konfig.AKTIVIERUNG`), aus KI-Hiwi. Bei offenem
+Mikrofon wird jede Äußerung transkribiert; nur eine, die damit **beginnt**, gilt
+als Ansprache. Der Rest des Satzes ist gleich die Anweisung — „Kiwi, starte die
+Aufzeichnung" kommt in einem Atemzug.
+
+Kein eigenes Wake-Word-Modell: die vortrainierten sind englisch, ein deutsches
+Wort bräuchte eigenes Training. Der Text kostet nichts extra, weil die
+lexikalische Endpoint-Prüfung ohnehin mitten im Satz transkribiert.
+
+Drei Dinge, die dabei zählen:
+
+- **Nur der Satzanfang wird geprüft.** Sonst löst jede Erwähnung aus, und im
+  Labor wird über den Assistenten auch geredet.
+- **Schreibvarianten aufzählen statt die Schwelle senken** (`kiwi`, `kivi`,
+  `kiwie`, …). „Hiwi" und „Kiwi" trennt ein Buchstabe — Verhältnis 0,75. Eine
+  lockerere Schwelle würde im Hochschulumfeld dauernd falsch auslösen.
+- **Das Aktivierungswort steht immer im STT-Prompt**, unabhängig von
+  `vokabular.txt` (in `stt._vokabular` erzwungen). Ohne das hörte die Erkennung
+  aus „Kiwi, stoppe die Aufzeichnung" ein „TV stoppe die Aufzeichnung" — der
+  Assistent war taub.
+
+### Werkzeuge
+
+Ornith läuft mit `--enable-auto-tool-choice --tool-call-parser qwen3_xml`.
+Definiert in `gateway.WERKZEUGE`, ausgeführt von `Sitzung.werkzeug`. Derzeit
+eines: `aufzeichnung(an: bool)`. Der **Zustand** steht im System-Prompt, nicht in
+einem Werkzeug — sonst fragt das Modell erst nach, bevor es handelt.
+
+**Zwei Netze gegen behauptete Handlungen.** Das Modell hat mehrfach gesagt, es
+habe die Aufzeichnung gestoppt, **ohne das Werkzeug aufzurufen**. Bei einer
+rechtlich heiklen Funktion ist das inakzeptabel: Wer glaubt, es werde nicht mehr
+aufgezeichnet, muss recht haben.
+
+1. Antwort wird gegen `_BEHAUPTUNG` geprüft — behauptet sie eine Änderung, ohne
+   dass ein Werkzeug lief, greift Stufe 2.
+2. **Nachfassen mit erzwungenem Aufruf** (`llm.erzwinge_werkzeug`, vLLMs
+   `tool_choice` auf eine bestimmte Funktion). Damit wird die Handlung
+   nachgeholt statt bloß widersprochen — der Nutzer bekommt, worum er gebeten
+   hat. Schlägt auch das fehl, wird wenigstens der wahre Zustand angesagt.
+
+Ein verschärfter Prompt allein reichte nicht: isoliert 5/5 korrekt, im echten
+Ablauf mit Gesprächsverlauf wieder daneben.
+
 ## Latenzbudget (warm gemessen, 27.08.2026)
 
 | Glied | Zeit | Anmerkung |
