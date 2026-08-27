@@ -50,7 +50,10 @@ async def lauf(pfad, aufnahme=False, ansprechen=True):
                 elif d["typ"] == "ton":
                     rate_aus = d["rate"]
                 elif d["typ"] == "ton_ende":
-                    fertig.set()
+                    # NICHT sofort aufhoeren: seit der Dienst den gewaehlten Weg
+                    # ansagt, folgt nach dem ersten ton_ende noch die eigentliche
+                    # Antwort. Stattdessen auf Ruhe warten.
+                    marken["letzter_ton"] = time.time()
 
         aufgabe = asyncio.create_task(empfangen())
         await ws.send(json.dumps({"befehl": "mikro", "an": True}))
@@ -73,10 +76,15 @@ async def lauf(pfad, aufnahme=False, ansprechen=True):
             if fertig.is_set():
                 break
 
-        try:
-            await asyncio.wait_for(fertig.wait(), timeout=25)
-        except asyncio.TimeoutError:
-            print("  ! keine vollstaendige Antwort innerhalb von 25 s")
+        # Fertig ist, wenn 4 s lang nichts mehr kam.
+        ende = time.time() + 40
+        while time.time() < ende:
+            await asyncio.sleep(0.5)
+            letzter = marken.get("letzter_ton")
+            if letzter and time.time() - letzter > 4:
+                break
+        else:
+            print("  ! keine vollstaendige Antwort innerhalb von 40 s")
         aufgabe.cancel()
 
         if antwort:

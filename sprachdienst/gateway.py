@@ -68,6 +68,15 @@ _BEHAUPTUNG = re.compile(
     r"(aufzeichnung|aufnahme|mitschnitt)[^.]{0,40}"
     r"(gestartet|gestoppt|angelaufen|beendet|läuft|aus|an)", re.I)
 
+# Feste Ansage je Werkzeug, gesprochen BEVOR es laeuft. Bewusst im Dienst und
+# nicht per Prompt: das Modell haelt sich nicht zuverlaessig daran, und der
+# Nutzer muss wissen, ob er auf Sekunden oder auf Minuten wartet.
+ANSAGE = {
+    "dokumente_suchen": "Ich schaue in den Unterlagen nach.",
+    "web_suchen": "Ich schaue kurz im Netz nach.",
+    "rechercheauftrag": "Das gebe ich als Rechercheauftrag ab, das dauert ein paar Minuten.",
+}
+
 WERKZEUGE = [{
     "type": "function",
     "function": {
@@ -311,6 +320,14 @@ class Sitzung:
 
             HALTER.setzen(phase=Phase.ANTWORTEN, letzte_antwort="")
             ganze = []
+            # Waehrend eine Recherche laeuft, teilen sich Hermes und der
+            # Sprachpfad ein Modell -- Antworten dauern dann spuerbar laenger.
+            # Das anzusagen ist ehrlicher, als den Nutzer warten zu lassen.
+            if HALTER.z.recherche:
+                hinweis = "Ich recherchiere noch nebenbei, das dauert gerade länger."
+                await self.ws.send(json.dumps({"typ": "text", "rolle": "assistent",
+                                               "text": hinweis}))
+                await self.sag(hinweis)
             # Satzweise: der erste Satz geht raus, waehrend der Rest noch
             # geschrieben wird. Nur bis dahin zaehlt die gefuehlte Latenz.
             t1 = _t.time(); erster = True
@@ -319,6 +336,14 @@ class Sitzung:
             async for e in llm.antwort_mit_werkzeugen(
                     text, self.verlauf, WERKZEUGE, self.werkzeug,
                     system=self.system_prompt()):
+                if e[0] == "werkzeug_beginnt":
+                    ansage = ANSAGE.get(e[1])
+                    if ansage:
+                        await self.ws.send(json.dumps({"typ": "text",
+                                                       "rolle": "assistent",
+                                                       "text": ansage}))
+                        await self.sag(ansage)
+                    continue
                 if e[0] == "werkzeug":
                     werkzeug_gerufen = True
                     log.info("  Werkzeug %s%r -> %s", e[1], e[2], e[3])

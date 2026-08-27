@@ -285,6 +285,10 @@ async def antwort_mit_werkzeugen(frage: str, verlauf, werkzeuge, ausfuehren,
                 args = json.loads(f.get("arguments") or "{}")
             except json.JSONDecodeError:
                 args = {}
+            # Erst ankuendigen, dann ausfuehren: eine Dokumentensuche dauert
+            # ueber eine Sekunde, ein Rechercheauftrag Minuten. Wer nicht weiss,
+            # welchen Weg der Assistent nimmt, wartet ins Leere.
+            yield ("werkzeug_beginnt", f.get("name", ""), args)
             ergebnis = await ausfuehren(f.get("name", ""), args)
             yield ("werkzeug", f.get("name", ""), args, ergebnis)
             nachrichten.append({"role": "tool",

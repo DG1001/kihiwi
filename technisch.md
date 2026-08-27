@@ -223,6 +223,16 @@ Gesprochen werden nur die ersten zwei Sätze — acht Sätze vorzulesen dauert v
 Sekunden. `_sprechbar()` räumt vorher Markdown, DOIs und URLs weg, sonst liest
 Piper Sternchen mit vor.
 
+**Der Dienst sagt den gewählten Weg an**, bevor das Werkzeug läuft: „Ich schaue
+in den Unterlagen nach" / „Ich schaue kurz im Netz nach" / „Das gebe ich als
+Rechercheauftrag ab, das dauert ein paar Minuten." Fest im Code (`ANSAGE` in
+`gateway.py`), nicht per Prompt — das Modell hält sich nicht zuverlässig daran,
+und der Nutzer muss wissen, ob er auf Sekunden oder Minuten wartet. Nebeneffekt:
+der erste Ton kommt nach 2 s statt nach 4.
+
+Läuft eine Recherche, sagt der Dienst zusätzlich an, dass Antworten gerade
+länger dauern — Hermes und der Sprachpfad teilen sich ein Modell.
+
 **Abgrenzung der drei Wissenswerkzeuge:** `dokumente_suchen` für alles aus den
 Unterlagen, `web_suchen` für EINE schnell nachzuschlagende Tatsache,
 `rechercheauftrag` für Vergleiche und mehrschrittige Recherche. Ohne diese
@@ -447,6 +457,10 @@ Transkript weiterverwendet und das STT im Antwortpfad übersprungen** (0 ms stat
   wurde das nur beim Aufruf durch eine Pipe (`./dienste.sh neustart | tail`) —
   mit Umleitung in eine Datei fiel es nicht auf. Mit `--fork` wird der Dienst an
   init durchgereicht, der Aufruf ist in 2 s durch statt nach 120 s abgebrochen.
+- **`pkill -f` und `pgrep -f` erwischen die eigene Shell**, wenn das Suchmuster
+  in deren Kommandozeile steht — an einem Tag dreimal passiert, zuletzt bei
+  einer `until ! pgrep -f hermes-agent`-Warteschleife, die deshalb nie endete.
+  Über den Port gehen oder auf einen Zustand prüfen, nicht auf Prozessnamen.
 - **`pkill -f` erwischt die eigene Shell**, wenn das Muster in deren
   Kommandozeile steht. Über den Port gehen:
   `ss -tlnpH "sport = :8920" | grep -oP 'pid=\K[0-9]+'`.

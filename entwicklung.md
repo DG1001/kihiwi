@@ -453,6 +453,27 @@ synchronen Websuche und antwortete nach 9,5 s selbst, statt den Auftrag
 abzugeben. Erst die klare Abgrenzung — eine Tatsache gegen mehrschrittige
 Recherche — brachte es dazu, `rechercheauftrag` zu wählen.
 
+### Der Assistent sagt an, welchen Weg er nimmt
+
+Fred hatte eine Recherche erwartet und gewartet — tatsächlich hatte Kiwi seine
+Frage („recherchiere in unseren Unterlagen…") korrekt als Dokumentensuche
+behandelt und längst geantwortet. Richtig entschieden, aber von aussen nicht
+unterscheidbar.
+
+Jetzt sagt der Dienst den Weg an, **bevor** das Werkzeug läuft. Fest im Code,
+nicht per Prompt: das Modell hält sich nicht zuverlässig daran, und diese Ansage
+ist genau das, worauf der Nutzer seine Erwartung stützt. Nebeneffekt: der erste
+Ton kommt nach 2 s statt nach 4.
+
+Läuft eine Recherche, wird zusätzlich angesagt, dass Antworten gerade länger
+dauern. Das ist keine Höflichkeit, sondern die vorhergesagte Modellkonkurrenz —
+im Test brauchte eine Dokumentenfrage während einer laufenden Recherche
+merklich länger.
+
+**Die Änderung hat einen Fehler in meinem Testclient offengelegt:** er hörte beim
+ersten `ton_ende` auf und schnitt damit die eigentliche Antwort ab, die nach der
+Ansage folgt. Er wartet jetzt auf Ruhe statt auf das erste Tonende.
+
 ### Offen
 
 - Autostart (systemd-Units) — bewusst zurückgestellt.
