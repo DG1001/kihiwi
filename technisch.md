@@ -239,6 +239,44 @@ Unterlagen, `web_suchen` für EINE schnell nachzuschlagende Tatsache,
 Schärfung griff das Modell zur Websuche und antwortete synchron nach 9,5 s,
 statt den Auftrag abzugeben.
 
+### Absichtserkennung vor dem Modell
+
+`sprachdienst/absicht.py` entscheidet vor dem LLM-Aufruf, worum es geht
+(`AUFZEICHNUNG` | `RECHERCHE` | `WISSEN` | `PLAUDEREI`), und gibt dem Modell nur
+die passenden Werkzeuge mit einem kurzen, zugeschnittenen Prompt.
+
+Regeln statt Modell: kein Embedding, kein zusätzlicher LLM-Aufruf. Die Absichten
+sind wenige und sprachlich deutlich getrennt, und der Router muss in
+Mikrosekunden entscheiden, sonst frisst er die Latenz, die er sparen soll.
+Erkennt keine Regel etwas, gilt `WISSEN` — Nachschlagen ist der häufigste Fall
+und richtet am wenigsten Schaden an.
+
+**Falle bei den Regeln:** Umlaute müssen AUSGESCHRIEBEN normalisiert werden
+(ü→ue). `unicodedata.NFKD` macht aus „ü" ein „u", damit passte „ausführlich"
+nicht auf das Muster „ausfuehrlich".
+
+### Der Sprechstil-Prompt unterdrückt Werkzeugaufrufe
+
+**Der wichtigste Befund zur Zuverlässigkeit.** Gemessen, dieselbe Frage, je drei
+Läufe:
+
+| Variante | Werkzeug gerufen |
+|---|---|
+| 4 Werkzeuge + voller Prompt | 0/3 |
+| 1 Werkzeug + Sprechstil + Zusatz | 0/3 |
+| 1 Werkzeug + nur Zusatz, **ohne Sprechstil** | **3/3** |
+| 1 Werkzeug + neutraler Prompt | **3/3** |
+
+Nicht die Werkzeugzahl ist das Problem, sondern `konfig.SYSTEM_PROMPT` selbst:
+„antworte kurz … höchstens zwei Sätze" bringt das Modell dazu, zu **antworten**
+statt zu **handeln**. Es befolgt die Anweisung korrekt — sie ist nur an dieser
+Stelle falsch.
+
+**Folge:** `antwort_mit_werkzeugen` nimmt zwei Prompts. `system` gilt für die
+Werkzeugrunden (sachlich, ohne Stilvorgabe), `system_antwort` für die
+Schlussantwort (Sprechstil). Die beiden Runden waren architektonisch längst
+getrennt — nur der Prompt war für beide derselbe.
+
 ### Offene Mängel (Stand 27.08.2026)
 
 1. **vLLMs Streaming-Parser für Werkzeugaufrufe verträgt die größere

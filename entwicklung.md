@@ -474,6 +474,34 @@ merklich länger.
 ersten `ton_ende` auf und schnitt damit die eigentliche Antwort ab, die nach der
 Ansage folgt. Er wartet jetzt auf Ruhe statt auf das erste Tonende.
 
+### Intent-Router — und der eigentliche Grund für die Werkzeug-Aussetzer
+
+Fred fragte, ob Ornith generell zu schwach ist. Die Messung sagt: nein, aber an
+einer Stelle schon. Mit vier Werkzeugen und vollem Prompt rief es kein Werkzeug,
+mit einem und kurzem Prompt zuverlässig — also wurde ein Regel-Router gebaut,
+der vorher entscheidet und nur die passenden Werkzeuge weiterreicht.
+
+**Der Router allein half nicht.** Beim Nachmessen fiel auf: auch mit einem
+einzigen Werkzeug blieb es bei 0/3, solange der Sprechstil-Prompt dabei war.
+Erst ohne ihn wurden es 3/3. **Nicht die Werkzeugzahl war die Ursache, sondern
+`konfig.SYSTEM_PROMPT`** — „antworte kurz, höchstens zwei Sätze" bringt das
+Modell dazu, zu antworten statt zu handeln. Es befolgt die Anweisung; sie ist
+nur an dieser Stelle falsch.
+
+Behoben durch zwei getrennte Prompts: sachlich für die Werkzeugrunde,
+Sprechstil für die Schlussantwort. Die Runden waren architektonisch längst
+getrennt, nur der Prompt war derselbe.
+
+**Lehre:** Bevor man einem kleinen Modell mangelnde Fähigkeit unterstellt, lohnt
+der Blick darauf, ob der eigene Prompt ihm das Gegenteil aufträgt. Zwei
+Anweisungen, die sich widersprechen — „sei kurz" und „ruf ein Werkzeug" — löst
+es nicht zu unseren Gunsten auf.
+
+Nebenbei: Hermes scheiterte bei 65536 Kontext mit „Context length exceeded: max
+compression attempts reached" und reichte die Fehlermeldung als
+Rechercheergebnis durch. 64K ist seine Untergrenze, nicht sein Arbeitsbereich —
+jetzt 131072, und solche Meldungen werden als Fehler erkannt statt weitergegeben.
+
 ### Offen
 
 - Autostart (systemd-Units) — bewusst zurückgestellt.

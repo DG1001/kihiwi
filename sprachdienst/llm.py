@@ -237,6 +237,7 @@ def _einmal(nachrichten, max_tokens, temperatur, werkzeuge, timeout=60):
 
 async def antwort_mit_werkzeugen(frage: str, verlauf, werkzeuge, ausfuehren,
                                  system: str | None = None,
+                                 system_antwort: str | None = None,
                                  max_tokens: int = 200, runden: int = 3):
     """Wie antwort_saetze, aber das Modell darf Werkzeuge aufrufen.
 
@@ -247,10 +248,22 @@ async def antwort_mit_werkzeugen(frage: str, verlauf, werkzeuge, ausfuehren,
 
     `runden` bremst die Schleife: ohne Deckel koennte das Modell endlos
     Werkzeuge aufrufen.
+
+    **Zwei Prompts, nicht einer.** `system` gilt fuer die Werkzeugrunden,
+    `system_antwort` fuer die Schlussantwort. Gemessen am 27.08.2026: mit dem
+    Sprechstil-Prompt ("hoechstens zwei Saetze") im Werkzeugaufruf rief das
+    Modell in 0 von 3 Faellen ein Werkzeug, ohne ihn in 3 von 3. Es folgt der
+    Anweisung, kurz zu ANTWORTEN -- und antwortet eben, statt zu handeln. Der
+    Sprechstil gehoert deshalb nur an die Antwort.
     """
     nachrichten = [{"role": "system", "content": system or konfig.SYSTEM_PROMPT}]
     nachrichten += list(verlauf or [])
     nachrichten.append({"role": "user", "content": frage})
+
+    def _mit_antwortstil(msgs):
+        if not system_antwort:
+            return msgs
+        return [{"role": "system", "content": system_antwort}] + msgs[1:]
 
     for runde in range(runden):
         try:
@@ -266,7 +279,7 @@ async def antwort_mit_werkzeugen(frage: str, verlauf, werkzeuge, ausfuehren,
             # Durchlauf -- ohne Streaming wartet der Nutzer laenger auf den
             # ersten Ton, und das faellt mehr auf als die Rechenzeit.
             if runde == 0:
-                async for satz in _saetze(nachrichten, max_tokens, 0.3):
+                async for satz in _saetze(_mit_antwortstil(nachrichten), max_tokens, 0.3):
                     yield ("satz", satz)
             else:
                 teiler = _Teiler()
@@ -302,7 +315,7 @@ async def antwort_mit_werkzeugen(frage: str, verlauf, werkzeuge, ausfuehren,
                         "Antworte jetzt mit dem, was du gefunden hast. Wenn nichts "
                         "Belastbares dabei war, sag genau das. Suche nicht weiter."})
     try:
-        async for satz in _saetze(nachrichten, max_tokens, 0.3):
+        async for satz in _saetze(_mit_antwortstil(nachrichten), max_tokens, 0.3):
             yield ("satz", satz)
     except Exception as e:
         log.error("Schlussantwort gescheitert: %r", e)

@@ -20,6 +20,7 @@ from websockets.asyncio.server import serve
 from wissen import index as wissen_index, recherche as wissen_recherche
 from wissen import web as wissen_web
 
+from . import absicht as absicht_modul
 from . import aktivierung, doku, konfig, llm, stt, tts
 from .turn import Turnerkenner
 from .zustand import Phase, Zustandshalter
@@ -347,9 +348,13 @@ class Sitzung:
             werkzeug_gerufen = False
             gerufene: set[str] = set()
             self.web_benutzt = False
+            wofuer = absicht_modul.erkennen(text)
+            werkzeuge = self.werkzeuge_fuer(wofuer)
+            log.info("  Absicht %s -> %d Werkzeug(e)", wofuer.value, len(werkzeuge))
             async for e in llm.antwort_mit_werkzeugen(
-                    text, self.verlauf, WERKZEUGE, self.werkzeug,
-                    system=self.system_prompt()):
+                    text, self.verlauf, werkzeuge, self.werkzeug,
+                    system=self.system_prompt(wofuer),
+                    system_antwort=self.antwort_prompt()):
                 if e[0] == "werkzeug_beginnt":
                     ansage = ANSAGE.get(e[1])
                     if ansage:
@@ -390,7 +395,7 @@ class Sitzung:
                 log.warning("Recherche versprochen ohne Auftrag — hole ihn nach")
                 args = await llm.erzwinge_werkzeug(text, self.verlauf, WERKZEUGE,
                                                    "rechercheauftrag",
-                                                   system=self.system_prompt())
+                                                   system=self.system_prompt(wofuer))
                 frage = (args or {}).get("frage") or text
                 ergebnis = await self.werkzeug("rechercheauftrag", {"frage": frage})
                 log.info("  nachgeholt: rechercheauftrag -> %s", ergebnis[:60])
@@ -430,7 +435,7 @@ class Sitzung:
                 log.warning("Behauptung ohne Werkzeugaufruf — hole ihn nach")
                 args = await llm.erzwinge_werkzeug(text, self.verlauf, WERKZEUGE,
                                                    "aufzeichnung",
-                                                   system=self.system_prompt())
+                                                   system=self.system_prompt(wofuer))
                 if args is not None:
                     ergebnis = await self.werkzeug("aufzeichnung", args)
                     log.info("  nachgeholt: aufzeichnung%r -> %s", args, ergebnis)
@@ -461,19 +466,36 @@ class Sitzung:
             if HALTER.z.phase in (Phase.DENKEN, Phase.ANTWORTEN):
                 HALTER.setzen(phase=Phase.BEREIT if HALTER.z.mikro else Phase.LEERLAUF)
 
-    def system_prompt(self) -> str:
-        """Der Zustand gehoert in den Prompt, nicht in ein Werkzeug: sonst
-        fragt das Modell erst nach, ob aufgezeichnet wird, bevor es handelt."""
+    def antwort_prompt(self) -> str:
+        """Sprechstil — NUR fuer die Schlussantwort, nie fuer die Werkzeugrunde."""
+        return konfig.SYSTEM_PROMPT
+
+    def system_prompt(self, wofuer=None) -> str:
+        """Kurzer Prompt, zugeschnitten auf die erkannte Absicht.
+
+        Gemessen: mit vier Werkzeugen und langem Prompt ruft Ornith kein
+        Werkzeug auf, mit einem und kurzem Prompt zuverlaessig. Bei 3 Mrd.
+        aktiven Parametern ist die Menge, die gleichzeitig im Blick bleiben
+        muss, die eigentliche Grenze.
+        """
+        # Bewusst OHNE konfig.SYSTEM_PROMPT: dessen Sprechstil-Anweisung
+        # unterdrueckt den Werkzeugaufruf (gemessen 0/3 gegen 3/3).
+        teile = ["Du bist der Laborassistent eines KI-Labors und hast Werkzeuge. "
+                 "Benutze sie, wenn sie passen."]
         lauft = "läuft gerade" if HALTER.z.aufnahme else "läuft gerade nicht"
-        rech = (f" Eine Recherche läuft gerade: „{HALTER.z.recherche[:60]}“ — "
-                "nimm keinen zweiten Auftrag an." if HALTER.z.recherche else "")
-        return (konfig.SYSTEM_PROMPT + " " + konfig.WISSEN_PROMPT +
-                f" Die Audioaufzeichnung des Laborgesprächs {lauft}. "
-                "Willst du daran etwas ändern, MUSST du das Werkzeug 'aufzeichnung' "
-                "aufrufen. Behaupte niemals eine Änderung, die du nicht über das "
-                "Werkzeug ausgeführt hast — das Protokoll und die Anzeige im Labor "
-                "hängen daran. Sag danach in einem kurzen Satz, was geschehen ist."
-                + rech)
+        teile.append(f"Die Audioaufzeichnung des Laborgesprächs {lauft}.")
+        if wofuer is not None:
+            zusatz = absicht_modul.ZUSATZ_JE_ABSICHT.get(wofuer, "")
+            if zusatz:
+                teile.append(zusatz.strip())
+        if HALTER.z.recherche:
+            teile.append("Eine Recherche läuft bereits — nimm keinen zweiten "
+                         "Auftrag an und sag, dass er warten muss.")
+        return " ".join(teile)
+
+    def werkzeuge_fuer(self, wofuer) -> list:
+        namen = absicht_modul.WERKZEUGE_JE_ABSICHT.get(wofuer, [])
+        return [w for w in WERKZEUGE if w["function"]["name"] in namen]
 
     async def werkzeug(self, name: str, args: dict) -> str:
         """Fuehrt einen Werkzeugaufruf aus. Rueckgabe geht ans Modell zurueck."""

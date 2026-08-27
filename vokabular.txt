@@ -56,6 +56,11 @@ Vokabelliste
 Whisper
 Silero
 
+# --- Orte und Namen ---
+# Ohne diese wird "<ort>" als "Cancel-Sau" erkannt.
+<ort>
+<ort2>
+
 # --- Rechnerseite ---
 KV-Cache
 Batch-Size
