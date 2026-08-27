@@ -36,5 +36,12 @@ Entscheidungen und Fehlschläge zusätzlich als Eintrag in `entwicklung.md`.
 ## Maschinen-Notizen außerhalb des Repos
 
 `~/.claude/projects/-home-nutzer/memory/` (Projekt-Scope `~`, hier nicht
-automatisch geladen) enthält die Notizen zum GX10 als Maschine — `model-switch`,
-Benchmark, Netz, Hermes-Fallen. Bei Widersprüchen sind jene die Quelle.
+automatisch geladen) enthält zweierlei:
+
+- **Notizen zum GX10 als Maschine** — `model-switch`, Benchmark, Netz,
+  Hermes-Fallen. Bei Widersprüchen zu `technisch.md` sind jene die Quelle.
+- **Arbeitsweise von Fred**, projektübergreifend: die Dreiteilung der
+  Dokumentation und Commits an sinnvollen Schnitten ohne Nachfrage.
+
+Sie liegen dort und nicht im aihiwi-Scope, weil sie über dieses Projekt
+hinaus gelten.
