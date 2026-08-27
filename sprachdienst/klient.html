@@ -29,6 +29,17 @@
   .wer { color:var(--matt); font-size:.75rem; text-transform:uppercase;
          letter-spacing:.08em; }
   .zeile.assistent .wer { color:#7aa2d8; }
+  #marken { display:flex; gap:.6rem; flex-wrap:wrap; margin:.2rem 0 1rem; }
+  .marke { display:none; align-items:center; gap:.5rem; padding:.4rem .8rem;
+           border-radius:2rem; font-size:.9rem; font-weight:600; }
+  .marke.an { display:inline-flex; }
+  #m-gespraech { background:#14351f; color:#7ddc9a; border:1px solid #2c6b40; }
+  #m-recherche { background:#3a2a12; color:#e8b339; border:1px solid #6b4c1a; }
+  .puls { width:.5em; height:.5em; border-radius:50%; background:currentColor;
+          animation:blink 1.4s ease-in-out infinite; }
+  @keyframes blink { 50% { opacity:.25; } }
+  #m-recherche .frage { font-weight:400; opacity:.8; max-width:22rem;
+                        overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   #leds { display:flex; gap:1.2rem; font-size:.85rem; color:var(--matt); }
   .led { display:inline-block; width:.55em; height:.55em; border-radius:50%;
          background:#6b2020; margin-right:.35em; }
@@ -55,6 +66,7 @@
 <div id="knoepfe">
   <button id="sprechen" disabled>Ansprechen <kbd>Leertaste</kbd> — dann sprechen</button>
   <button id="abbrechen" disabled>Abbrechen</button>
+  <button id="tonprobe">Tonprobe</button>
 </div>
 
 <p class="matt" id="hilfe" style="font-size:.85rem;margin-bottom:1rem">
@@ -63,10 +75,19 @@
   <b>„Danke, Kiwi“</b> sagst oder 45 Sekunden nichts kommt. Der Knopf tut dasselbe
   ohne Aktivierungswort, nützlich wenn es laut ist.</p>
 
+<div id="marken">
+  <span class="marke" id="m-gespraech"><span class="puls"></span>
+    Im Gespräch — kein „Kiwi“ nötig</span>
+  <span class="marke" id="m-recherche"><span class="puls"></span>
+    Recherche läuft <span id="m-rzeit"></span>
+    <span class="frage" id="m-rfrage"></span></span>
+</div>
+
 <div id="leds">
   <span><span class="led" id="led-ws"></span>Verbindung</span>
   <span><span class="led" id="led-stt"></span>Spracherkennung</span>
   <span><span class="led" id="led-llm"></span>Modell</span>
+  <span><span class="led" id="led-ton"></span>Ton: <span id="ton-status">—</span></span>
 </div>
 
 <div id="verlauf"></div>
@@ -74,7 +95,15 @@
 <script>
 const $ = id => document.getElementById(id);
 const RATE = 16000, BLOCK = 512;
-let ws, ctx, quelle, knoten, strom, spielt = 0, tonRate = 22050;
+let ws, ctx, quelle, knoten, strom, spielt = 0, tonRate = 22050, rSeit = 0;
+
+// Laufende Zeit der Recherche: sie dauert Minuten, und ohne Uhr wirkt jeder
+// Zwischenstand wie ein Hänger.
+setInterval(() => {
+  if (!rSeit) { $("m-rzeit").textContent = ""; return; }
+  const s = Math.max(0, Math.round(Date.now()/1000 - rSeit));
+  $("m-rzeit").textContent = `(${Math.floor(s/60)}:${String(s%60).padStart(2,"0")})`;
+}, 1000);
 
 function warnen(t) { $("warnung").textContent = t; $("warnung").style.display = "block"; }
 
@@ -145,16 +174,35 @@ function mikroAus() {
 // --- Wiedergabe: int16-PCM in der Rate, die der Dienst ankuendigt -------------
 function abspielen(puffer) {
   if (!ctx) return;
+  // Browser halten den AudioContext an (Tab im Hintergrund, Energiesparen).
+  // Dann wird zwar alles terminiert, aber nichts ist hörbar — der Text kommt,
+  // der Ton nicht. Ohne resume() ist das von aussen nicht zu unterscheiden.
+  if (ctx.state === "suspended") ctx.resume();
+
   const roh = new Int16Array(puffer);
   const b = ctx.createBuffer(1, roh.length, tonRate);
   const k = b.getChannelData(0);
   for (let i = 0; i < roh.length; i++) k[i] = roh[i] / 32768;
   const q = ctx.createBufferSource();
   q.buffer = b; q.connect(ctx.destination);
+
   const jetzt = ctx.currentTime;
-  if (spielt < jetzt) spielt = jetzt + 0.02;   // kleiner Vorlauf gegen Knacksen
+  // Driftsicherung: die Warteschlange holt nur auf, wenn sie zurückfällt.
+  // Läuft sie einmal weit voraus (angehaltener Context, verschluckte Puffer),
+  // spielt alles Weitere Minuten später — für den Nutzer schlicht Stille.
+  if (spielt < jetzt || spielt - jetzt > 8) spielt = jetzt + 0.02;
   q.start(spielt);
   spielt += b.duration;
+  tonZustand();
+}
+
+function tonZustand() {
+  if (!ctx) { $("ton-status").textContent = "—"; return; }
+  const vor = Math.max(0, spielt - ctx.currentTime);
+  $("ton-status").textContent = ctx.state === "running"
+    ? (vor > 0.1 ? `spielt (${vor.toFixed(1)}s Puffer)` : "bereit")
+    : ctx.state;
+  $("led-ton").classList.toggle("da", ctx.state === "running");
 }
 
 // --- Verbindung --------------------------------------------------------------
@@ -181,9 +229,14 @@ function verbinden() {
     if (e.data instanceof ArrayBuffer) { abspielen(e.data); return; }
     const d = JSON.parse(e.data);
     if (d.typ === "zustand") {
-      $("phase").textContent = d.recherche ? "Recherchiert"
-        : (d.gespraech && d.phase === "bereit") ? "Im Gespräch"
-        : (TEXTE[d.phase] || d.phase);
+      $("phase").textContent = TEXTE[d.phase] || d.phase;
+      // Gespräch und Recherche sind unabhängig voneinander und werden deshalb
+      // als eigene Marken angezeigt, nicht in der Phase — sonst verdeckt eines
+      // das andere.
+      $("m-gespraech").classList.toggle("an", !!d.gespraech);
+      $("m-recherche").classList.toggle("an", !!d.recherche);
+      $("m-rfrage").textContent = d.recherche || "";
+      rSeit = d.recherche_seit || 0;
       $("phase").className = d.phase === "leerlauf" ? "matt" : "";
       $("aufnahme").classList.toggle("rot", d.aufnahme);
       $("aufnahme").textContent = d.aufnahme ? "Aufzeichnung läuft — stoppen"
@@ -217,6 +270,19 @@ $("mikro").onclick = async () => {
 $("aufnahme").onclick = () =>
   senden({befehl: "aufnahme", an: !$("aufnahme").classList.contains("rot")});
 $("abbrechen").onclick = () => senden({befehl: "abbrechen"});
+
+// Tonprobe: trennt "Dienst sendet nichts" von "Browser gibt nichts aus".
+$("tonprobe").onclick = async () => {
+  if (!ctx) { warnen("Erst das Mikrofon einschalten — dann gibt es einen AudioContext."); return; }
+  if (ctx.state === "suspended") await ctx.resume();
+  const dauer = 0.4, n = Math.floor(ctx.sampleRate * dauer);
+  const b = ctx.createBuffer(1, n, ctx.sampleRate), k = b.getChannelData(0);
+  for (let i = 0; i < n; i++) k[i] = Math.sin(2*Math.PI*440*i/ctx.sampleRate) * 0.25
+                                     * Math.min(1, (n-i)/(0.05*ctx.sampleRate));
+  const q = ctx.createBufferSource(); q.buffer = b; q.connect(ctx.destination); q.start();
+  tonZustand();
+};
+setInterval(tonZustand, 1000);
 
 // Ansprechen ersetzt das Aktivierungswort, solange es keins gibt.
 const ansprechen = () => { if (!$("sprechen").disabled) senden({befehl: "ansprechen"}); };

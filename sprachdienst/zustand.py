@@ -24,6 +24,7 @@ class Zustand:
     mikro: bool = False             # Mikrofon freigegeben
     gespraech: bool = False         # Rueckfragen ohne Aktivierungswort moeglich
     recherche: str = ""             # laufender Rechercheauftrag, sonst leer
+    recherche_seit: float = 0.0     # Unix-Zeit des Auftragsbeginns
     llm_da: bool = False            # Ornith erreichbar
     stt_da: bool = False            # whisper-server erreichbar
     letzter_text: str = ""          # was zuletzt verstanden wurde

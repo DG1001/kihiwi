@@ -28,6 +28,15 @@
   .wer { color:var(--matt); font-size:.8em; text-transform:uppercase;
          letter-spacing:.08em; }
   #hinweis { color:#e8b339; font-size:min(2.6vh,1.2rem); min-height:1.5em; }
+  #marken { display:flex; gap:1rem; flex-wrap:wrap; min-height:1px; }
+  .marke { display:none; align-items:center; gap:.6rem; padding:.5rem 1.2rem;
+           border-radius:2rem; font-size:min(2.8vh,1.3rem); font-weight:600; }
+  .marke.an { display:inline-flex; }
+  #m-gespraech { background:#14351f; color:#7ddc9a; border:2px solid #2c6b40; }
+  #m-recherche { background:#3a2a12; color:#e8b339; border:2px solid #6b4c1a; }
+  .puls { width:.5em; height:.5em; border-radius:50%; background:currentColor;
+          animation:blink 1.4s ease-in-out infinite; }
+  @keyframes blink { 50% { opacity:.25; } }
 
   #fuss { flex:0 0 auto; border-top:1px solid var(--linie); padding:.8rem 6vw;
           display:flex; gap:2rem; color:var(--matt); font-size:.9rem; }
@@ -41,6 +50,12 @@
 <div id="mitte">
   <div id="phase">Mikrofon aus<small id="phasedetail"></small></div>
   <div id="hinweis"></div>
+  <div id="marken">
+    <span class="marke" id="m-gespraech"><span class="puls"></span>
+      Im Gespräch — Kiwi hört ohne Zuruf mit</span>
+    <span class="marke" id="m-recherche"><span class="puls"></span>
+      Recherche läuft <span id="m-rzeit"></span></span>
+  </div>
   <div class="zeile"><div class="wer">Verstanden</div><div id="nutzer">—</div></div>
   <div class="zeile"><div class="wer">Antwort</div><div id="assistent">—</div></div>
 </div>
@@ -60,7 +75,13 @@ const TEXTE = {
   antworten: ["Antwortet",           "Sprachausgabe läuft."],
 };
 const $ = id => document.getElementById(id);
-let ws;
+let ws, rSeit = 0;
+
+setInterval(() => {
+  if (!rSeit) { $("m-rzeit").textContent = ""; return; }
+  const s = Math.max(0, Math.round(Date.now()/1000 - rSeit));
+  $("m-rzeit").textContent = `${Math.floor(s/60)}:${String(s%60).padStart(2,"0")}`;
+}, 1000);
 
 function verbinden() {
   ws = new WebSocket(`ws://${location.host}/monitor`);
@@ -72,17 +93,15 @@ function verbinden() {
     $("balken").classList.toggle("an", z.aufnahme);
     $("balkentext").textContent = z.aufnahme ? "AUFZEICHNUNG LÄUFT" : "Keine Aufzeichnung";
     let [t, d] = TEXTE[z.phase] || [z.phase, ""];
-    // Im laufenden Gespräch braucht es kein Aktivierungswort mehr — das muss
-    // im Raum sichtbar sein, sonst weiß niemand, dass Kiwi mithört.
+    // Gespräch und Recherche als eigene Marken: beide können gleichzeitig
+    // gelten, und im Raum muss beides sichtbar sein — dass Kiwi ohne Zuruf
+    // mithört, und dass eine Recherche läuft (die Antworten dann bremst).
     if (z.gespraech && z.phase === "bereit") {
-      t = "Im Gespräch";
       d = "Rückfragen ohne „Kiwi“ möglich. Beenden mit „Danke, Kiwi“.";
     }
-    // Eine laufende Recherche muss im Raum sichtbar sein — sie dauert Minuten,
-    // und solange sie läuft, sind die Sprachantworten langsamer.
-    if (z.recherche) {
-      d = (d ? d + " " : "") + "Recherche läuft: " + z.recherche;
-    }
+    $("m-gespraech").classList.toggle("an", !!z.gespraech);
+    $("m-recherche").classList.toggle("an", !!z.recherche);
+    rSeit = z.recherche_seit || 0;
     $("phase").firstChild.textContent = t;
     $("phasedetail").textContent = d;
     $("hinweis").textContent = z.hinweis || "";

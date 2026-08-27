@@ -473,7 +473,7 @@ class Sitzung:
                 laeuft = RECHERCHE.laufend.frage[:80] if RECHERCHE.laufend else ""
                 return ("Es läuft schon eine Recherche zu: " + laeuft +
                         ". Sag dem Nutzer, dass er warten muss, bis die fertig ist.")
-            HALTER.setzen(recherche=frage)
+            HALTER.setzen(recherche=frage, recherche_seit=time.time())
             log.info("Recherche gestartet: %r", frage[:80])
             return ("Auftrag läuft. Sag in einem kurzen Satz zu, dich zu melden, "
                     "wenn das Ergebnis da ist. Nenne KEINE inhaltliche Antwort — "
@@ -531,7 +531,7 @@ async def recherche_verteilen(auftrag):
     Gesprochen wird nur der Anfang -- acht Saetze vorzulesen dauert vierzig
     Sekunden. Das Ganze steht auf dem Monitor und in `recherchen/`.
     """
-    HALTER.setzen(recherche="")
+    HALTER.setzen(recherche="", recherche_seit=0.0)
     if auftrag.fehler:
         text = f"Die Recherche ist gescheitert: {auftrag.fehler}"
         kurz = "Die Recherche hat nicht geklappt."
