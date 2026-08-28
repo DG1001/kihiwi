@@ -435,7 +435,15 @@ Der offene Gesprächszustand steht auf Monitor und Client — im Raum muss
 sichtbar sein, dass Kiwi ohne Zuruf mithört.
 
 Wird nur „Kiwi" gerufen, ohne Anweisung, quittiert der Dienst mit „Ja?", ohne
-das Modell zu bemühen.
+das Modell zu bemühen — und das Gespräch ist danach offen. Das ist der
+verlässlichere Bedienweg: erst rufen, auf die Quittung warten, dann sprechen.
+
+**Auf das blosse Aktivierungswort wird nie abgeschnitten.** Die lexikalische
+Prüfung liefert 0, solange nur „Kiwi" dasteht — grammatisch sieht „Kiwi?" wie
+ein vollständiger Satz aus, und das Modell hielt ihn dafür. Gemessen wurde
+„Kiwi, was kannst du eigentlich?" nach „Kiwi?" zerschnitten; die zweite Hälfte
+kam ohne Aktivierungswort an und wurde verworfen. Wer nur ruft und wartet,
+bekommt die Quittung über die Decke nach `DECKE_MS`.
 
 ### Ablage im Client
 

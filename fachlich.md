@@ -12,9 +12,14 @@ Transkript und Zusammenfassung; es ist danach sofort abrufbar — „Kiwi, was h
 ich vorhin über das Rasterelektronenmikroskop gesagt?"
 
 **Dialog.** Der Assistent wird mit dem Aktivierungswort **„Kiwi"** oder per Taste
-angesprochen — „Kiwi, starte die Aufzeichnung". Danach bleibt das Gespräch
-offen: Rückfragen brauchen kein Aktivierungswort mehr, bis „Danke, Kiwi" fällt
-oder 45 Sekunden nichts kommt. Er
+angesprochen. Zwei Wege, beide funktionieren:
+
+- **„Kiwi" sagen, auf „Ja?" warten, dann sprechen.** Der verlässlichere Weg —
+  man weiss, dass man gehört wurde, bevor man die Anweisung gibt.
+- **„Kiwi, starte die Aufzeichnung"** in einem Zug.
+
+Danach bleibt das Gespräch offen: Rückfragen brauchen kein Aktivierungswort
+mehr, bis „Danke, Kiwi" fällt oder 45 Sekunden nichts kommt. Er
 beantwortet Fragen und nimmt Anweisungen entgegen. Die Antwort kommt als Sprache
 über den Freisprecher; ergänzend kann der Assistent Inhalte auf dem Monitor
 anzeigen.

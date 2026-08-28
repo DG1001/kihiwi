@@ -662,6 +662,23 @@ weil nach dem Abschneiden des Aktivierungsworts aus „Kiwi, Hilfe" genau das
 **Als Regel für künftige Auslöser:** zusammengesetzt und im Fachgespräch nicht
 vorkommend. Das ist billiger als jede Erkennungsheuristik.
 
+### Nie auf das blosse Aktivierungswort abschneiden
+
+Der Satz „Kiwi, was kannst du eigentlich?" wurde nach „Kiwi?" zerschnitten — die
+lexikalische Prüfung hielt das für vollständig, was grammatisch stimmt. Die
+zweite Hälfte kam dann ohne Aktivierungswort an und wurde verworfen. Das
+untergrub Auslösewörter und Ansprache gleichermassen.
+
+Behoben in `turn.py`: solange nur das Aktivierungswort dasteht, liefert die
+Prüfung 0 und es wird weitergehört. Wer nur ruft und wartet, bekommt die
+Quittung über die Decke.
+
+Fred beschrieb dabei sein tatsächliches Bedienmuster: erst „Kiwi" sagen, auf
+„Ja?" warten, dann sprechen. Das ist der verlässlichere Weg und funktioniert
+durchgehend — verifiziert: Quittung nach 2,2 s, die folgende Anweisung wird
+ohne erneutes Aktivierungswort angenommen. Es steht jetzt so in fachlich.md,
+weil es die Bedienung erklärt, die tatsächlich benutzt wird.
+
 ### Offen
 
 - Autostart (systemd-Units) — bewusst zurückgestellt.

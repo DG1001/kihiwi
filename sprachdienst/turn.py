@@ -8,7 +8,7 @@ richtige Entscheidung schlaegt mit ihrer Laufzeit zu Buche.
 import asyncio, time
 from dataclasses import dataclass
 import numpy as np
-from . import konfig, llm, stt
+from . import aktivierung, konfig, llm, stt
 from vad.silero import Vad
 
 
@@ -47,6 +47,17 @@ class Turnerkenner:
         text = await stt.transkribiere(samples, kurz=True)
         if not text:
             return 0.0, ""
+        # Steht bisher NUR das Aktivierungswort da, ist der Satz nicht zu Ende
+        # -- auch wenn "Kiwi?" grammatisch vollstaendig aussieht und das Modell
+        # es fuer fertig haelt. Gemessen: "Kiwi, was kannst du eigentlich?"
+        # wurde nach "Kiwi?" abgeschnitten, die zweite Haelfte kam ohne
+        # Aktivierungswort an und wurde verworfen.
+        #
+        # Wer nur "Kiwi" sagt und wartet, bekommt trotzdem eine Antwort: dann
+        # greift die Decke nach DECKE_MS.
+        ja, rest = aktivierung.erkannt(text)
+        if ja and not rest.strip():
+            return 0.0, text
         return await llm.p_fertig(text), text
 
     async def block(self, samples: np.ndarray) -> Endpoint | None:
