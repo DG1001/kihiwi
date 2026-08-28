@@ -1180,3 +1180,33 @@ sie landete in `zustand/hermes/`, die Repo-Wurzel blieb sauber.
 Zusicherung. Ich haette den ersten Versuch fuer erledigt halten koennen -- der
 Aufruf lief ja fehlerfrei durch. Gesehen habe ich es nur, weil ich danach
 `git status` laufen liess.
+
+### Die Buehne ueberlebt jetzt den Neustart
+
+Fred vermisste ein Rechercheergebnis auf der Buehne. Nachgestellt mit einem
+Mithoerer, der jede Nachricht mitschreibt: der Dienst liefert `typ: recherche`
+korrekt aus, der Klient legt es korrekt auf die Buehne. **Die Kette war nie
+kaputt.**
+
+Zwei andere Gruende kamen zusammen, beide auf meiner Seite. Sein eigener
+Auftrag war unter Qwen3.8 in die 420-s-Grenze gelaufen -- auf der Buehne stand
+dann korrekt, aber unscheinbar "Die Recherche ist gescheitert". Und ich hatte
+den Dienst dreimal neu gestartet, ohne es anzusagen; jeder Neustart kappt die
+Verbindung, und **der Buehneninhalt lebte allein im Browser**. Meine eigenen
+erfolgreichen Laeufe hatte ich direkt ueber `Recherche._hermes` aufgerufen --
+die gehen am Gateway vorbei und erreichen den Browser nie. Bei mir sah deshalb
+alles gut aus, waehrend er nichts hatte.
+
+**Behoben, wo der Zustand hingehoert: in den Dienst.** Der letzte Buehneninhalt
+liegt in `zustand/buehne.json` und wird beim Verbindungsaufbau mit
+`wieder: true` nachgereicht. Der Klient zeigt ihn, vermerkt "von vorhin" und
+setzt keinen Merker in den Verlauf -- der ist nach dem Neuladen selbst leer, ein
+einzelner Verweis darin waere irrefuehrend. Gemerkt wird zentral in
+`Sitzung.zur_buehne()`, damit keine der vier Ausgabestellen es vergessen kann.
+
+Geprueft mit dem Weg, der vorher versagte: Recherche ausloesen, Dienst neu
+starten, frisch verbinden -- der Stand kommt mit `wieder=True` zurueck.
+
+**Die Lehre betrifft nicht den Code:** Ich habe waehrend seiner Arbeit dreimal
+den Dienst neu gestartet und es nicht gesagt. Ein Fehlerbild, das ich selbst
+erzeugt habe, kostete ihn die Suche danach.

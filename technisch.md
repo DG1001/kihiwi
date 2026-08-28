@@ -903,6 +903,18 @@ Ausfuehrliche steht auf dem Monitor". Stattdessen erscheint ein anklickbarer
 **Merker**, der den Inhalt auf der Buehne wieder aufruft. Damit bleibt er
 erreichbar, ohne den Verlauf zuzuschuetten.
 
+**Die Buehne ueberlebt Neuladen und Dienstneustart.** Der letzte Buehneninhalt
+liegt in `zustand/buehne.json` und wird beim Verbindungsaufbau mit `wieder:
+true` nachgereicht; der Klient zeigt ihn an, vermerkt „von vorhin" und setzt
+**keinen** Merker in den Verlauf — der ist nach dem Neuladen selbst leer, ein
+einzelner Verweis darin waere irrefuehrend. Zentral ueber `Sitzung.zur_buehne()`,
+damit kein Aufrufer das Merken vergessen kann.
+
+**Warum ueberhaupt:** der Inhalt lebte nur im Browser. Ein korrekt
+ausgeliefertes Rechercheergebnis war nach einem Dienstneustart weg, und es sah
+aus, als sei es nie angekommen — genau so wurde es gemeldet. Ueber 400.000
+Zeichen wird nichts gemerkt; die Datei wird bei jeder Verbindung gelesen.
+
 **Reihenfolge.** `zeile()` haengt unten an (`amEnde()`) und scrollt nach, wenn
 der Nutzer ohnehin unten steht. Vorher stand `prepend` darin, der Verlauf las
 sich rueckwaerts -- die Antwort ueber der Frage, der Auftrag unter dem

@@ -416,6 +416,17 @@ function merker(text, zeigen) {
   amEnde(d);
 }
 
+/* Der Dienst schickt den letzten Buehnenstand beim Verbinden mit "wieder" nach.
+   Ohne den Vermerk sieht ein Ergebnis von vorhin aus wie ein frisches -- und
+   ohne die Wiederherstellung sah es aus, als haette es das Ergebnis nie
+   gegeben, was nach einer Recherche genau so gemeldet wurde. Ein Merker im
+   Verlauf entfaellt dabei: der Verlauf ist nach dem Neuladen selbst leer, und
+   ein einzelner Verweis darin waere irrefuehrend. */
+function wannZusatz(d, wann) {
+  if (!d.wieder) return wann || "";
+  return wann ? wann + " · von vorhin" : "von vorhin";
+}
+
 // --- Buehne ------------------------------------------------------------------
 function buehne(art, titel, html, wann) {
   $("b-art").textContent = art;
@@ -463,27 +474,28 @@ function verbinden() {
       gong();
     } else if (d.typ === "wecker_liste") {
       const zeigen = () => buehne("Erinnerungen", "Laufende Erinnerungen",
-                                  alsHtml(d.text));
+                                  alsHtml(d.text), wannZusatz(d));
       zeigen();
     } else if (d.typ === "text") {
       zeile(d.rolle, d.text);
     } else if (d.typ === "hilfe") {
-      const zeigen = () => buehne("Hilfe", "Was Kiwi versteht", alsHtml(d.text));
+      const zeigen = () => buehne("Hilfe", "Was Kiwi versteht", alsHtml(d.text),
+                                  wannZusatz(d));
       zeigen();
-      merker("Hilfe", zeigen);
+      if (!d.wieder) merker("Hilfe", zeigen);
     } else if (d.typ === "protokoll") {
       // Nicht mehr in den Verlauf: ein volles Protokoll schob dort alles
       // andere aus dem Bild. Gesprochen wird die Zusammenfassung, hier liegt
       // das Ganze.
       const zeigen = () => buehne("Protokoll", `Protokoll ${d.sitzung}`,
-                                  alsHtml(d.text));
+                                  alsHtml(d.text), wannZusatz(d));
       zeigen();
-      merker(`Protokoll ${d.sitzung}`, zeigen);
+      if (!d.wieder) merker(`Protokoll ${d.sitzung}`, zeigen);
     } else if (d.typ === "recherche") {
       const zeigen = () => buehne("Recherche", d.frage, alsHtml(d.text),
-                                  `${d.dauer}s`);
+                                  wannZusatz(d, `${d.dauer}s`));
       zeigen();
-      merker(`Rechercheergebnis: ${d.frage}`, zeigen);
+      if (!d.wieder) merker(`Rechercheergebnis: ${d.frage}`, zeigen);
     } else if (d.typ === "ton") {
       tonRate = d.rate;
     }

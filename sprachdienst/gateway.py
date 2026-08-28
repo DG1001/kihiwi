@@ -43,10 +43,48 @@ ABGLEICH = asyncio.Lock()
 # Timer und Erinnerungen. Im Dienst, nicht in der Sitzung: sie sollen auch
 # klingeln, wenn der Browser zwischendurch neu geladen wurde.
 WECKER = wecker_modul.Wecker()
+# Was zuletzt auf der Buehne stand. Im Dienst UND auf der Platte, nicht in der
+# Sitzung: der Buehneninhalt lebte bisher nur im Browser und war nach jedem
+# Neuladen, Verbindungsabbruch und Dienstneustart weg. Dann sah es aus, als
+# haette es das Ergebnis nie gegeben -- gemeldet wurde genau das, nach einer
+# Recherche, die der Dienst korrekt ausgeliefert hatte. Vorbild ist WECKER:
+# auch der laeuft weiter, wenn der Browser zwischendurch neu geladen wurde.
+BUEHNE_DATEI = konfig.WURZEL / "zustand" / "buehne.json"
+# Ein volles Protokoll darf gross sein, aber nicht beliebig -- die Datei wird
+# bei jeder Verbindung gelesen.
+BUEHNE_MAX = 400_000
 
 
 def wecker_melden():
     HALTER.setzen(wecker=WECKER.als_liste())
+
+
+def buehne_laden():
+    """Die letzte Buehnenausgabe, oder None. Fehlt oder ist sie kaputt, startet
+    der Browser mit leerer Buehne -- wie bisher, kein Grund zu scheitern."""
+    try:
+        d = json.loads(BUEHNE_DATEI.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    return d if isinstance(d, dict) and d.get("typ") else None
+
+
+def buehne_merken(nachricht: dict):
+    """Legt die letzte Buehnenausgabe ab.
+
+    Ein Fehler darf hier keine Antwort scheitern lassen: schlimmstenfalls fehlt
+    die Wiederherstellung nach dem naechsten Neustart, und das ist genau der
+    Zustand von vorher.
+    """
+    roh = json.dumps(nachricht)
+    if len(roh) > BUEHNE_MAX:
+        log.info("Buehne nicht gespeichert: %d Zeichen ueber der Grenze", len(roh))
+        return
+    try:
+        BUEHNE_DATEI.parent.mkdir(parents=True, exist_ok=True)
+        BUEHNE_DATEI.write_text(roh, encoding="utf-8")
+    except OSError as e:
+        log.warning("Buehne nicht gespeichert: %r", e)
 # Wer gerade verbunden ist. Ein Rechercheergebnis geht an die AKTUELLEN
 # Zuhoerer, nicht an die Sitzung, die den Auftrag gab -- die kann laengst weg
 # sein, waehrend jemand anders im Labor steht.
@@ -372,8 +410,8 @@ class Sitzung:
         """
         self.letzte_ansprache = time.time()
         HALTER.setzen(gespraech=True)
-        await self.ws.send(json.dumps({"typ": "recherche", "frage": auftrag.frage,
-                                       "text": text, "dauer": round(auftrag.dauer)}))
+        await self.zur_buehne({"typ": "recherche", "frage": auftrag.frage,
+                               "text": text, "dauer": round(auftrag.dauer)})
         await self.melden("Die Recherche ist fertig. " + kurz)
 
     async def nachschaerfen(self, ep, kurzfassung: str) -> str:
@@ -870,8 +908,7 @@ class Sitzung:
                 f"- **{wecker_modul.uhrzeit_wort(e.faellig)}** — in "
                 f"{wecker_modul.dauer_wort(e.faellig - jetzt)}"
                 + (f": {e.text}" if e.text else ""))
-        await self.ws.send(json.dumps({"typ": "wecker_liste",
-                                       "text": "\n".join(zeilen)}))
+        await self.zur_buehne({"typ": "wecker_liste", "text": "\n".join(zeilen)})
 
     async def wecker_zeigen(self):
         """Gesprochen kurz, angezeigt vollstaendig."""
@@ -955,7 +992,7 @@ class Sitzung:
                    "## Gespräch beenden", "",
                    "- **Danke, Kiwi** oder **Kiwi, Ende** — sonst endet es nach "
                    "45 Sekunden Stille"])
-            await self.ws.send(json.dumps({"typ": "hilfe", "text": langtext}))
+            await self.zur_buehne({"typ": "hilfe", "text": langtext})
             await self.melden(gesagt)
             return True
 
@@ -1028,11 +1065,18 @@ class Sitzung:
         kurz = _sprechbar(roh)
         saetze = re.split(r"(?<=[.!?])\s+", kurz)
         gesagt = " ".join(saetze[:3]) or "Das Protokoll ist leer."
-        await self.ws.send(json.dumps({"typ": "protokoll",
-                                       "sitzung": pfad.parent.name,
-                                       "text": text}))
+        await self.zur_buehne({"typ": "protokoll",
+                               "sitzung": pfad.parent.name, "text": text})
         await self.melden(f"Protokoll der Sitzung {pfad.parent.name}. " + gesagt
                           + " Das Ganze steht auf dem Monitor.")
+
+    async def zur_buehne(self, nachricht: dict):
+        """Auf die Buehne schicken und als letzten Stand merken.
+
+        Nicht bloss ws.send: sonst haengt der Inhalt allein am Browser.
+        """
+        await self.ws.send(json.dumps(nachricht))
+        buehne_merken(nachricht)
 
     async def melden(self, text: str, in_verlauf: bool = True):
         """Sagt etwas UND schreibt es in den Gespraechsverlauf.
@@ -1205,6 +1249,15 @@ async def behandeln(ws):
     s = Sitzung(ws)
     SITZUNGEN.add(s)
     senden = asyncio.create_task(zustand_senden(ws))
+    # Letzten Buehnenstand nachreichen. "wieder" sagt dem Klienten, dass das
+    # kein frisches Ergebnis ist -- er zeigt es an, ohne einen Merker in den
+    # Gespraechsverlauf zu setzen.
+    letzte = buehne_laden()
+    if letzte:
+        try:
+            await ws.send(json.dumps({**letzte, "wieder": True}))
+        except websockets.ConnectionClosed:
+            pass
     try:
         async for nachricht in ws:
             if isinstance(nachricht, bytes):
