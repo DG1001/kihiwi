@@ -208,7 +208,7 @@ def _thema(text: str, m) -> str:
     vorher = None
     while rest != vorher:
         vorher = rest
-        rest = re.sub(fueller, "", rest, flags=re.I).strip(" ,.:;")
+        rest = re.sub(fueller, "", rest, flags=re.I).strip(" ,.:;–—-")
     return rest or text
 
 
