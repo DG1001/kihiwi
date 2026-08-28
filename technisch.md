@@ -865,3 +865,16 @@ jemand redet.
 **Anzeige.** Der Dienst schickt absolute Zeitpunkte im Zustand (`wecker`), der
 Sekundenzaehler laeuft im Browser -- sonst muesste im Sekundentakt gefunkt
 werden.
+
+### Direktbefehl ohne Aktivierungswort
+
+„Sprachaufzeichnung starten" und „Sprachaufzeichnung stoppen" wirken **ohne**
+vorheriges „Kiwi" und **ohne** den Gespraechsmodus zu oeffnen. Der Dienst
+transkribiert bei offenem Mikrofon ohnehin jede Aeusserung und verwirft sie nur
+mangels Aktivierungswort -- der Direktbefehl kostet also nichts extra.
+
+`absicht.direktbefehl()` ist bewusst eng: das zusammengesetzte Wort muss fallen
+(„Aufzeichnung" allein genuegt nicht), dazu ein Tuwort, und der Satz darf
+hoechstens sechs Woerter haben. Ohne die Kuerze wuerde „wir sollten die
+Sprachaufzeichnung nachher mal starten, wenn alle da sind" mitten im Gespraech
+den Mitschnitt anwerfen -- und zwar ohne jede Ansprache.

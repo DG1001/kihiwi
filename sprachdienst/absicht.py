@@ -165,6 +165,39 @@ def alle_loeschen(text: str) -> bool:
     return bool(_NUR_ALLE.match(t) or _WECK_ALLE.search(t))
 
 
+# --- Direktbefehle ohne Aktivierungswort -------------------------------------
+# "Sprachaufzeichnung starten/stoppen" wirkt OHNE vorheriges "Kiwi" und ohne
+# den Gespraechsmodus zu oeffnen. Zusammengesetztes Wort wie bei den anderen
+# Ausloesern: es faellt nicht versehentlich, und im Labor wird ueber die
+# Aufzeichnung durchaus geredet ("die Aufzeichnung laeuft ja").
+_DIREKT_WORT = re.compile(r"\b(sprach[- ]?(?:auf|aus)zeichnung|"
+                          r"sprach[- ]?aufnahme)\b")
+_DIREKT_AN  = re.compile(r"\b(start\w*|beginn\w*|los|an|anschalt\w*|"
+                         r"einschalt\w*|aufnehmen|mitschneiden)\b")
+_DIREKT_AUS = re.compile(r"\b(stopp\w*|stop|beend\w*|aus|ausschalt\w*|"
+                         r"abschalt\w*|halt|anhalt\w*|schluss|ende)\b")
+
+
+def direktbefehl(text: str) -> bool | None:
+    """True = starten, False = stoppen, None = kein Direktbefehl.
+
+    Bewusst eng: das zusammengesetzte Wort MUSS fallen, dazu ein Tuwort, und
+    der Satz muss kurz sein. Ohne die Kuerze wuerde "wir sollten die
+    Sprachaufzeichnung nachher mal starten, wenn alle da sind" mitten im
+    Gespraech den Mitschnitt anwerfen -- und das ohne jede Ansprache.
+    """
+    t = _normal(text)
+    if not _DIREKT_WORT.search(t):
+        return None
+    if len(t.split()) > 6:
+        return None
+    if _DIREKT_AUS.search(t):
+        return False
+    if _DIREKT_AN.search(t):
+        return True
+    return None
+
+
 def erkennen(text: str) -> Absicht:
     t = _normal(text).strip()
     if not t:

@@ -308,6 +308,24 @@ class Sitzung:
             if not text.strip():
                 continue
 
+            # Direktbefehl: wirkt ohne Aktivierungswort und ohne den
+            # Gespraechsmodus zu oeffnen. Wer aufzeichnen will, soll nicht
+            # erst Kiwi rufen und auf ein "Ja?" warten muessen.
+            befehl = absicht_modul.direktbefehl(text)
+            if befehl is not None:
+                log.info("Direktbefehl: Aufzeichnung an=%s (%r)", befehl, text[:50])
+                ergebnis = await self.werkzeug("aufzeichnung", {"an": befehl})
+                await self.ws.send(json.dumps({"typ": "werkzeug",
+                                               "name": "aufzeichnung",
+                                               "args": {"an": befehl},
+                                               "ergebnis": ergebnis}))
+                await self.ws.send(json.dumps({"typ": "text", "rolle": "nutzer",
+                                               "text": text}))
+                await self.melden(ergebnis)
+                HALTER.setzen(phase=Phase.BEREIT if HALTER.z.mikro
+                              else Phase.LEERLAUF)
+                continue
+
             if not gerufen:
                 # Mikrofon offen: jede Aeusserung wird transkribiert, aber nur
                 # eine mit Aktivierungswort gilt als Ansprache -- ausser das

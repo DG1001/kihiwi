@@ -905,3 +905,16 @@ Nicht optimiert wurde auf „Tanne" -- so verstand die Erkennung Piper's „Time
 in einem spaeteren Lauf. Freds eigener Test im Log zeigt „Timer 1 Minute
 setzen." korrekt; das ist ein Artefakt der synthetischen Stimme, und genau
 dieser Fehlschluss steht weiter oben schon einmal.
+
+## Aufzeichnung ohne Ansprache steuern
+
+Wunsch: den Mitschnitt starten und stoppen, ohne erst „Kiwi" zu rufen und auf
+das „Ja?" zu warten.
+
+Ging billig, weil der Hoerpfad ohnehin alles transkribiert und nur mangels
+Aktivierungswort verwirft. Der Direktbefehl haengt vor dieser Pruefung und
+oeffnet den Gespraechsmodus nicht.
+
+Geprueft mit der Sprechprobe, einmal MIT simuliertem Knopfdruck und einmal ohne
+-- der zweite Lauf ist der eigentliche Fall. Dazwischen lief „Wie dick ist das
+Fenster?" als Kontrolle und wurde korrekt verworfen ("nicht angesprochen").

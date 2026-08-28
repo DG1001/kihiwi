@@ -77,3 +77,4 @@ Token pro Sekunde
 Timer
 Wecker
 Erinnerung
+Sprachaufzeichnung
