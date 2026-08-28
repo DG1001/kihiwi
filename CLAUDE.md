@@ -35,7 +35,7 @@ Entscheidungen und Fehlschläge zusätzlich als Eintrag in `entwicklung.md`.
 
 ## Maschinen-Notizen außerhalb des Repos
 
-`~/.claude/projects/-home-nutzer/memory/` (Projekt-Scope `~`, hier nicht
+`~/.claude/projects/<home-scope>/memory/` (Projekt-Scope `~`, hier nicht
 automatisch geladen) enthält zweierlei:
 
 - **Notizen zum GX10 als Maschine** — `model-switch`, Benchmark, Netz,

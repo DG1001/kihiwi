@@ -44,3 +44,8 @@ zustand/
 
 # Modelle der Sprechertrennung: 35 MB, per Skript nachladbar.
 modelle/
+
+# Vokabular und Quellenliste verraten, woran gearbeitet wird.
+# Die .beispiel-Dateien liegen im Repo und dienen als Rueckfall.
+vokabular.txt
+wissen/quellen.json

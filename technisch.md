@@ -2,8 +2,8 @@
 
 ## Die Maschine
 
-`gx10` — ASUS Ascent GX10, GB10, aarch64, Ubuntu (Kernel 6.17-nvidia),
-20 Kerne (Cortex-X925 + A725), **121 GiB Unified Memory**, 916 GB NVMe.
+ASUS Ascent GX10, GB10, aarch64, Ubuntu (Kernel 6.17-nvidia), 20 Kerne
+(Cortex-X925 + A725), **121 GiB Unified Memory**, 916 GB NVMe.
 
 **Die wichtigste Regel dieser Hardware: Bandbreite ist knapp, nicht Kapazität.**
 Rund 273 GB/s. Ein dichtes Modell muss je Token alle Gewichte durchschieben und
@@ -71,13 +71,13 @@ nicht über den Prozessnamen.
 
 ## Netz und Zugriff
 
-Serverraum, `<lan-praefix>` an einer FRITZ!Box, Ethernet `enP7s7` (Gigabit —
-bei Einbruch zuerst `ethtool enP7s7` prüfen, ein zweipaariges Kabel hatte den
-Link schon einmal auf 100 Mbit gedrückt). Stabil erreichbar über Tailnet:
-`<tailnet-adresse>` / `<rechner>`.
+Serverraum, hinter einem Consumer-Router, Ethernet `enP7s7` (Gigabit — bei
+Einbruch zuerst `ethtool enP7s7` prüfen, ein zweipaariges Kabel hatte den Link
+schon einmal auf 100 Mbit gedrückt). Stabil erreichbar über ein Tailnet.
 
-**Direkt an der FRITZ!Box, ohne IPFire davor** — die Maschine hat eine weltweit
-geroutete IPv6 ohne NAT, der Schutz hängt allein an der FRITZ!Box-Konfiguration.
+**Direkt am Router, ohne Firewall davor** — die Maschine hat eine weltweit
+geroutete IPv6 ohne NAT, der Schutz hängt allein an der Router-Konfiguration.
+Daher die Regel, niemals an `0.0.0.0` oder `[::]` zu binden.
 Neue Dienste, besonders der Audio-Gateway, **ausdrücklich an die Tailnet- oder
 LAN-Adresse binden, nie an `0.0.0.0`/`[::]`** (`konfig.BIND`).
 
@@ -739,7 +739,7 @@ Kandidat als Agent-Basis, mit Vorbehalten:
 
 ## Maschinen-Notizen außerhalb des Repos
 
-Ausführlicher in `~/.claude/projects/-home-nutzer/memory/` (Projekt-Scope `~`,
+Ausführlicher in `~/.claude/projects/<home-scope>/memory/` (Projekt-Scope `~`,
 in kihiwi-Sessions nicht automatisch geladen): `gx10-zwei-modelle`,
 `gx10-modell-benchmark`, `gx10-netzwerk-serverraum`, `gx10-serverraum-umzug`,
 `gx10-ssh-key-only`, `gx10-ds4-opencode`, `hermes-searxng`,
@@ -915,3 +915,22 @@ bewusst in die Aufnahme (`doku.mische`, sonst stuende nur die halbe
 Unterhaltung im Protokoll) -- und haelt seither in der Begleitdatei fest, WANN
 (`eigene_stimme_ms`). Diese Abschnitte heissen "Kiwi", nicht "Sprecher B".
 Deterministisch, wie ueberall sonst auch.
+
+### Was nicht ins Repository gehoert
+
+Zwei Konfigurationsdateien verraten, woran gearbeitet wird, und liegen deshalb
+nur lokal. Im Repository stehen `.beispiel`-Fassungen; fehlt die echte Datei,
+greift automatisch die Beispieldatei, damit ein frischer Klon laeuft.
+
+| lokal (ignoriert) | im Repo | verraet sonst |
+|---|---|---|
+| `vokabular.txt` | `vokabular.beispiel.txt` | Projekt- und Verfahrensnamen, Ortsnamen |
+| `wissen/quellen.json` | `wissen/quellen.beispiel.json` | Adresse des privaten Hauptrepos |
+
+Der Rueckfall steht in `konfig.VOKABULAR` und `einlesen.QUELLEN`. Geprueft mit
+einem frischen Klon: er laeuft, benutzt die Beispiele und enthaelt keine
+Laborinhalte.
+
+Ebenfalls draussen und aus gleichem Grund: `aufnahmen/` (§ 201 StGB),
+`wissen/index.db*` (traegt den Volltext der Quellen), `wissen/repos/`,
+`recherchen/`, `zustand/`, `modelle/`.

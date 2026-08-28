@@ -1,5 +1,5 @@
 {
-  "_hinweis": "Quellen des Laborwissens. 'aktiv': false schaltet eine Quelle ab, ohne sie zu löschen.",
+  "_hinweis": "Quellen des Laborwissens — BEISPIEL. Kopieren nach wissen/quellen.json und anpassen; fehlt die, wird diese benutzt. 'aktiv': false schaltet eine Quelle ab, ohne sie zu loeschen.",
   "quellen": [
     {
       "name": "kihiwi",
@@ -25,7 +25,7 @@
       "art": "lokal",
       "aktiv": true,
       "_hinweis": "Die eigenen Laborprotokolle. Entstehen aus './dienste.sh protokoll'; eine frische Aufnahme ist erst danach auffindbar.",
-      "pfad": "~/Developer/github.com/kihiwi/aufnahmen",
+      "pfad": "~/Developer/github.com/kihiwi",
       "muster": [
         "protokoll.md"
       ]
@@ -33,7 +33,7 @@
     {
       "name": "haupt-repo",
       "art": "git",
-      "aktiv": true,
+      "aktiv": false,
       "url": "https://github.com/BEISPIEL/mein-repo.git",
       "web": "https://github.com/BEISPIEL/mein-repo",
       "muster": [
@@ -45,7 +45,8 @@
         "*.json",
         "*.yaml",
         "*.yml"
-      ]
+      ],
+      "_todo": "URL des eigenen Repos eintragen, dann aktiv:true. Private Repos brauchen einen Git-Zugang, der ohne Nachfrage klont (SSH-Schluessel oder Token im Anmeldespeicher)."
     },
     {
       "name": "nextcloud",

@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # Vergleicht drei Whisper-Konfigurationen auf demselben Testaudio.
 set -u
-W=/home/nutzer/code/whisper.cpp/build/bin/whisper-cli
-M=/home/nutzer/code/whisper.cpp/models/ggml-large-v3-turbo.bin
-D=/home/nutzer/Developer/github.com/kihiwi/testaudio
+# Pfade ueber die Umgebung, damit das Skript nicht an einem Rechner klebt.
+W=${WHISPER_CLI:-$HOME/code/whisper.cpp/build/bin/whisper-cli}
+M=${WHISPER_MODELL:-$HOME/code/whisper.cpp/models/ggml-large-v3-turbo.bin}
+D=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 PROMPT=$(cat "$D/vokabular.txt")
 
 lauf() {  # $1=Bezeichnung  $2=Datei  $3...=Flaggen

@@ -1,27 +1,21 @@
-# Fachvokabular des Labors.
+# Fachvokabular des Labors — BEISPIEL.
+#
+# Kopieren nach `vokabular.txt` und auf das eigene Labor anpassen. Die echte
+# Datei liegt bewusst nicht im Repository: sie verraet, woran gearbeitet wird.
+# Fehlt sie, wird diese hier benutzt.
 #
 # Speist drei Stellen: den initial_prompt der Spracherkennung, die
-# Korrekturstufe des Dokumentationspfads und spaeter die Aussprache-Overrides
-# der Sprachausgabe. Die Korrektur ersetzt ein Wort NUR, wenn der Ersatz hier
-# steht -- die Liste ist damit die harte Grenze dessen, was der Assistent an
-# einem Transkript veraendern darf.
+# Korrekturstufe des Dokumentationspfads und die Zerlegung von Komposita bei
+# der Suche. Die Korrektur ersetzt ein Wort NUR, wenn der Ersatz hier steht --
+# die Liste ist damit die harte Grenze dessen, was der Assistent an einem
+# Transkript veraendern darf.
 #
 # Zeilen mit # sind Kommentar. Ein Begriff je Zeile.
-# ENTWURF, aus den ersten Aufnahmen gezogen -- bitte pruefen und ergaenzen.
 
 # --- Projekt ---
-<verfahrensname>
-Haupt-Projekt
-<projektname>
-<modellname>
-<verfahren>
-<kenngroesse>
-
-# --- Geräte und Hersteller ---
-JEOL
-JEOL REM
-Philips
-<geraetemodell>
+# Hier die eigenen Projekt-, Verfahrens- und Geraetenamen eintragen. Genau die
+# verhoert die Erkennung am zuverlaessigsten, weil sie nirgends im Training
+# vorkamen.
 
 # --- Rasterelektronenmikroskopie ---
 Rasterelektronenmikroskop
@@ -62,9 +56,8 @@ Whisper
 Silero
 
 # --- Orte und Namen ---
-# Ohne diese wird "<ort>" als "Cancel-Sau" erkannt.
-<ort>
-<ort2>
+# Ortsnamen gehoeren hierher: ohne sie wird aus einer Kleinstadt schnell etwas
+# ganz anderes. Die eigenen eintragen.
 
 # --- Rechnerseite ---
 KV-Cache

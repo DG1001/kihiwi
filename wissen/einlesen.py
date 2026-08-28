@@ -24,7 +24,11 @@ from pathlib import Path
 from sprachdienst import konfig
 from . import index
 
-QUELLEN = konfig.WURZEL / "wissen" / "quellen.json"
+# Wie beim Vokabular: die echte Quellenliste nennt interne Repos und liegt
+# deshalb nicht im Repository. Ohne sie greift die Beispieldatei.
+QUELLEN = (konfig.WURZEL / "wissen" / "quellen.json"
+           if (konfig.WURZEL / "wissen" / "quellen.json").exists()
+           else konfig.WURZEL / "wissen" / "quellen.beispiel.json")
 REPOS = konfig.WURZEL / "wissen" / "repos"
 
 TEXT_ENDUNGEN = {".md", ".txt", ".rst", ".org", ".csv", ".tsv", ".json", ".yaml",

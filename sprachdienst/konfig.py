@@ -11,7 +11,8 @@ WURZEL = Path(__file__).resolve().parent.parent
 # --- Netz -------------------------------------------------------------------
 # NIEMALS 0.0.0.0 oder [::]. Der GX10 hat eine weltweit geroutete IPv6 ohne NAT
 # davor; ein Dienst, der Laboraudio fuehrt, gehoert nicht versehentlich dorthin.
-# Fuer den Laborclient spaeter auf die Tailnet-Adresse <tailnet-adresse> umstellen.
+# Fuer den Laborclient spaeter auf die Tailnet-Adresse der Maschine umstellen
+# (KIHIWI_BIND), nicht auf eine Adresse, die aus dem Internet erreichbar ist.
 BIND      = os.environ.get("KIHIWI_BIND", "127.0.0.1")
 PORT      = int(os.environ.get("KIHIWI_PORT", "8920"))
 
@@ -108,7 +109,10 @@ VAD_MODELL = WURZEL / "vad" / "silero_vad.onnx"
 # Auswahllogik in tts.py bleibt, falls doch einmal gewechselt wird.
 STIMME     = WURZEL / "voices" / "de_DE-thorsten-medium.onnx"
 STIMM_ART  = os.environ.get("KIHIWI_STIMM_ART", "neutral")
-VOKABULAR  = WURZEL / "vokabular.txt"
+# Das echte Vokabular liegt nicht im Repository -- es verraet, woran gearbeitet
+# wird. Fehlt es, greift die Beispieldatei, damit ein frischer Klon laeuft.
+VOKABULAR  = (WURZEL / "vokabular.txt" if (WURZEL / "vokabular.txt").exists()
+              else WURZEL / "vokabular.beispiel.txt")
 
 # Umlaute hier BEWUSST korrekt, auch wenn der Rest der Datei ASCII ist: das
 # Modell ahmt den Stil des System-Prompts nach. Mit "Aufzaehlungen" im Prompt

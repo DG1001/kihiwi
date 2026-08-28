@@ -362,7 +362,7 @@ Shebang. Ohne `sed` darüber wären sie stumm kaputtgegangen.
 
 **Nebenwirkung ausserhalb des Repos:** Claude Code legt seinen Projektstand
 unter einem vom Pfad abgeleiteten Verzeichnis ab. Die alte Sitzungshistorie
-bleibt unter `-home-nutzer-Developer-github-com-aihiwi` liegen; neue Sitzungen
+bleibt unter dem alten Projektpfad (noch mit „aihiwi“) liegen; neue Sitzungen
 bekommen ein neues Verzeichnis. Die dauerhaften Notizen sind davon nicht
 betroffen — sie liegen bewusst im Home-Scope.
 
@@ -962,3 +962,36 @@ zugeordnet.
 starten". Der Direktbefehl haengt jetzt an "sprachauf" statt an der genauen
 Schreibung -- unscharf wie das Aktivierungswort, aber immer noch eng genug,
 dass "Aufzeichnung starten" allein nicht ausloest.
+
+## Vorbereitung auf ein oeffentliches Repository
+
+Erster Schritt: Lizenz und die Stellen, die den Rechner, das Netz und das Labor
+benennen.
+
+- **MIT-Lizenz** (`LICENSE`) plus `DRITTANBIETER.md` fuer die fremden
+  Bestandteile. Die Wahl faellt auf MIT, weil der ganze Unterbau -- whisper.cpp,
+  Silero, pyannote-Segmentierung -- ebenfalls MIT ist.
+- **Rechner und Netz** aus `technisch.md`, `konfig.py`, `klient.html` und
+  `gateway.py`: Hostname, Tailnet-Adresse und das LAN-Praefix sind raus, die
+  Lehren daran bleiben (die `ethtool`-Falle, die weltweit geroutete IPv6).
+- **Absolute Pfade** in `testaudio/lauf.sh` durch Umgebungsvariablen ersetzt.
+- **Vokabular und Quellenliste** als `.beispiel` ins Repo, die echten
+  ignoriert, mit Rueckfall im Code.
+
+Zwei Dinge fielen dabei auf, die vorher nicht auf der Liste standen:
+
+1. **Der erste Suchausdruck war zu eng.** Er fand `/home/nutzer`, aber nicht
+   die Pfadform mit Bindestrichen (`-home-nutzer-...`), und uebersah zwei
+   weitere Vorkommen des Hostnamens in `gateway.py` und `technisch.md`. Erst
+   der zweite, breitere Durchgang war vollstaendig.
+
+2. **Die Historie ist NICHT sauber** -- entgegen der ersten Einschaetzung. Die
+   trug nur fuer Aufnahmen und Index (die wurden nie committet). Hostname,
+   Tailnet, LAN-Praefix, die Repo-Adresse und die Projektnamen aus dem
+   Vokabular stehen in je einem bis drei der 50 Commits. Vor einer
+   Veroeffentlichung muss die Historie also doch angefasst werden.
+
+Piper laeuft unter **GPL-3.0-or-later** (`piper-tts` 1.7.0, OHF-voice), nicht
+mehr unter MIT wie die aeltere rhasspy-Fassung. kihiwi ruft es als Bibliothek
+auf und liefert es nicht mit; wer ein Gesamtwerk weitergibt, prueft das fuer
+sich. In `DRITTANBIETER.md` vermerkt.
