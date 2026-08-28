@@ -711,6 +711,32 @@ class Sitzung:
 
     async def per_ausloeser(self, art: str, thema: str, ganzer_text: str) -> bool:
         """Handelt auf ein Ausloesewort hin. True, wenn erledigt."""
+        if art == "hilfe":
+            zeilen = absicht_modul.hilfe_zeilen()
+            # Gesprochen kurz, angezeigt vollstaendig -- vorlesen dauert sonst
+            # laenger, als die Liste anzusehen.
+            gesagt = ("Du sprichst mich mit Kiwi an. Danach kannst du sagen: "
+                      + ", ".join(w for w, _ in zeilen if w != "Hilfe")
+                      + ". Die Aufzeichnung steuerst du mit Aufzeichnung starten "
+                      + "oder stoppen. Beenden mit Danke, Kiwi. "
+                      + "Die ganze Liste steht auf dem Monitor.")
+            langtext = "\n".join(
+                ["# Was Kiwi versteht", "",
+                 "**Ansprechen:** „Kiwi …" + "\u201c — danach bleibt das Gespräch offen, "
+                 "Rückfragen brauchen kein „Kiwi" + "\u201c mehr.", "",
+                 "## Auslösewörter", ""]
+                + [f"- **{w}** — {e}" for w, e in zeilen]
+                + ["", "## Aufzeichnung", "",
+                   "- **Aufzeichnung starten / stoppen** — der Mitschnitt; beim "
+                   "Stoppen entsteht automatisch ein Protokoll",
+                   "- **Läuft die Aufzeichnung?** — Zustand abfragen", "",
+                   "## Gespräch beenden", "",
+                   "- **Danke, Kiwi** oder **Kiwi, Ende** — sonst endet es nach "
+                   "45 Sekunden Stille"])
+            await self.ws.send(json.dumps({"typ": "hilfe", "text": langtext}))
+            await self.melden(gesagt)
+            return True
+
         if art in ("recherche", "hermes"):
             if RECHERCHE.beschaeftigt:
                 await self.melden("Es läuft schon eine Recherche, die muss erst "

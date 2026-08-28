@@ -182,8 +182,26 @@ AUSLOESER = {
     # Zusammensetzungen gern auseinanderzieht.
     "hermes":    r"hermes[- ]?aufgabe|hermes[- ]?auftrag",
 }
+AUSLOESER["hilfe"] = r"hilfe|was kannst du|welche befehle|hilfestellung"
+
 _AUSLOESER_RE = {art: re.compile(rf"\b(?:{muster})\b", re.I)
                  for art, muster in AUSLOESER.items()}
+
+# Beschreibung je Ausloeser -- die Hilfe wird daraus erzeugt, damit sie nicht
+# veraltet, sobald jemand die Tabelle oben erweitert.
+BESCHREIBUNG = {
+    "websuche":  ("Internetsuche", "eine Sache schnell im Netz nachsehen"),
+    "recherche": ("Internetrecherche", "gründliche Recherche, Ergebnis kommt nach"),
+    "dokumente": ("Dokumentenrecherche", "in unseren eigenen Unterlagen suchen"),
+    "hermes":    ("Hermesaufgabe", "Anweisung unverändert an den Rechercheagenten"),
+    "hilfe":     ("Hilfe", "diese Liste"),
+}
+
+
+def hilfe_zeilen() -> list[tuple[str, str]]:
+    """(Wort, Erklaerung) fuer alle Ausloeser, in sinnvoller Reihenfolge."""
+    reihe = ["websuche", "recherche", "dokumente", "hermes", "hilfe"]
+    return [BESCHREIBUNG[a] for a in reihe if a in BESCHREIBUNG]
 
 
 def ausloeser(text: str):
@@ -192,10 +210,21 @@ def ausloeser(text: str):
     Reihenfolge: der spezifischste zuerst. "Dokumentenrecherche" enthaelt
     "recherche" -- ohne feste Reihenfolge wuerde daraus ein Internetauftrag.
     """
-    for art in ("hermes", "dokumente", "websuche", "recherche"):
+    for art in ("hilfe", "hermes", "dokumente", "websuche", "recherche"):
         m = _AUSLOESER_RE[art].search(text)
-        if m:
-            return art, _thema(text, m)
+        if not m:
+            continue
+        # "Hilfe" nur, wenn danach gefragt wird -- nicht in "Ich brauche Hilfe
+        # beim Mikroskop". Also entweder kurz gesagt oder weit vorn.
+        #
+        # In WOERTERN gerechnet, nicht in Zeichen: ein vorangestelltes "Kiwi,"
+        # schiebt den Treffer sonst schon aus dem erlaubten Bereich.
+        if art == "hilfe":
+            woerter = text.split()
+            vor = len(text[:m.start()].split())
+            if len(woerter) > 3 and vor > 1:
+                continue
+        return art, _thema(text, m)
     return None, ""
 
 

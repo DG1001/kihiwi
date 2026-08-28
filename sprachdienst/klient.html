@@ -295,6 +295,11 @@ function verbinden() {
       $("led-llm").classList.toggle("da", d.llm_da);
     } else if (d.typ === "text") {
       zeile(d.rolle, d.text);
+    } else if (d.typ === "hilfe") {
+      $("inhalt-text").innerHTML = alsHtml(d.text);
+      $("inhalt").classList.add("an");
+      $("liste").style.display = "none";
+      $("inhalt").scrollIntoView({behavior:"smooth", block:"nearest"});
     } else if (d.typ === "protokoll") {
       zeile("assistent", `Protokoll ${d.sitzung}:\n\n${d.text}`);
     } else if (d.typ === "recherche") {
