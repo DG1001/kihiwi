@@ -457,7 +457,7 @@ sofort — wie bei „Kiwi" selbst:
 |---|---|
 | `Internetrecherche`, `Webrecherche`, `recherchiere` | Rechercheauftrag an Hermes |
 | `Dokumentenrecherche`, `Dokumentensuche` | Suche in den Unterlagen, das Modell formuliert nur noch die Antwort |
-| `Hermes` | Anweisung **unverändert** an Hermes durchreichen |
+| `Hermesaufgabe`, `Hermesauftrag` | Anweisung **unverändert** an Hermes durchreichen |
 
 **Warum:** Das Modell hat sich wiederholt geweigert, obwohl das Werkzeug
 bereitstand („Ich kann leider keine Internetrecherche durchführen"). Wo die
@@ -467,10 +467,11 @@ Zeile in der Tabelle.
 Die Reihenfolge ist festgelegt: `hermes` → `dokumente` → `recherche`.
 „Dokumentenrecherche" enthält „recherche" und würde sonst zum Internetauftrag.
 
-**Vorsicht bei `Hermes`:** Er darf Dateien lesen, Seiten öffnen und Code
-ausführen, und das Mikrofon steht offen. Der Dienst sagt deshalb hörbar an, was
-weitergegeben wird („Ich gebe an Hermes weiter: …"). Wer das enger haben will,
-sollte eine Rückfrage vor der Ausführung einbauen.
+**Warum `Hermesaufgabe` und nicht `Hermes`:** Die Durchreichung gibt einer
+gesprochenen Anweisung Zugriff auf Dateien, Browser und Codeausführung, bei
+offenem Mikrofon. Über den Agenten wird im Labor aber geredet — „Hermes" allein
+fiele versehentlich. Ein zusammengesetztes Wort nicht. Der Dienst sagt zusätzlich
+hörbar an, was weitergegeben wird.
 
 ### Absagen vergiften den Verlauf
 

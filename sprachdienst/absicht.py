@@ -170,7 +170,12 @@ AUSLOESER = {
                  r"recherchier(?:e|st|en)?",
     "dokumente": r"dokumentenrecherche|dokumentensuche|aktenrecherche|"
                  r"unterlagenrecherche",
-    "hermes":    r"hermes",
+    # Nicht bloss "hermes": ueber den Agenten wird im Labor geredet, und die
+    # Durchreichung gibt einer gesprochenen Anweisung Zugriff auf Dateien,
+    # Browser und Codeausfuehrung. Ein zusammengesetztes Wort faellt nicht
+    # versehentlich. Getrennte Schreibung mit, weil die Erkennung
+    # Zusammensetzungen gern auseinanderzieht.
+    "hermes":    r"hermes[- ]?aufgabe|hermes[- ]?auftrag",
 }
 _AUSLOESER_RE = {art: re.compile(rf"\b(?:{muster})\b", re.I)
                  for art, muster in AUSLOESER.items()}

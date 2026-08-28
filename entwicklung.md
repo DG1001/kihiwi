@@ -623,9 +623,12 @@ Durchreichung), erweiterbar in einer Zeile. Dazu zwei Netze: der Verlauf wird
 für die Werkzeugrunde von Absagen befreit, und ein vom Router vorgesehenes
 Werkzeug wird erzwungen, wenn die Antwort trotzdem eine Absage ist.
 
-**Ein Vorbehalt zu `Hermes`:** Die Durchreichung gibt einer gesprochenen
-Anweisung Zugriff auf Dateien, Browser und Codeausführung, bei offenem Mikrofon.
-Der Dienst sagt an, was er weitergibt — mehr Schutz gibt es derzeit nicht.
+**Ausloeser für Hermes ist `Hermesaufgabe`, nicht `Hermes`.** Die Durchreichung
+gibt einer gesprochenen Anweisung Zugriff auf Dateien, Browser und
+Codeausführung, bei offenem Mikrofon — und über den Agenten wird im Labor
+geredet. Ein zusammengesetztes Wort fällt nicht versehentlich; das ist billiger
+und verlässlicher als eine Rückfrage. Der Dienst sagt zusätzlich an, was er
+weitergibt.
 
 ### Offen
 
