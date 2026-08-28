@@ -510,6 +510,7 @@ class Sitzung:
             t1 = _t.time(); erster = True
             werkzeug_gerufen = False
             gerufene: set[str] = set()
+            angesagt: set[str] = set()
             self.web_benutzt = False
             wofuer = absicht_modul.erkennen(text)
 
@@ -597,8 +598,24 @@ class Sitzung:
                     system_antwort=self.antwort_prompt()):
                 if e[0] == "werkzeug_beginnt":
                     ansage = ANSAGE.get(e[1])
-                    if ansage:
-                        await self.melden(ansage)
+                    # NICHT in den Verlauf, und je Werkzeug nur einmal.
+                    #
+                    # Die Ansage im Verlauf hat sich als Rueckkopplung
+                    # erwiesen: sie steht dort als letzte Assistentenaeusserung,
+                    # und das Modell schreibt in der Schlussantwort genau
+                    # diesen Satz noch einmal, statt zu antworten. Gemessen mit
+                    # Nemotron -- drei Zuege hintereinander nur "Ich schaue in
+                    # den Unterlagen nach.", ohne einen einzigen Werkzeugaufruf
+                    # dahinter. Je oefter der Satz im Verlauf steht, desto
+                    # sicherer wiederholt er sich.
+                    #
+                    # Anders als bei "Das Protokoll ist fertig", wegen dem
+                    # melden() ueberhaupt in den Verlauf schreibt, ist die
+                    # Ansage fluechtig: das Ergebnis kommt im selben Zug
+                    # hinterher, und danach ist sie gegenstandslos.
+                    if ansage and e[1] not in angesagt:
+                        angesagt.add(e[1])
+                        await self.melden(ansage, in_verlauf=False)
                     continue
                 if e[0] == "werkzeug":
                     werkzeug_gerufen = True
@@ -719,6 +736,13 @@ class Sitzung:
                     await self.ws.send(json.dumps({"typ": "text",
                                                    "rolle": "assistent", "text": satz}))
                     await self.sag(satz)
+                # Die Ankuendigung selbst faellt weg -- der Dienst hat gerade
+                # nachgeschlagen, sie ist eingeloest. Bliebe sie stehen, waere
+                # sie gesprochen worden UND stuende im Verlauf, wo sie beim
+                # naechsten Zug dieselbe Wiederholung ausloest. Nur die
+                # Ankuendigungssaetze fallen weg, nicht die ganze Antwort: das
+                # Modell kann angekuendigt und trotzdem etwas gesagt haben.
+                ganze = [z for z in ganze if not _ANGEKUENDIGT.search(z)]
                 ganze += nach
                 antwort = " ".join(ganze)
                 werkzeug_gerufen = True

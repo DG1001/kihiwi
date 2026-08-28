@@ -157,7 +157,15 @@ def wecker_absicht(text: str) -> str | None:
         return "stellen"
     if _WECK_ZEIGEN.search(t):
         return "zeigen"
-    return "zeigen" if not _w.deuten(text) else "stellen"
+    # Kein Zeitpunkt und kein Frage- oder Zeigewort: dann ist das Weckwort nur
+    # ein Wort im Satz. Hier stand ein "zeigen" als Auffangfall, und auf
+    # "wenn ich es richtig mich in Erinnerung habe, Backscattered und
+    # Secondary" antwortete der Dienst mitten im Fachgespraech "Es laeuft
+    # gerade kein Timer.". "Erinnerung", "erinnere" und "melde dich" sind
+    # alltaegliche Woerter; das Weckwort allein traegt die Entscheidung nicht.
+    # Lieber nichts erkennen als das Falsche -- erkennen() faellt dann auf die
+    # normale Unterhaltung zurueck.
+    return None
 
 
 def alle_loeschen(text: str) -> bool:

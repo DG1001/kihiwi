@@ -692,6 +692,27 @@ Definiert in `gateway.WERKZEUGE`, ausgeführt von `Sitzung.werkzeug`. Derzeit
 eines: `aufzeichnung(an: bool)`. Der **Zustand** steht im System-Prompt, nicht in
 einem Werkzeug — sonst fragt das Modell erst nach, bevor es handelt.
 
+**Die Werkzeugansage gehört NICHT in den Gesprächsverlauf.** `melden()`
+schreibt sonst alles Gesprochene hinein — bei der Ansage war das eine
+Rückkopplung: „Ich schaue in den Unterlagen nach." stand als letzte
+Assistentenäußerung da, und das Modell schrieb in der Schlussantwort genau
+diesen Satz noch einmal, statt zu suchen. Gemessen mit Nemotron: drei Züge
+hintereinander nur dieser Satz, **ohne einen einzigen Werkzeugaufruf dahinter**
+(im Protokoll fehlt die `Werkzeug`-Zeile, die `LLM erster Satz`-Zeile nennt
+34 Zeichen — die Länge der Ansage). Je öfter sie im Verlauf stand, desto
+sicherer wiederholte sie sich.
+
+Drei Änderungen: `melden(ansage, in_verlauf=False)`; dieselbe Ansage nur einmal
+je Zug (`angesagt`); und wenn das Netz `_ANGEKUENDIGT` greift, fallen die
+Ankündigungssätze aus der Antwort — der Dienst hat gerade nachgeschlagen, sie
+sind eingelöst. Nur diese Sätze, nicht die ganze Antwort: das Modell kann
+ankündigen und trotzdem etwas sagen.
+
+**Warum das kein Widerspruch zum Verlaufsgebot ist:** `melden()` schreibt mit,
+weil das Modell sonst bestreitet, was der Dienst gesagt hat („Das Protokoll ist
+fertig" — „das habe ich nicht gesagt"). Die Ansage ist anders: flüchtig, im
+selben Zug vom Ergebnis abgelöst, danach gegenstandslos.
+
 **Zwei Netze gegen behauptete Handlungen.** Das Modell hat mehrfach gesagt, es
 habe die Aufzeichnung gestoppt, **ohne das Werkzeug aufzurufen**. Bei einer
 rechtlich heiklen Funktion ist das inakzeptabel: Wer glaubt, es werde nicht mehr

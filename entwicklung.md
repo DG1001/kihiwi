@@ -1234,3 +1234,48 @@ Damit steht der Vergleich: Nemotron ist am schnellsten, Qwen3.6-35B-A3B
 antwortet am besten, Ornith liegt dazwischen, Qwen3.8 faellt am Rechercheweg
 aus. **Geschwindigkeit war bei keinem der vier das Unterscheidungsmerkmal, das
 den Ausschlag gab** -- ausser dort, wo sie in einen Abbruch umschlug.
+
+### Der Dienst hat sich selbst vergiftet
+
+Fred schickte einen Gespraechsmitschnitt: dreimal hintereinander nur "Ich schaue
+in den Unterlagen nach.", ohne Antwort. Dazwischen, mitten im Fachgespraech,
+"Es laeuft gerade kein Timer."
+
+**Zwei verschiedene Fehler, beide im Dienst, beide modellunabhaengig.**
+
+**1. Die Ansage als Rueckkopplung.** `melden()` schreibt alles Gesprochene in
+den Gespraechsverlauf -- mit gutem Grund, das Modell bestritt sonst, was der
+Dienst gesagt hatte. Bei der Werkzeugansage kippt das: "Ich schaue in den
+Unterlagen nach." steht als letzte Assistentenaeusserung da, und das Modell
+schreibt in der Schlussantwort genau diesen Satz noch einmal, statt zu suchen.
+
+Im Protokoll steht es unmissverstaendlich: `LLM erster Satz nach 519 ms
+(34 Zeichen)` -- die Laenge der Ansage -- und **keine `Werkzeug`-Zeile
+dahinter**. Das Netz `_ANGEKUENDIGT` griff, holte die Suche nach und liess neu
+antworten; die Neuantwort sah denselben Satz im Verlauf und wiederholte ihn.
+Eine Schleife, die sich mit jedem Zug festzog.
+
+Behoben an drei Stellen: `in_verlauf=False` fuer die Ansage, dieselbe Ansage nur
+einmal je Zug, und wenn das Netz greift, fallen die Ankuendigungssaetze aus der
+Antwort -- sie sind dann eingeloest. Nachgestellt mit Freds eigener
+Gespraechsfolge: die Wiederholung ist weg, jeder Zug endet mit Inhalt.
+
+**Nemotron hat den Fehler nur sichtbar gemacht, nicht verursacht.** Ein
+schwaecheres Modell faellt auf das Muster im Verlauf frueher herein. Ornith war
+dagegen nicht immun, nur seltener betroffen -- der Fehler lag die ganze Zeit da.
+
+**2. "Erinnerung" als Weckwort.** Auf "wenn ich es richtig mich in Erinnerung
+habe, Backscattered und Secondary" antwortete der Dienst "Es laeuft gerade kein
+Timer." `_WECK_WORT` trifft `erinnerung`, und `wecker_absicht()` hatte am Ende
+ein `return "zeigen"` als Auffangfall -- **war das Wort einmal im Satz, gab es
+keinen Weg zurueck zu None.**
+
+"Erinnerung", "erinnere", "melde dich" sind alltaegliche Woerter. Der Auffangfall
+ist jetzt `None`: ohne Zeitangabe UND ohne Frage- oder Zeigewort traegt das
+Weckwort allein die Entscheidung nicht, und erkennen() faellt auf die normale
+Unterhaltung zurueck. Zwoelf Faelle geprueft, darunter "Behalt das mal in
+Erinnerung" und "Wenn ich mich recht erinnere" gegen "Erinner mich um 15 Uhr" --
+alle richtig.
+
+**Lieber nichts erkennen als das Falsche** -- dieselbe Regel, die schon fuer die
+Sprechertrennung galt.
