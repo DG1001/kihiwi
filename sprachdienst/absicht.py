@@ -198,6 +198,8 @@ def _thema(text: str, m) -> str:
     # Thema ist der Rest ohne Ausloeser und Fuellwoerter davor.
     rest = (text[:m.start()] + " " + text[m.end():])
     rest = re.sub(r"\s+", " ", rest).strip()
+    # Satzzeichen, die am Ausloeser klebten ("Hermesaufgabe: oeffne ...").
+    rest = rest.strip(" ,.:;–—-")
     # Fuellwoerter vorne wiederholt abraeumen: "Bitte mach eine ... zum X"
     # laesst sonst "eine zum X" stehen.
     fueller = (r"^(bitte|mal|doch|kiwi|mach|mache|starte|beginne|gib mir|"
@@ -206,7 +208,7 @@ def _thema(text: str, m) -> str:
     vorher = None
     while rest != vorher:
         vorher = rest
-        rest = re.sub(fueller, "", rest, flags=re.I).strip(" ,.")
+        rest = re.sub(fueller, "", rest, flags=re.I).strip(" ,.:;")
     return rest or text
 
 
