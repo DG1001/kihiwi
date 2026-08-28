@@ -840,3 +840,33 @@ Drei Dinge fielen beim Bauen auf:
 Offen und bewusst nicht gebaut: die **Schreibrichtung**. Kiwi holt Staende, legt
 aber nichts ins Repo. Nextcloud ist aus demselben Grund ausdruecklich nur
 lesend.
+
+## Browseroberflaeche: Gespraech links, Buehne rechts
+
+Anlass war ein Hermesauftrag, dessen Verlauf so aussah:
+
+    Assistent   Die Recherche ist fertig. ... Das Ausfuehrliche steht auf dem Monitor.
+    Assistent   Rechercheergebnis (126s) zu ... [zwei Bildschirmseiten]
+    Assistent   Ich gebe an Hermes weiter: ...
+    Du          Hermes-Aufgabe. Erstelle eine Uebersichtsseite ...
+
+Zwei Fehler auf einmal. Die Reihenfolge war umgekehrt -- `zeile()` benutzte
+`prepend`, die Antwort stand ueber der Frage. Und das vollstaendige Ergebnis lag
+mitten im Verlauf, obwohl die gesprochene Kurzfassung direkt darueber sagte, es
+stehe auf dem Monitor. Einen Monitor in diesem Sinn gab es nicht: `hilfe` ging
+in eine Inhaltsflaeche, `recherche` und `protokoll` aber in den Chat.
+
+Jetzt zwei Spalten: links der Verlauf (chronologisch, unten angehaengt), rechts
+die Buehne fuer alles Ausfuehrliche. Im Verlauf bleibt ein anklickbarer Merker
+stehen, der den Inhalt zurueckholt.
+
+Nachgeprueft mit Chromium headless in 1600x1000 und 760x1100. Dabei noch
+gefunden und behoben: doppelte Leerraeume um Ueberschriften (die `<br>` aus den
+Markdown-Leerzeilen kamen zu den Block-Abstaenden hinzu), ein Merker, der ueber
+drei Zeilen lief, und die leere Verlaufsspalte ohne jeden Hinweis.
+
+Nebenbei zwei doppelte IDs entfernt: `m-transkript` stand in `monitor.html`
+zweimal, `b-leer` waere im neuen Klienten zweimal entstanden.
+
+Die Schreibrichtung ins Repo bleibt weiter aus -- auf Nachfrage bestaetigt,
+„nur lesen reicht fuers erste".

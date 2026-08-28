@@ -796,3 +796,33 @@ ausgesperrt. Der Modus haengt an der Datei, `verbinden()` setzt ihn.
 
 **`.gitignore` musste mit:** WAL legt `index.db-wal` daneben, mit demselben
 Volltext aus dem privaten Hauptrepo. Das Muster heisst jetzt `wissen/index.db*`.
+
+### Browseroberflaeche: Verlauf und Buehne
+
+`klient.html` hat zwei Spalten statt einer 44rem-Spalte:
+
+- **links, 25rem** — Kopf, Knoepfe, Pegel, Marken, LEDs und der
+  Gespraechsverlauf. Der Verlauf scrollt fuer sich und nimmt den Rest der
+  Spalte.
+- **rechts, Rest** — die Buehne. Alles Ausfuehrliche landet hier:
+  Rechercheergebnisse, Protokolle, die Hilfe, die Ablage. Kopfzeile mit Art,
+  Titel, Zeitangabe und den Knoepfen „Ablage" und „neu laden".
+
+Unter 62rem Fensterbreite stapeln sich beide, der Verlauf wird auf 22rem
+begrenzt.
+
+**Was in den Verlauf gehoert und was nicht.** In den Verlauf kommt nur, was
+gesprochen wurde. Ein volles Rechercheergebnis oder Protokoll schob dort alles
+andere aus dem Bild -- und die gesprochene Kurzfassung sagt ohnehin „Das
+Ausfuehrliche steht auf dem Monitor". Stattdessen erscheint ein anklickbarer
+**Merker**, der den Inhalt auf der Buehne wieder aufruft. Damit bleibt er
+erreichbar, ohne den Verlauf zuzuschuetten.
+
+**Reihenfolge.** `zeile()` haengt unten an (`amEnde()`) und scrollt nach, wenn
+der Nutzer ohnehin unten steht. Vorher stand `prepend` darin, der Verlauf las
+sich rueckwaerts -- die Antwort ueber der Frage, der Auftrag unter dem
+Ergebnis.
+
+**`alsHtml()`** entfernt die `<br>` unmittelbar vor und nach Ueberschriften und
+Zitaten. Die Blockelemente bringen eigenen Abstand mit, die `<br>` aus den
+Leerzeilen kamen obendrauf und rissen Loecher in den Text.
