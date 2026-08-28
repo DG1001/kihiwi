@@ -586,6 +586,26 @@ nichts bei.
 Und ein Gesprächsverlauf verstärkt Fehler — eine falsche Antwort bleibt stehen
 und wird zur Vorlage für die nächste.
 
+### Kanalaufteilung: Blättern gehört auf den Bildschirm
+
+Fred stellte den Ansatz in Frage — ob wir vom Sprachkanal nicht zu viel
+verlangen. Das trifft zu, und das Muster des Abends belegt es: **alles, was
+deterministisch gemacht wurde, funktioniert; alles, was dem Modell überlassen
+blieb, war fragil.** Aufzeichnung steuern, Statusfrage, Protokoll zeigen — jedes
+Mal ging es erst, als das Modell herausgenommen wurde.
+
+Der Grund ist nicht die Modellgröße, sondern die Aufgabe. Sprache taugt für
+Befehle mit den Händen an der Arbeit, für kurze Fragen und fürs Diktieren. Für
+Blättern, Vergleichen und Nachlesen taugt sie nicht — dafür gibt es einen
+Bildschirm.
+
+Der Client hat deshalb eine **Ablage**: Protokolle und Recherchen als
+anklickbare Liste, neueste zuerst. Weniger Code als die Sprachvariante und nicht
+missverständlich.
+
+Dass die Sprachvariante zuerst entstand, war Trägheit statt Entwurf: Der
+Sprachpfad war da, also wurde alles hineingelegt.
+
 ### Offen
 
 - Autostart (systemd-Units) — bewusst zurückgestellt.

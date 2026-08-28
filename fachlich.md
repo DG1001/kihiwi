@@ -89,6 +89,22 @@ Anforderungen:
 Stehende Auflage: **nichts verlässt das Netz.** Alle Modelle laufen lokal, es
 gibt keinen Cloud-Dienst im Pfad.
 
+## Was gehört auf welchen Kanal
+
+**Sprache ist gut für manches und schlecht für anderes.** Die Aufteilung ist
+bewusst gewählt, nicht gewachsen:
+
+| Über Sprache | Über den Bildschirm |
+|---|---|
+| Aufzeichnung an/aus, während die Hände beschäftigt sind | Protokolle durchsehen und öffnen |
+| Kurze Frage, kurze Antwort | Lange Texte lesen, vergleichen |
+| Einen Rechercheauftrag abgeben | Rechercheergebnisse nachlesen |
+| Diktieren, laut denken | Gezielt navigieren |
+
+Blättern gehört nicht ins Mikrofon: Eine anklickbare Liste kann nicht
+missverstanden werden, „zeig mir das Protokoll" schon. Die **Ablage** im Client
+listet Protokolle und Recherchen, neueste zuerst, zum Anklicken.
+
 ## Zwei Stufen beim Antworten
 
 **Nachschlagen** (Sekunden): Der Assistent durchsucht die Unterlagen und

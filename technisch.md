@@ -437,6 +437,17 @@ sichtbar sein, dass Kiwi ohne Zuruf mithört.
 Wird nur „Kiwi" gerufen, ohne Anweisung, quittiert der Dienst mit „Ja?", ohne
 das Modell zu bemühen.
 
+### Ablage im Client
+
+`GET /api/liste` liefert Protokolle und Rechercheergebnisse als JSON (neueste
+zuerst), `GET /api/datei?k=<kennung>` den Inhalt. Der Client zeigt sie als
+anklickbare Liste mit einem kleinen Markdown-Umsetzer; nach einer beendeten
+Nachbereitung oder Recherche lädt er sie selbst neu.
+
+**Warum nicht per Sprache:** Blättern und Lesen sind Bildschirmaufgaben. „Zeig
+mir das Protokoll" über das Modell zu lösen kostete einen Abend Prompt-Arbeit
+und blieb wackelig; eine Liste kann nicht missverstanden werden.
+
 ### Aufzeichnung läuft ohne das Modell
 
 **Befehle und Statusfragen zur Aufzeichnung werden direkt beantwortet**, ohne

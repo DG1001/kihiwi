@@ -13,6 +13,7 @@ Protokoll auf /audio
 Auf /monitor liegt nur der Zustand -- fuer den Bildschirm im Labor.
 """
 import asyncio, http, json, logging, re, signal, time
+from pathlib import Path
 import numpy as np
 import websockets
 from websockets.asyncio.server import serve
@@ -844,6 +845,38 @@ async def behandeln(ws):
                       gespraech=False)
 
 
+def _liste(wurzel, muster, art):
+    """Eintraege fuer die Auflistung. Neueste zuerst."""
+    aus = []
+    for pfad in wurzel.glob(muster):
+        try:
+            st = pfad.stat()
+        except OSError:
+            continue
+        name = pfad.parent.name if pfad.name == "protokoll.md" else pfad.stem
+        aus.append({"art": art, "kennung": name, "pfad": str(pfad),
+                    "geaendert": st.st_mtime, "groesse": st.st_size,
+                    "titel": _titel_aus(pfad)})
+    return sorted(aus, key=lambda e: e["geaendert"], reverse=True)
+
+
+def _titel_aus(pfad):
+    """Erste Ueberschrift der Datei, sonst der Dateiname."""
+    try:
+        with open(pfad, encoding="utf-8") as f:
+            for zeile in f:
+                if zeile.startswith("# "):
+                    return zeile[2:].strip()
+    except OSError:
+        pass
+    return pfad.stem
+
+
+def _sammlung():
+    return (_liste(konfig.AUFNAHMEN, "*/protokoll.md", "protokoll")
+            + _liste(wissen_recherche.ORDNER, "*.md", "recherche"))
+
+
 async def http_seite(verbindung, anfrage):
     """GET / liefert den Laborbildschirm, /klient den Sprachclient fuer den
     Browser; alles andere geht an den WebSocket.
@@ -854,7 +887,34 @@ async def http_seite(verbindung, anfrage):
         http://localhost:8920/klient
     Damit bleibt der Dienst auf 127.0.0.1 gebunden.
     """
-    datei = SEITEN.get(anfrage.path.split("?")[0])
+    pfad_teil = anfrage.path.split("?")[0]
+
+    # Auflistung und Abruf: Blaettern gehoert auf den Bildschirm, nicht ins
+    # Mikrofon. Eine anklickbare Liste kann nicht missverstanden werden.
+    if pfad_teil == "/api/liste":
+        leib = json.dumps([{k: v for k, v in e.items() if k != "pfad"}
+                           for e in _sammlung()], ensure_ascii=False)
+        antwort = verbindung.respond(http.HTTPStatus.OK, leib)
+        del antwort.headers["Content-Type"]
+        antwort.headers["Content-Type"] = "application/json; charset=utf-8"
+        return antwort
+
+    if pfad_teil == "/api/datei":
+        from urllib.parse import parse_qs, urlparse
+        wunsch = parse_qs(urlparse(anfrage.path).query).get("k", [""])[0]
+        for e in _sammlung():
+            if e["kennung"] == wunsch:
+                try:
+                    inhalt = Path(e["pfad"]).read_text(encoding="utf-8")
+                except OSError:
+                    break
+                antwort = verbindung.respond(http.HTTPStatus.OK, inhalt)
+                del antwort.headers["Content-Type"]
+                antwort.headers["Content-Type"] = "text/plain; charset=utf-8"
+                return antwort
+        return verbindung.respond(http.HTTPStatus.NOT_FOUND, "unbekannt\n")
+
+    datei = SEITEN.get(pfad_teil)
     if datei is None:
         return None
     try:

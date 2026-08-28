@@ -49,6 +49,33 @@
              padding:.8rem 1rem; border-radius:.4rem; margin-bottom:1rem; display:none; }
   kbd { background:#1c1c24; border:1px solid var(--linie); border-radius:.25rem;
         padding:.1em .4em; font-size:.85em; }
+
+  /* Ablage: Blättern gehört auf den Bildschirm. Eine anklickbare Liste kann
+     nicht missverstanden werden — anders als "zeig mir das Protokoll". */
+  #ablage { border-top:1px solid var(--linie); margin-top:1.5rem; padding-top:1rem; }
+  #ablage h2 { font-size:.95rem; font-weight:600; margin-bottom:.6rem;
+               display:flex; align-items:center; gap:.6rem; }
+  #ablage h2 button { font-size:.8rem; padding:.25rem .7rem; }
+  .eintrag { display:flex; align-items:center; gap:.7rem; padding:.5rem .6rem;
+             border-radius:.35rem; cursor:pointer; border:1px solid transparent; }
+  .eintrag:hover { background:#1a1a22; border-color:var(--linie); }
+  .eintrag .art { font-size:.7rem; text-transform:uppercase; letter-spacing:.06em;
+                  padding:.15rem .5rem; border-radius:1rem; flex:none; }
+  .art.protokoll { background:#12283a; color:#7ab8e8; }
+  .art.recherche { background:#3a2a12; color:#e8b339; }
+  .eintrag .wann { color:var(--matt); font-size:.8rem; flex:none; }
+  .eintrag .titel { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  #inhalt { display:none; margin-top:.8rem; }
+  #inhalt.an { display:block; }
+  #inhalt .text { background:#15151c; border:1px solid var(--linie);
+                  border-radius:.4rem; padding:1rem 1.2rem; max-height:60vh;
+                  overflow:auto; font-size:.9rem; line-height:1.6; }
+  #inhalt h1,#inhalt h2,#inhalt h3 { font-size:1rem; margin:1rem 0 .4rem; }
+  #inhalt h1:first-child { margin-top:0; }
+  #inhalt blockquote { border-left:3px solid #6b4c1a; color:#c9a961;
+                       padding-left:.8rem; margin:.6rem 0; font-size:.85rem; }
+  #inhalt code { background:#1c1c24; padding:.1em .35em; border-radius:.2rem; }
+  #inhalt .zeit { color:#7ab8e8; font-weight:600; }
 </style>
 
 <div id="warnung"></div>
@@ -95,11 +122,22 @@
 
 <div id="verlauf"></div>
 
+<div id="ablage">
+  <h2>Ablage <button id="neuladen">neu laden</button>
+      <span class="matt" id="ablage-zahl"></span></h2>
+  <div id="liste"></div>
+  <div id="inhalt">
+    <button id="zurueck">← zurück zur Liste</button>
+    <div class="text" id="inhalt-text"></div>
+  </div>
+</div>
+
 <script>
 const $ = id => document.getElementById(id);
 const RATE = 16000, BLOCK = 512;
 let ws, ctx, quelle, knoten, strom, spielt = 0, tonRate = 22050, rSeit = 0;
 let warAn = false;   // lief der AudioContext beim letzten Puffer?
+let warBeschaeftigt = false;
 
 // Laufende Zeit der Recherche: sie dauert Minuten, und ohne Uhr wirkt jeder
 // Zwischenstand wie ein Hänger.
@@ -243,6 +281,10 @@ function verbinden() {
       $("m-gespraech").classList.toggle("an", !!d.gespraech);
       $("m-recherche").classList.toggle("an", !!d.recherche);
       $("m-transkript").classList.toggle("an", !!d.transkription);
+      /* Nach dem Ende einer Nachbereitung oder Recherche gibt es Neues. */
+      const beschaeftigt = !!d.transkription || !!d.recherche;
+      if (warBeschaeftigt && !beschaeftigt) ablageLaden();
+      warBeschaeftigt = beschaeftigt;
       $("m-rfrage").textContent = d.recherche || "";
       rSeit = d.recherche_seit || 0;
       $("phase").className = d.phase === "leerlauf" ? "matt" : "";
@@ -302,6 +344,67 @@ addEventListener("keydown", e => {
     e.preventDefault(); ansprechen();
   }
 });
+
+function wannText(sek) {
+  const d = new Date(sek * 1000), heute = new Date();
+  const zeit = d.toLocaleTimeString("de-DE", {hour:"2-digit", minute:"2-digit"});
+  return d.toDateString() === heute.toDateString()
+    ? `heute ${zeit}` : `${d.toLocaleDateString("de-DE",{day:"2-digit",month:"2-digit"})} ${zeit}`;
+}
+
+/* Sehr kleiner Markdown-Umsetzer: nur was in unseren Dateien vorkommt. */
+function alsHtml(md) {
+  const esc = t => t.replace(/[&<>]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+  return esc(md)
+    .replace(/^### (.*)$/gm, "<h3>$1</h3>")
+    .replace(/^## (.*)$/gm, "<h2>$1</h2>")
+    .replace(/^# (.*)$/gm, "<h1>$1</h1>")
+    .replace(/^&gt; ?(.*)$/gm, "<blockquote>$1</blockquote>")
+    .replace(/\*\*\[(.*?)\]\*\*/g, '<span class="zeit">[$1]</span>')
+    .replace(/\*\*(.+?)\*\*/g, "<b>$1</b>")
+    .replace(/`(.+?)`/g, "<code>$1</code>")
+    .replace(/^- (.*)$/gm, "\u2022 $1")
+    .replace(/\n/g, "<br>");
+}
+
+async function ablageLaden() {
+  try {
+    const r = await fetch("/api/liste");
+    const eintraege = await r.json();
+    $("ablage-zahl").textContent = eintraege.length ? `${eintraege.length} Eintr\u00e4ge` : "";
+    $("liste").innerHTML = "";
+    if (!eintraege.length) {
+      $("liste").innerHTML = '<div class="matt" style="font-size:.9rem">'
+        + "Noch nichts da. Eine Aufzeichnung wird beim Stoppen automatisch protokolliert.</div>";
+      return;
+    }
+    for (const e of eintraege) {
+      const d = document.createElement("div");
+      d.className = "eintrag";
+      d.innerHTML = `<span class="art ${e.art}">${e.art}</span>`
+        + `<span class="wann">${wannText(e.geaendert)}</span>`
+        + `<span class="titel"></span>`;
+      d.querySelector(".titel").textContent = e.titel;
+      d.onclick = () => oeffnen(e.kennung);
+      $("liste").appendChild(d);
+    }
+  } catch (e) { $("ablage-zahl").textContent = "nicht erreichbar"; }
+}
+
+async function oeffnen(kennung) {
+  const r = await fetch("/api/datei?k=" + encodeURIComponent(kennung));
+  $("inhalt-text").innerHTML = alsHtml(await r.text());
+  $("inhalt").classList.add("an");
+  $("liste").style.display = "none";
+  $("inhalt").scrollIntoView({behavior:"smooth", block:"nearest"});
+}
+
+$("zurueck").onclick = () => {
+  $("inhalt").classList.remove("an");
+  $("liste").style.display = "";
+};
+$("neuladen").onclick = ablageLaden;
+ablageLaden();
 
 verbinden();
 </script>
