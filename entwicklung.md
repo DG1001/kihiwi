@@ -1210,3 +1210,27 @@ starten, frisch verbinden -- der Stand kommt mit `wieder=True` zurueck.
 **Die Lehre betrifft nicht den Code:** Ich habe waehrend seiner Arbeit dreimal
 den Dienst neu gestartet und es nicht gesagt. Ein Fehlerbild, das ich selbst
 erzeugt habe, kostete ihn die Suche danach.
+
+### Nachtrag: Nemotron-3.5-Lightning mit DSpark
+
+Das schnellste Modell auf dieser Maschine -- 91,9 tok/s warm, erster Satz
+0,9-2,3 s, beides der beste Wert im Vergleich. Der Rechercheweg lief in 40 s
+durch, mit Quellen und ausdruecklichen Unsicherheitsvermerken.
+
+**Zuerst geprueft, ob Piper die Gedankenkette vorliest.** Nemotron ist ein
+Denkmodell, und der globale Schalter `enable_thinking: false` ist ein
+Qwen-Argument -- ob Nemotron darauf hoert, stand offen. Ein direkter Aufruf gegen
+:8889 vor jedem Sprachtest: `content` sauber, `reasoning_content` leer, kein
+`<think>`. **Diese Reihenfolge gehoert zur Routine bei jedem neuen Modell**;
+andersherum haette der erste Satz aus Pipers Mund die Antwort erklaert, statt
+sie zu geben.
+
+**Schwach im Deutschen.** Fachbegriffe bildet es adjektivisch statt als
+Komposita: "sekundaere Elektronen", "rueckstreue Elektronen". Der Vorbehalt
+gehoert dazu -- die Sprachsynthese hatte die Frage schon so verstuemmelt, das
+Modell kann echot haben. Werkzeuge ruft es sparsam wie Ornith, 1 von 4.
+
+Damit steht der Vergleich: Nemotron ist am schnellsten, Qwen3.6-35B-A3B
+antwortet am besten, Ornith liegt dazwischen, Qwen3.8 faellt am Rechercheweg
+aus. **Geschwindigkeit war bei keinem der vier das Unterscheidungsmerkmal, das
+den Ausschlag gab** -- ausser dort, wo sie in einen Abbruch umschlug.

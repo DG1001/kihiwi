@@ -84,12 +84,13 @@ Werkzeuggebrauch.
 **Gemessen am 28.08.2026** (vier Fragen end-zu-end über den WebSocket, Piper als
 Sprecher, warm):
 
-| | Ornith-1.5-35B-A3B | Qwen3.8-27B (dicht + MTP) | Qwen3.6-35B-A3B NVFP4 |
-|---|---|---|---|
-| Generierung, warm | 78,4 tok/s | **20,0 tok/s** (ohne MTP ~10) | 78,3 tok/s |
-| erster Satz | 0,4–2,5 s | 1,1–2,5 s | 1,3–2,2 s |
-| Werkzeugaufrufe auf 4 Fragen | 1 | 4, einmal ungefragt `web_suchen` | 3 |
-| Rechercheauftrag (Wetter) | 26–63 s | **Abbruch bei 420 s** | 23 s |
+| | Ornith-1.5-35B-A3B | Qwen3.8-27B (dicht + MTP) | Qwen3.6-35B-A3B NVFP4 | Nemotron-3.5-L. + DSpark |
+|---|---|---|---|---|
+| Generierung, warm | 78,4 tok/s | **20,0 tok/s** (ohne MTP ~10) | 78,3 tok/s | **91,9 tok/s** |
+| erster Satz | 0,4–2,5 s | 1,1–2,5 s | 1,3–2,2 s | 0,9–2,3 s |
+| Werkzeugaufrufe auf 4 Fragen | 1 | 4, einmal ungefragt `web_suchen` | 3 | 1 |
+| Rechercheauftrag | 26–63 s | **Abbruch bei 420 s** | 23–46 s | 40 s |
+| Nachdenken im Sprachtext | nein | nein | nein | nein |
 
 **Qwen3.8-27B ruft Werkzeuge bereitwillig, aber es hört danach auf zu denken.**
 Auf „Unterschied zwischen Sekundär- und Rückstreuelektronen" suchte es in den
@@ -100,10 +101,21 @@ Eifer ist das Gegenteil von Ornith' bekannter Schwäche, aber in dieser Form
 keine Verbesserung: für einen Laborassistenten ist „steht nicht in den
 Unterlagen" auf eine allgemeine Fachfrage die falsche Antwort.
 
-Kein Nachdenken lief in die Sprachausgabe — `--default-chat-template-kwargs
-'{"enable_thinking": false}'` greift bei der Qwen-Familie. Bei Nemotron ist das
-offen; dessen Schalter heißt anders, und im Zweifel spricht Piper die
-Gedankenkette mit.
+Kein Nachdenken lief in die Sprachausgabe — bei der Qwen-Familie greift
+`--default-chat-template-kwargs '{"enable_thinking": false}'`. **Bei Nemotron
+nachgeprüft, weil dessen Schalter anders heißt und Piper im Zweifel die
+Gedankenkette mitspräche: `content` war sauber, `reasoning_content` leer, kein
+`<think>`.** Diese Prüfung gehört vor jeden Sprachtest eines neuen Modells.
+
+**Nemotron ist das schnellste Modell hier und das schwächste im Deutschen.**
+91,9 tok/s mit DSpark (der Prüfstand mass 121,4 — dort lief es mit `GPU_UTIL`
+0.85; die Entwurfsannahme lag hier bei 36,7 %). Fachbegriffe bildet es
+adjektivisch statt als Komposita: „sekundäre Elektronen", „rückstreue
+Elektronen" statt Sekundär- und Rückstreuelektronen. *Vorbehalt: die
+Sprachsynthese hatte die Frage bereits so verstümmelt, das Modell kann echot
+haben.* Werkzeuge ruft es sparsam wie Ornith (1 von 4). Die Recherche lief in
+40 s mit Quellen und ausdrücklichen Unsicherheitsvermerken durch — inhaltlich
+mit einem Schnitzer (von Ardenne als „Scanning-Tunneling-Elektronenmikroskop").
 
 **Qwen3.6-35B-A3B sucht *und* antwortet — das tut sonst keines der drei.** Es
 ruft `dokumente_suchen` wie Qwen3.8, hört aber nicht dort auf: findet es nichts,
