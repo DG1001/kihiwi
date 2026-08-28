@@ -10,11 +10,15 @@
         "*.md"
       ],
       "aus": [
+        ".venv",
         "aufnahmen",
         "logs",
-        ".venv",
+        "recherchen",
+        "stimmproben",
+        "testaudio",
         "wissen"
-      ]
+      ],
+      "_hinweis": "Nur die Projektdokumentation. recherchen/ ist ausgeschlossen: abgeleitetes Material konkurriert im Index mit den Primärquellen und gewinnt bei Zahlenfragen sogar, mit Sätzen wie 'nicht belegbar ohne weitere Prüfung'."
     },
     {
       "name": "protokolle",

@@ -194,6 +194,14 @@ PUT). Zugangsdaten für Nextcloud über `$KIHIWI_NC_PASS`, nicht in der Datei.
 Labor gefragt wurde. Audio und Unterlagen verlassen die Maschine nicht, die
 Frage schon.
 
+**Der Index räumt auf.** `index.aufraeumen()` entfernt nach jedem Einlesen die
+Dokumente einer Quelle, die nicht mehr gesehen wurden. Ohne das bleibt alles
+drin, was einmal drin war — gelöschte Dateien wie nachträglich ausgeschlossene.
+Gemessen: die Rechercheergebnisse blieben auffindbar, nachdem sie aus der Quelle
+genommen worden waren, und **gewannen bei Zahlenfragen gegen die Primärquellen**
+— mit Sätzen wie „nicht belegbar ohne weitere Prüfung". Abgeleitetes Material
+gehört nicht neben die Quellen, aus denen es abgeleitet wurde.
+
 **Suchen darf niemals schreiben** (`index.lesen()` statt `verbinden()`):
 `verbinden()` legt das Schema an und nimmt dabei eine Schreibsperre.
 
@@ -483,6 +491,11 @@ sofort — wie bei „Kiwi" selbst:
 bereitstand („Ich kann leider keine Internetrecherche durchführen"). Wo die
 Handlung eindeutig ist, entscheidet der Dienst. Weitere Auslöser kosten eine
 Zeile in der Tabelle.
+
+**Schreibweisen:** alle Auslöser gelten zusammen, getrennt und mit Bindestrich
+(`internet[- ]?suche`). Die Erkennung schreibt Komposita variabel — „Internetsuche",
+„Internet-Suche" und „Internet Suche" kamen alle vor, und anfangs traf nur die
+erste Form; die anderen landeten stumm bei der Dokumentensuche.
 
 **Die Hilfe wird aus der Tabelle erzeugt** (`absicht.hilfe_zeilen()`), damit sie
 nicht veraltet, sobald jemand einen Auslöser ergänzt.

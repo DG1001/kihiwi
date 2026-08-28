@@ -17,6 +17,8 @@ from pathlib import Path
 import numpy as np
 import websockets
 from websockets.asyncio.server import serve
+from websockets.datastructures import Headers
+from websockets.http11 import Response
 
 from wissen import einlesen as wissen_einlesen
 from wissen import index as wissen_index, recherche as wissen_recherche
@@ -1012,6 +1014,46 @@ async def http_seite(verbindung, anfrage):
         antwort.headers["Content-Type"] = "application/json; charset=utf-8"
         return antwort
 
+    # Stimmproben im Browser anhoerbar machen -- die Bedienoberflaeche ist der
+    # Browser, Dateianhaenge nuetzen dort nichts.
+    if pfad_teil == "/stimmen":
+        proben = sorted((konfig.WURZEL / "stimmproben").glob("*.wav"))
+        aktuell = konfig.STIMME.stem
+        zeilen = []
+        for w in proben:
+            name = w.stem
+            jetzt = " ← läuft gerade" if name == aktuell else ""
+            zeilen.append(
+                f'<div class="s"><div class="n">{name}<span class="j">{jetzt}</span></div>'
+                f'<audio controls preload="none" src="/api/stimme?n={name}"></audio></div>')
+        leib = ("<title>Stimmproben</title><style>"
+                "body{background:#101014;color:#e8e8ea;font:15px/1.6 system-ui,sans-serif;"
+                "max-width:44rem;margin:0 auto;padding:1.5rem}"
+                "h1{font-size:1.1rem}.s{border-top:1px solid #2a2a33;padding:.8rem 0}"
+                ".n{font-weight:600;margin-bottom:.4rem}.j{color:#3d9a54;font-weight:400}"
+                "audio{width:100%}p{color:#8a8a95}</style>"
+                "<h1>Stimmproben</h1><p>Derselbe Satz in allen deutschen Piper-Stimmen. "
+                "Der Wechsel ist eine Zeile in <code>konfig.py</code>.</p>"
+                + "".join(zeilen))
+        antwort = verbindung.respond(http.HTTPStatus.OK, leib)
+        del antwort.headers["Content-Type"]
+        antwort.headers["Content-Type"] = "text/html; charset=utf-8"
+        return antwort
+
+    if pfad_teil == "/api/stimme":
+        from urllib.parse import parse_qs, urlparse
+        name = parse_qs(urlparse(anfrage.path).query).get("n", [""])[0]
+        datei = konfig.WURZEL / "stimmproben" / f"{Path(name).name}.wav"
+        if datei.is_file():
+            # Response direkt bauen: respond() nimmt Text und kodiert nach
+            # UTF-8 -- aus 166 kB Audio wurden dabei 252 kB Unsinn.
+            leib = datei.read_bytes()
+            return Response(200, "OK", Headers({
+                "Content-Type": "audio/wav",
+                "Content-Length": str(len(leib)),
+            }), leib)
+        return verbindung.respond(http.HTTPStatus.NOT_FOUND, "unbekannt\n")
+
     if pfad_teil == "/api/datei":
         from urllib.parse import parse_qs, urlparse
         wunsch = parse_qs(urlparse(anfrage.path).query).get("k", [""])[0]
@@ -1060,7 +1102,8 @@ async def haupt():
         "Das dauert mir zu lange, ich breche ab.",
     ]
     n = await asyncio.to_thread(tts.vorrendern, feste)
-    log.info("Stimme geladen, %d feste Sätze im Vorrat", n)
+    log.info("Stimme %s geladen, %d feste Sätze im Vorrat",
+             konfig.STIMME.name, n)
     asyncio.create_task(gesundheit())
 
     stopp = asyncio.Event()

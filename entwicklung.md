@@ -719,6 +719,23 @@ Ansagen einmal beim Start, danach kosten sie null. Da fast jede Antwort mit eine
 solchen Ansage beginnt, kommt der erste Ton jetzt **früher** als vorher: 416 ms
 gegen 847 ms. Bessere Stimme und kürzere Latenz zugleich.
 
+### „Internet-Suche" traf nicht, und der Index war verschmutzt
+
+Zwei Fehler in einer Äusserung. „Internet-Suche zum Thema
+Rasterelektronenmikroskopie" landete bei der Dokumentensuche statt im Netz: die
+Auslöser kannten nur die zusammengeschriebene Form, die Erkennung schreibt
+Komposita aber variabel. Jetzt gelten alle drei Schreibweisen.
+
+Und die Antwort darauf war seltsam („Die Recherche stammt von einem Agenten und
+ist ungeprüft"), weil die **Rechercheergebnisse noch im Wissensindex standen**.
+Sie waren zwar aus der Quelle genommen worden, aber der Index entfernte nie
+etwas — was einmal drin war, blieb drin. Abgeleitetes Material konkurrierte so
+mit den Primärquellen und gewann bei Zahlenfragen sogar, weil seine
+Vorsichtsformeln gut auf solche Fragen passen.
+
+`index.aufraeumen()` löscht jetzt nach jedem Einlesen, was nicht mehr gesehen
+wurde. Die Quelle `kihiwi` schrumpfte damit von 16 auf 5 Dokumente.
+
 ### Offen
 
 - Autostart (systemd-Units) — bewusst zurückgestellt.

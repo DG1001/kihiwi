@@ -198,6 +198,26 @@ def suchen(frage: str, anzahl: int = 5, c: sqlite3.Connection | None = None
             c.close()
 
 
+def aufraeumen(c, quelle: str, gesehen: set[str]) -> int:
+    """Entfernt Dokumente einer Quelle, die es nicht mehr gibt.
+
+    Ohne das bleibt alles im Index, was einmal drin war -- geloeschte Dateien
+    genauso wie nachtraeglich ausgeschlossene. Gemessen wurde genau das: die
+    Rechercheergebnisse blieben auffindbar, nachdem sie aus der Quelle
+    genommen worden waren, und gewannen bei Zahlenfragen sogar gegen die
+    Primaerquellen.
+    """
+    weg = [r[0] for r in c.execute(
+        "SELECT pfad FROM dokumente WHERE quelle=?", (quelle,)).fetchall()
+        if r[0] not in gesehen]
+    for pfad in weg:
+        did = c.execute("SELECT id FROM dokumente WHERE pfad=?", (pfad,)).fetchone()
+        if did:
+            c.execute("DELETE FROM abschnitte WHERE dok_id=?", (did[0],))
+            c.execute("DELETE FROM dokumente WHERE id=?", (did[0],))
+    return len(weg)
+
+
 def stand() -> dict:
     c = verbinden()
     try:

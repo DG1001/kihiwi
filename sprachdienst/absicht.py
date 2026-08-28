@@ -165,28 +165,33 @@ _AUF_BEFEHL = re.compile(r"\b(nimm|zeichne|schneide?|starte?|mach)\b.{0,15}\bauf
 # Das Muster ist dasselbe wie bei den Aufzeichnungsbefehlen: Wo die Handlung
 # eindeutig ist, entscheidet der Dienst, nicht das Modell. Weitere Ausloeser
 # kosten hier eine Zeile.
+# `_` steht fuer "zusammen, getrennt oder mit Bindestrich". Die Erkennung
+# schreibt Komposita variabel -- "Internetsuche", "Internet-Suche" und
+# "Internet Suche" kamen alle vor, und nur die erste Form traf.
+_ = r"[- ]?"
+
 AUSLOESER = {
-    "recherche": r"internetrecherche|netzrecherche|webrecherche|rechercheauftrag|"
-                 r"recherchier(?:e|st|en)?",
-    "dokumente": r"dokumentenrecherche|dokumentensuche|aktenrecherche|"
-                 r"unterlagenrecherche",
+    "recherche": rf"internet{_}recherche|netz{_}recherche|web{_}recherche|"
+                 rf"recherche{_}auftrag|recherchier(?:e|st|en)?",
+    "dokumente": rf"dokumenten{_}recherche|dokumenten{_}suche|akten{_}recherche|"
+                 rf"unterlagen{_}recherche",
     # Suche vs. Recherche: der schnelle Weg holt eine Tatsache direkt ueber
     # SearXNG (2-3 s, sofortige Antwort), der lange laesst Hermes suchen,
     # Seiten lesen und verketten (30-40 s, Ergebnis kommt nach). Wer das Wort
     # waehlt, waehlt den Weg -- besser als ein Router, der raet.
-    "websuche":  r"internetsuche|netzsuche|websuche",
+    "websuche":  rf"internet{_}suche|netz{_}suche|web{_}suche",
     # Nicht bloss "hermes": ueber den Agenten wird im Labor geredet, und die
     # Durchreichung gibt einer gesprochenen Anweisung Zugriff auf Dateien,
     # Browser und Codeausfuehrung. Ein zusammengesetztes Wort faellt nicht
     # versehentlich. Getrennte Schreibung mit, weil die Erkennung
     # Zusammensetzungen gern auseinanderzieht.
-    "hermes":    r"hermes[- ]?aufgabe|hermes[- ]?auftrag",
+    "hermes":    rf"hermes{_}aufgabe|hermes{_}auftrag",
 }
 # "Hilfe" allein faellt im Labor staendig ("ich brauche Hilfe beim Mikroskop").
 # Das liess sich zwar mit Stellungsregeln abfangen, aber solche Waechter sind
 # Naeherungen -- ein zusammengesetztes Wort braucht keine. Gleiche Ueberlegung
 # wie bei "Hermesaufgabe".
-AUSLOESER["hilfe"] = r"kiwi[- ]?hilfe|befehlsliste|was kannst du"
+AUSLOESER["hilfe"] = rf"kiwi{_}hilfe|befehls{_}liste|was kannst du"
 
 # Sonderfall: "Kiwi, Hilfe" -- nach dem Abschneiden des Aktivierungsworts
 # bleibt nur "Hilfe" uebrig. Als GANZE Aeusserung ist das eindeutig; in einem
@@ -240,7 +245,7 @@ def _thema(text: str, m) -> str:
     # laesst sonst "eine zum X" stehen.
     fueller = (r"^(bitte|mal|doch|kiwi|mach|mache|starte|beginne|gib mir|"
                r"eine|einen|ein|die|der|das|zu|zum|zur|ueber|über|nach|"
-               r"fuer|für|mir|uns)\b[\s,]*")
+               r"fuer|für|mir|uns|thema|thematik|sache|frage)\b[\s,]*")
     vorher = None
     while rest != vorher:
         vorher = rest

@@ -195,7 +195,12 @@ def nextcloud(q: dict, c) -> int:
     return n
 
 
+# Was in diesem Lauf gesehen wurde -- alles andere fliegt danach aus dem Index.
+GESEHEN: set[str] = set()
+
+
 def _eintragen(c, quelle, pfad, titel, herkunft, stand, text) -> int:
+    GESEHEN.add(pfad)
     if not text or not text.strip():
         return 0
     fp = hashlib.sha256(text.encode("utf-8", "replace")).hexdigest()[:16]
@@ -227,8 +232,11 @@ def alles(nur: str | None = None) -> None:
             if not f:
                 print(f"  {q['name']}: unbekannte Art {q.get('art')!r}"); continue
             print(f"  {q['name']} ({q['art']}) ...")
+            GESEHEN.clear()
             n = f(q, c)
+            entfernt = index.aufraeumen(c, q["name"], set(GESEHEN))
             c.commit()
-            print(f"    {n} Dokument(e) neu oder geändert")
+            print(f"    {n} Dokument(e) neu oder geändert"
+                  + (f", {entfernt} entfernt" if entfernt else ""))
     finally:
         c.close()
