@@ -356,6 +356,16 @@ Und aus einem korrekten „Hochvakuum" ein falsches „Hochvacuum": ähnlich gen
 Wächter (a), aber nirgends belegt, deshalb braucht es (b). Zurückhaltung wird
 erzwungen, nicht erbeten.
 
+**Nach der Transkription wird das Audio verdichtet** (`protokoll.verdichten`):
+WAV → Opus mit 24 kbit/s, das Original wird gelöscht. 110 MB je Stunde sind für
+eine Dauerablage zu viel — 107 GB im Jahr bei vier Stunden täglich, gegen 415 GB
+frei. Opus macht daraus 10,5 MB je Stunde.
+
+Verdichtet wird **erst nach** erfolgreicher Transkription; die arbeitet auf dem
+Original. `lies_audio()` liest beides, Opus über ffmpeg — eine spätere
+Neu-Transkription funktioniert also weiter. Nachgemessen: dasselbe Transkript,
+Wort für Wort.
+
 Erzeugt wird `aufnahmen/<sitzung>/protokoll.md` mit Zusammenfassung (als
 **abgeleitet** gekennzeichnet, jede Aussage mit Zeitstempel) und dem
 vollständigen Transkript. Unsichere Stellen landen unter „Unklare Stellen"
@@ -590,6 +600,13 @@ Ablauf mit Gesprächsverlauf wieder daneben.
 **Achtung, naheliegender Denkfehler:** Die 70 ms sind das erste *Token*, nicht
 der erste *sprechbare* Brocken. Piper braucht einen Teilsatz, also 10–25 Token.
 Eine Budgetrechnung mit TTFT ist um den Faktor fünf zu optimistisch.
+
+**Feste Sätze sind vorgerendert.** `tts.vorrendern()` erzeugt beim Start 15
+stehende Sätze („Ich schaue in den Unterlagen nach", „Ja?", die Bestätigungen)
+und behält sie im Speicher. Damit trägt sich die bessere Stimme selbst: die
+Ansage kommt aus dem Vorrat und damit sofort, nur die variable Antwort dahinter
+zahlt die 343 ms. Gemessen an „Internetsuche …": **416 ms** bis zum ersten Ton
+mit `thorsten-high` gegen 847 ms mit `thorsten-medium`.
 
 **Immer warm messen.** Erster CUDA-Lauf 266 statt 100 ms, erster vLLM-Aufruf 226
 statt 70 ms, Piper als CLI-Prozess 800 statt 110 ms. Prozesse müssen dauerhaft

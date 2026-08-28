@@ -1047,8 +1047,20 @@ async def haupt():
     logging.basicConfig(level=logging.INFO,
                         format="%(asctime)s %(levelname)s %(message)s")
     konfig.AUFNAHMEN.mkdir(parents=True, exist_ok=True)
-    await asyncio.to_thread(tts.laden)          # Stimme vorladen: 595 ms einmalig
-    log.info("Stimme geladen")
+    await asyncio.to_thread(tts.laden)          # Stimme vorladen
+    # Feste Saetze einmal rendern -- danach kosten sie nichts mehr.
+    feste = list(ANSAGE.values()) + [
+        "Ja?", "Bis dann.", "Die Recherche ist fertig.",
+        "Ich recherchiere noch nebenbei, das dauert gerade länger.",
+        "Ich recherchiere das und melde mich, wenn ich etwas habe.",
+        "Das Protokoll der Aufzeichnung ist fertig, du kannst mich danach fragen.",
+        "Aufzeichnung läuft jetzt.", "Aufzeichnung ist gestoppt.",
+        "Ja, die Aufzeichnung läuft.", "Nein, es wird gerade nicht aufgezeichnet.",
+        "Es läuft schon eine Recherche, die muss erst fertig werden.",
+        "Das dauert mir zu lange, ich breche ab.",
+    ]
+    n = await asyncio.to_thread(tts.vorrendern, feste)
+    log.info("Stimme geladen, %d feste Sätze im Vorrat", n)
     asyncio.create_task(gesundheit())
 
     stopp = asyncio.Event()

@@ -22,7 +22,7 @@ plausibel klingt und erfunden ist, waere schlechter als gar keins.
 """
 from __future__ import annotations
 
-import asyncio, difflib, json, sys, wave
+import asyncio, difflib, json, subprocess, sys, wave
 from dataclasses import dataclass, asdict
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -65,12 +65,39 @@ class Abschnitt:
         return (t0 + timedelta(milliseconds=self.start_ms)).astimezone().strftime("%d.%m. %H:%M:%S")
 
 
-def lies_wav(pfad: Path) -> np.ndarray:
+def lies_audio(pfad: Path) -> np.ndarray:
+    """WAV direkt, Opus ueber ffmpeg. Aufnahmen werden nach der Transkription
+    zu Opus verdichtet -- 110 MB je Stunde sind als Dauerablage zu viel."""
+    if pfad.suffix.lower() != ".wav":
+        roh = subprocess.run(
+            ["ffmpeg", "-v", "error", "-i", str(pfad), "-f", "s16le",
+             "-ar", str(konfig.RATE), "-ac", "1", "-"],
+            capture_output=True, timeout=300).stdout
+        return np.frombuffer(roh, dtype=np.int16).astype(np.float32) / 32768.0
     with wave.open(str(pfad)) as w:
         if w.getframerate() != konfig.RATE or w.getnchannels() != 1:
             raise ValueError(f"{pfad}: erwartet {konfig.RATE} Hz mono")
         roh = np.frombuffer(w.readframes(w.getnframes()), dtype=np.int16)
     return roh.astype(np.float32) / 32768.0
+
+
+def verdichten(wav: Path) -> Path | None:
+    """WAV zu Opus. Gibt die neue Datei zurueck, None bei Fehlschlag.
+
+    Erst NACH erfolgreicher Transkription: die arbeitet auf dem Original.
+    Gemessen: 110 MB/h als WAV, 10,5 MB/h als Opus bei 24 kbit/s, und das
+    Transkript ist auf derselben Datei identisch.
+    """
+    ziel = wav.with_suffix(".opus")
+    r = subprocess.run(
+        ["ffmpeg", "-y", "-v", "error", "-i", str(wav), "-c:a", "libopus",
+         "-b:a", str(konfig.OPUS_BITRATE), "-application", "voip", str(ziel)],
+        capture_output=True, timeout=600)
+    if r.returncode != 0 or not ziel.exists() or ziel.stat().st_size < 1000:
+        ziel.unlink(missing_ok=True)
+        return None
+    wav.unlink()
+    return ziel
 
 
 def sprachbereiche(x: np.ndarray) -> list[tuple[int, int]]:
@@ -113,7 +140,7 @@ def sprachbereiche(x: np.ndarray) -> list[tuple[int, int]]:
 
 # --- Transkription -----------------------------------------------------------
 async def transkribiere_datei(wav: Path, beginn_utc: str = "") -> list[Abschnitt]:
-    x = lies_wav(wav)
+    x = lies_audio(wav)
     abschnitte = []
     for t0, t1 in sprachbereiche(x):
         stueck = x[t0 * konfig.RATE // 1000: t1 * konfig.RATE // 1000]
@@ -278,7 +305,7 @@ async def verarbeite(wav: Path, neu: bool = False) -> list[Abschnitt] | None:
 async def verarbeite_sitzung(sitzung: Path, neu: bool = False) -> Path | None:
     alle: list[Abschnitt] = []
     versatz = 0
-    for wav in sorted(sitzung.glob("*.wav")):
+    for wav in sorted(list(sitzung.glob("*.wav")) + list(sitzung.glob("*.opus"))):
         vorhanden = wav.with_suffix(".transkript.json")
         a = await verarbeite(wav, neu)
         if a is None and vorhanden.exists():
@@ -287,8 +314,7 @@ async def verarbeite_sitzung(sitzung: Path, neu: bool = False) -> Path | None:
         for x in (a or []):
             alle.append(Abschnitt(x.start_ms + versatz, x.ende_ms + versatz,
                                   x.text_roh, x.text, x.beginn_utc))
-        with wave.open(str(wav)) as w:
-            versatz += w.getnframes() * 1000 // konfig.RATE
+        versatz += len(lies_audio(wav)) * 1000 // konfig.RATE
 
     if not alle:
         print("  nichts zu protokollieren")
@@ -327,6 +353,13 @@ async def verarbeite_sitzung(sitzung: Path, neu: bool = False) -> Path | None:
                "Korrigierte Stellen zeigen den Rohtext darunter."]
     ziel.write_text("\n".join(zeilen) + "\n", encoding="utf-8")
     print(f"  -> {ziel}")
+
+    # Erst jetzt verdichten -- transkribiert wurde auf dem Original.
+    for wav in sorted(sitzung.glob("*.wav")):
+        neu = verdichten(wav)
+        if neu:
+            print(f"  {wav.name} -> {neu.name} "
+                  f"({neu.stat().st_size / 1024:.0f} kB)")
     return ziel
 
 

@@ -114,5 +114,7 @@ def offene_segmente(verz: Path | None = None):
             m = json.loads(j.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
             continue
-        if not m.get("transkribiert") and j.with_suffix(".wav").exists():
-            yield j.with_suffix(".wav")
+        for endung in (".wav", ".opus"):
+            if not m.get("transkribiert") and j.with_suffix(endung).exists():
+                yield j.with_suffix(endung)
+                break

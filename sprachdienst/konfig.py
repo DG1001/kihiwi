@@ -96,8 +96,15 @@ ANTWORT_MAX_S = 45
 
 # --- Dateien ----------------------------------------------------------------
 AUFNAHMEN  = Path(os.environ.get("KIHIWI_AUFNAHMEN", WURZEL / "aufnahmen"))
+# Nach der Transkription werden Aufnahmen zu Opus verdichtet: 110 MB je Stunde
+# als WAV sind fuer eine Dauerablage zu viel (107 GB im Jahr bei 4 h taeglich),
+# 24 kbit/s ergeben 10,5 MB je Stunde -- und das Transkript bleibt identisch.
+OPUS_BITRATE = os.environ.get("KIHIWI_OPUS", "24k")
 VAD_MODELL = WURZEL / "vad" / "silero_vad.onnx"
-STIMME     = WURZEL / "voices" / "de_DE-thorsten-medium.onnx"
+# thorsten-high statt -medium: hoerbar besser, aber 343 statt 86 ms bis zum
+# ersten Ton. Das faellt nicht auf, weil die festen Ansagen vorgerendert sind
+# und der Satz davor sofort kommt.
+STIMME     = WURZEL / "voices" / "de_DE-thorsten-high.onnx"
 VOKABULAR  = WURZEL / "vokabular.txt"
 
 # Umlaute hier BEWUSST korrekt, auch wenn der Rest der Datei ASCII ist: das

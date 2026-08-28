@@ -14,6 +14,23 @@ from . import konfig
 _stimme = None
 _sperre = threading.Lock()
 
+# Feste Saetze einmal rendern und behalten. Sie machen den Anfang fast jeder
+# Antwort aus ("Ich schaue in den Unterlagen nach"), und gerendert kosten sie
+# null statt 343 ms -- damit traegt die bessere Stimme sich selbst: der erste
+# Ton kommt frueher als vorher, nur die variable Antwort dahinter ist langsamer.
+_vorrat: dict[str, list] = {}
+
+
+def vorrendern(saetze) -> int:
+    """Rendert feste Saetze in den Vorrat. Gibt die Anzahl zurueck."""
+    v = laden()
+    for satz in saetze:
+        if satz in _vorrat:
+            continue
+        _vorrat[satz] = [(c.audio_int16_bytes, c.sample_rate)
+                         for c in v.synthesize(satz)]
+    return len(_vorrat)
+
 
 def laden():
     global _stimme
@@ -36,6 +53,12 @@ async def sprich(text: str):
     leeren Queue haengen, sobald der Verbraucher vorzeitig aufhoert -- und
     asyncio.run wartet beim Beenden 120 Sekunden auf genau solche Threads.
     """
+    fertig = _vorrat.get(text)
+    if fertig is not None:
+        for stueck in fertig:
+            yield stueck
+        return
+
     schleife = asyncio.get_running_loop()
     q: asyncio.Queue = asyncio.Queue()
 

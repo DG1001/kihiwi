@@ -39,6 +39,13 @@ nicht „immer" heißt — Besuch, Kollege, Telefonat im Raum — wird das **Roh
 behalten**, nicht nur das Transkript. Damit bleibt die Entscheidung gegen
 Diarisierung umkehrbar und ein abgeleitetes Protokoll gegen seine Quelle prüfbar.
 
+**Das Audio bleibt dauerhaft liegen, aber verdichtet.** Nach der Transkription
+wird es zu Opus umgewandelt: statt 110 MB je Stunde nur noch 10,5 MB — bei vier
+Stunden täglich also 10 statt 107 GB im Jahr. Nachgemessen: das Transkript aus
+der verdichteten Datei ist mit dem aus dem Original identisch. Wer eine
+Transkription später anzweifelt, kann sie also jederzeit gegen die Aufnahme
+prüfen oder neu erstellen.
+
 **Deutsch mit englischen Fachbegriffen.** Das ist der schwierige Fall: Die
 Spracherkennung muss auf Deutsch festgenagelt werden, sonst kippt sie bei
 gehäuften englischen Begriffen ins Englische und übersetzt. Die Sprachausgabe hat

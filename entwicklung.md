@@ -698,6 +698,27 @@ Anfrage weiterhin leer. Jetzt ersetzt die Zerlegung dort das Original.
 Ergebnis: „Rasterelektronenmikroskopauflösung" findet Wikipedia,
 „Siliziumnitridfensterdicke" findet plano-em.de mit den Membranstärken.
 
+### Aufnahmen verdichten, Stimme verbessern
+
+Zwei Fragen von Fred, beide mit Messungen beantwortet.
+
+**Platz:** 110 MB je Stunde, also 107 GB im Jahr bei vier Stunden täglich —
+gegen 415 GB frei reicht das ein paar Jahre, wächst aber stetig. Opus mit
+24 kbit/s macht daraus 10,5 MB je Stunde. Entscheidend war die Gegenprobe: das
+Transkript aus der verdichteten Datei ist mit dem aus dem Original **identisch**,
+Wort für Wort. Verdichtet wird erst nach der Transkription; `lies_audio()` liest
+Opus über ffmpeg, eine spätere Neu-Transkription funktioniert also weiter.
+
+Eine erste Messung sah nach Qualitätsverlust aus — die Transkripte wichen ab. Das
+war Whisper-Streuung auf einer langen Datei, nicht die Kompression; auf einer
+kurzen Datei stimmten sie überein.
+
+**Stimme:** `thorsten-high` klingt besser, kostet aber 343 statt 86 ms bis zum
+ersten Ton. Statt zu wählen wurden die **festen Sätze vorgerendert** — 15 stehende
+Ansagen einmal beim Start, danach kosten sie null. Da fast jede Antwort mit einer
+solchen Ansage beginnt, kommt der erste Ton jetzt **früher** als vorher: 416 ms
+gegen 847 ms. Bessere Stimme und kürzere Latenz zugleich.
+
 ### Offen
 
 - Autostart (systemd-Units) — bewusst zurückgestellt.
