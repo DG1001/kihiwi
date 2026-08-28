@@ -995,3 +995,34 @@ Piper laeuft unter **GPL-3.0-or-later** (`piper-tts` 1.7.0, OHF-voice), nicht
 mehr unter MIT wie die aeltere rhasspy-Fassung. kihiwi ruft es als Bibliothek
 auf und liefert es nicht mit; wer ein Gesamtwerk weitergibt, prueft das fuer
 sich. In `DRITTANBIETER.md` vermerkt.
+
+## Veroeffentlichung
+
+Der Arbeitsstand war entschaerft, die Historie nicht. Beides ist jetzt erledigt
+-- aber nicht per Force-Push, sondern ueber ein frisches Repository.
+
+**Warum nicht Force-Push.** Fred fragte nach, ob die alten Commits danach nicht
+weiter auffindbar sind. Sie sind es: GitHub loescht unreferenzierte Objekte
+nicht zuverlaessig, sie bleiben unter `/commit/<sha>` abrufbar, und die eigene
+Dokumentation verweist fuer eine wirkliche Entfernung auf den Support. Truffle
+Security hat das 2024 als *Cross Fork Object Reference* beschrieben. Da das Repo
+privat war, sind die SHAs nirgends oeffentlich und Raten ist aussichtslos -- das
+Risiko war klein, aber es blieb ein Wahrscheinlichkeitsargument. Ein frisches
+Repository hat die alten Objekte nie gesehen; das ist eine Zusicherung.
+
+**Vorgehen.** `git filter-repo --replace-text` ueber 17 Regeln, angewandt auf
+Dateiinhalte UND Commit-Nachrichten -- letzteres war noetig, zwei Nachrichten
+nannten die Ortsnamen und die Projektbegriffe. Danach `--mailmap` fuer die
+Autorenkennung. Dann `DG1001/kihiwi` (privat) umbenannt zu
+`DG1001/kihiwi-labor` und der Name fuer ein neues, oeffentliches Repository
+freigemacht.
+
+**`kihiwi-labor` traegt die unbereinigte Historie und muss privat bleiben.**
+
+Geprueft wurde am Ende nicht der lokale Stand, sondern ein frischer Klon des
+oeffentlichen Repositorys: 52 Commits, keines der elf Muster in Dateien,
+Nachrichten oder Metadaten, und der Klon laeuft mit den Beispieldateien.
+
+**Ein Suchausdruck schlug falschen Alarm:** "frederik" fand 52 Treffer -- den
+neuen Autorennamen, nicht den alten Tailnet-Namen. Gezielt auf `e034` und
+`.frederik` geprueft: null.
