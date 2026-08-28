@@ -70,6 +70,12 @@ haben 0.85 als Vorgabe, und dann hungert der Sprachstapel. `CTX=131072` ist nur
 bei `qwenvl30` nötig (dessen `DEF_CTX` ist 65536 — Hermes' Untergrenze, an der
 er schon einmal scheiterte).
 
+**Hermes bekommt das Modell jetzt mit `-m` übergeben.** Ohne den Schalter nimmt
+er `model.default` aus `~/.hermes/config.yaml` — und dort steht Ornith fest.
+Nach einem Wechsel lief der Sprachpfad einwandfrei, während die Recherche mit
+`HTTP 404: The model ornith-1.5-35b-a3b does not exist` scheiterte. Eine
+Abhängigkeit auf eine Datei außerhalb des Repos, die nichts sichtbar machte.
+
 **Geschwindigkeit ist hier fast egal, anders als im Prüfstand.** Piper spricht
 langsamer als jedes dieser Modelle schreibt; spürbar ist nur der erste Brocken
 (`ERSTER_MAX = 60` Zeichen). Entscheidend sind Deutsch, Kürze und

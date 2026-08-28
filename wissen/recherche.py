@@ -91,8 +91,15 @@ class Recherche:
 
     @staticmethod
     async def _hermes(frage: str) -> tuple[str, str]:
+        # -m ausdruecklich: ohne den Schalter nimmt Hermes das Modell aus
+        # ~/.hermes/config.yaml, und dort stand Ornith fest. Beim Umschalten
+        # auf ein anderes Modell scheiterte die Recherche mit
+        # "HTTP 404: The model ornith-1.5-35b-a3b does not exist", waehrend
+        # der Sprachpfad einwandfrei lief -- eine Abhaengigkeit auf eine
+        # Datei ausserhalb des Repos, die nichts sichtbar machte.
         p = await asyncio.create_subprocess_exec(
-            str(HERMES), "chat", "-Q", "--no-restore-cwd", "-q", frage,
+            str(HERMES), "chat", "-Q", "--no-restore-cwd",
+            "-m", konfig.LLM_MODEL, "-q", frage,
             stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
         try:
             aus, fehler = await asyncio.wait_for(p.communicate(), timeout=MAX_S)

@@ -1107,3 +1107,25 @@ hungert -- derselbe Zustand, wegen dem `ornith-voice` ueberhaupt entstand.
 belegte mit `-c 65536` bereits 113 von 121 GiB. Uebrig blieben ~8 GiB fuer den
 ganzen Sprachstapel, und kleiner als 65536 geht nicht, weil Hermes daran schon
 gescheitert ist. Qwen3.8-Flash-Next wartet weiter auf llama.cpp PR #27742.
+
+### Nachtrag: die Recherche folgte dem Modellwechsel nicht
+
+Beim Ausprobieren von Qwen3.8 scheiterte der Rechercheauftrag mit `HTTP 404:
+The model ornith-1.5-35b-a3b does not exist`, waehrend der Sprachpfad
+einwandfrei lief. **Der Grund lag ausserhalb des Repos:** `wissen/recherche.py`
+rief `hermes chat` ohne Modellangabe auf, und Hermes nahm daraufhin
+`model.default` aus `~/.hermes/config.yaml` -- dort steht Ornith fest verdrahtet.
+
+`KIHIWI_MODEL` galt damit nur fuer den halben Dienst. Behoben durch ein
+ausdrueckliches `-m konfig.LLM_MODEL` beim Aufruf; Hermes nimmt auch einen
+Namen an, der nicht in seiner `models:`-Liste steht.
+
+**Die Lehre ist nicht der Tippfehler, sondern die Bauart:** ein Umschalter, der
+nur einen Teil der Kette erreicht, sieht im Test genau so lange richtig aus, wie
+man den anderen Teil nicht anfasst. Meine vier Probefragen liefen alle ueber den
+Sprachpfad -- die Luecke haette ich damit nie gefunden. Fred fand sie im ersten
+eigenen Versuch.
+
+Die leere Hermes-Sitzungskennung in den Recherchenotizen ist davon unberuehrt:
+sie fehlt in allen 21 aelteren Notizen ebenso und ist ein eigener, kosmetischer
+Punkt.
