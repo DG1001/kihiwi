@@ -26,6 +26,13 @@ from sprachdienst import konfig
 
 HERMES = Path.home() / ".local" / "bin" / "hermes"
 ORDNER = konfig.WURZEL / "recherchen"
+# Eigenes Arbeitsverzeichnis fuer den Agenten. Ohne --in erbt Hermes das
+# Verzeichnis des Sprachdienstes -- also das Repo -- und legt seine
+# Zwischenergebnisse dort ab; ein Auftrag hinterliess eine 20-KB-HTML-Seite
+# neben der Quelle. --no-restore-cwd hilft dagegen nicht, das betrifft nur
+# fortgesetzte Sitzungen. Unter zustand/, weil das ohnehin nicht ins Repo
+# gehoert und man trotzdem nachsehen kann, was der Agent gebaut hat.
+ARBEIT = konfig.WURZEL / "zustand" / "hermes"
 MAX_S = 420          # danach gilt der Auftrag als gescheitert
 
 AUFTRAG_ZUSATZ = (
@@ -97,9 +104,16 @@ class Recherche:
         # "HTTP 404: The model ornith-1.5-35b-a3b does not exist", waehrend
         # der Sprachpfad einwandfrei lief -- eine Abhaengigkeit auf eine
         # Datei ausserhalb des Repos, die nichts sichtbar machte.
+        ARBEIT.mkdir(parents=True, exist_ok=True)
+        # cwd= UND --in: der Schalter allein reicht nicht. Hermes stellt ein
+        # gemerktes Arbeitsverzeichnis wieder her ("Shell cwd was reset to
+        # ..."), und ein Auftrag legte seine HTML-Seite trotz --in wieder im
+        # Repo ab. Das cwd des Kindprozesses kann er nicht ueberschreiben.
         p = await asyncio.create_subprocess_exec(
             str(HERMES), "chat", "-Q", "--no-restore-cwd",
+            "--in", str(ARBEIT),
             "-m", konfig.LLM_MODEL, "-q", frage,
+            cwd=str(ARBEIT),
             stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
         try:
             aus, fehler = await asyncio.wait_for(p.communicate(), timeout=MAX_S)

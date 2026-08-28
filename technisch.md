@@ -295,8 +295,19 @@ Modell auf einer GPU; ein zweiter Auftrag wird abgelehnt und der Assistent sagt,
 dass er beschäftigt ist. Der laufende Auftrag steht im System-Prompt und auf dem
 Monitor.
 
-**Hermes braucht mindestens 64K Kontext** — deshalb steht `ornith-voice` auf
-65536. Aufruf mit `hermes chat -Q` (programmatischer Modus, nur die Antwort).
+**Hermes braucht mindestens 64K Kontext** — bei 65536 brach er mit „Context
+length exceeded" ab, deshalb steht `ornith-voice` auf 131072. Aufruf mit
+`hermes chat -Q` (programmatischer Modus, nur die Antwort).
+
+**Der Agent bekommt ein eigenes Arbeitsverzeichnis, `zustand/hermes/`.** Sonst
+erbt er das des Sprachdienstes — also das Repo — und legt dort ab, was er
+unterwegs baut; ein Wetterauftrag hinterliess eine 20-KB-HTML-Seite neben der
+Quelle, und das nächste `git add -A` hätte sie eingesammelt. **`--in` allein
+genügt nicht:** Hermes stellt ein gemerktes Arbeitsverzeichnis wieder her
+(„Shell cwd was reset to …") und schrieb trotz des Schalters weiter ins Repo.
+Wirksam ist erst das `cwd=` des Kindprozesses — das kann er nicht überschreiben.
+Gesetzt sind jetzt beide. `zustand/` ist ohnehin gitignoriert; man kann trotzdem
+nachsehen, was der Agent gebaut hat.
 
 Was zurückkommt, ist **abgeleitet**: die Datei trägt einen Warnhinweis und die
 Quellenpflicht steckt im Auftragstext. Nie ungeprüft ins Protokoll.

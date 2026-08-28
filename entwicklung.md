@@ -1151,3 +1151,32 @@ Auftrag. Bei 20 tok/s lief der Wetterauftrag in die 420-s-Grenze; bei 78 tok/s
 dauerte derselbe 23 s. **Die Aussage war nicht falsch, sondern zu breit: sie galt
 fuer den halben Dienst und ich habe sie fuer den ganzen formuliert.** Dieselbe
 Form von Fehler wie beim Hermes-Modellnamen, nur eine Ebene hoeher.
+
+### Nachtrag: Hermes schrieb ins Repo
+
+Ein Rechercheauftrag hinterliess `elektronenmikroskopie-uebersicht.html`, 20 KB,
+in der Repo-Wurzel. **Der Agent erbt das Arbeitsverzeichnis des Sprachdienstes**
+-- und das ist das Repo. Fred hat es gesehen, bevor es jemand committet hat; mein
+eigenes `git add -A` haette es beim naechsten Mal eingesammelt.
+
+Unangenehmer als die Unordnung ist die Reichweite: dasselbe Verzeichnis enthaelt
+`aufnahmen/` (§ 201 StGB) und den Quellcode.
+
+**Der naheliegende Schalter reichte nicht.** `hermes chat --in DIR` sieht nach
+der Loesung aus, ist aber keine: Hermes stellt ein gemerktes
+Arbeitsverzeichnis wieder her -- im Protokoll steht "Shell cwd was reset to
+/home/.../kihiwi" -- und der Testauftrag legte seine Seite trotz `--in` wieder in
+der Repo-Wurzel ab. `--no-restore-cwd` betrifft nur fortgesetzte Sitzungen.
+
+Wirksam ist das `cwd=` des Kindprozesses. Das kann der Agent nicht
+ueberschreiben, weil es der Kernel setzt, bevor Hermes ueberhaupt laeuft. Gesetzt
+sind jetzt beide -- der Schalter fuer Hermes' eigene Buchfuehrung, `cwd=` als
+das, worauf Verlass ist.
+
+Nachgeprueft mit einem Auftrag, der ausdruecklich eine Datei anlegen sollte:
+sie landete in `zustand/hermes/`, die Repo-Wurzel blieb sauber.
+
+**Die Lehre:** ein Schalter, der das Richtige verspricht, ist noch keine
+Zusicherung. Ich haette den ersten Versuch fuer erledigt halten koennen -- der
+Aufruf lief ja fehlerfrei durch. Gesehen habe ich es nur, weil ich danach
+`git status` laufen liess.
