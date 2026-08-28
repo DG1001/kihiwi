@@ -61,6 +61,20 @@
   #m-recherche .frage { font-weight:400; opacity:.8; max-width:11rem;
                         overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 
+  /* Laufende Timer: gehoeren nach oben, nicht in den Verlauf -- sie sind ein
+     Zustand, keine Aeusserung. */
+  #wecker { display:none; flex-direction:column; gap:.3rem; margin:.4rem 0 0;
+            flex:none; }
+  #wecker.an { display:flex; }
+  .weckzeile { display:flex; align-items:baseline; gap:.6rem; font-size:.85rem;
+               padding:.35rem .6rem; border-radius:.35rem; background:#191922;
+               border:1px solid #2f2a1a; }
+  .weckzeile .rest { color:#e8b339; font-weight:600; font-variant-numeric:tabular-nums;
+                     flex:none; }
+  .weckzeile .wofuer { color:var(--matt); overflow:hidden;
+                       text-overflow:ellipsis; white-space:nowrap; }
+  .weckzeile.bald .rest { animation:blink 1.4s ease-in-out infinite; }
+
   /* Der Verlauf nimmt den Rest der Spalte und scrollt fuer sich. */
   #verlauf { flex:1; min-height:0; overflow-y:auto; border-top:1px solid var(--linie);
              margin-top:.6rem; padding:.8rem 0; }
@@ -109,6 +123,7 @@
   .art-protokoll { background:#12283a; color:#7ab8e8; }
   .art-recherche { background:#3a2a12; color:#e8b339; }
   .art-hilfe     { background:#14351f; color:#7ddc9a; }
+  .art-erinnerungen { background:#3a2a12; color:#e8b339; }
   .art-ablage    { background:#22222c; color:var(--matt); }
 
   #b-inhalt { flex:1; min-height:0; overflow-y:auto; padding:1.4rem 1.6rem 3rem;
@@ -171,6 +186,8 @@
       <span id="m-rzeit"></span><span class="frage" id="m-rfrage"></span></span>
   </div>
 
+  <div id="wecker"></div>
+
   <div id="verlauf"></div>
 
   <div id="leds">
@@ -208,6 +225,56 @@ setInterval(() => {
   const s = Math.max(0, Math.round(Date.now()/1000 - rSeit));
   $("m-rzeit").textContent = `(${Math.floor(s/60)}:${String(s%60).padStart(2,"0")})`;
 }, 1000);
+
+// Laufende Erinnerungen. Der Dienst schickt absolute Zeitpunkte, der Zaehler
+// laeuft hier — sonst muesste im Sekundentakt gefunkt werden.
+let weckliste = [];
+
+function weckText(sek) {
+  sek = Math.max(0, Math.round(sek));
+  const h = Math.floor(sek/3600), m = Math.floor(sek%3600/60), s = sek%60;
+  return h ? `${h}:${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`
+           : `${m}:${String(s).padStart(2,"0")}`;
+}
+
+function weckZeichnen() {
+  const w = $("wecker");
+  w.classList.toggle("an", weckliste.length > 0);
+  if (!weckliste.length) { w.innerHTML = ""; return; }
+  const jetzt = Date.now()/1000;
+  w.innerHTML = "";
+  for (const e of weckliste) {
+    const rest = e.faellig - jetzt;
+    const d = document.createElement("div");
+    d.className = "weckzeile" + (rest < 60 ? " bald" : "");
+    const r = document.createElement("span");
+    r.className = "rest"; r.textContent = weckText(rest);
+    const t = document.createElement("span");
+    t.className = "wofuer";
+    t.textContent = e.text || "Timer";
+    d.append(r, t);
+    w.appendChild(d);
+  }
+}
+setInterval(weckZeichnen, 1000);
+
+// Gong vor der Ansage: im Labor ist ein Ton schneller verstanden als ein Satz,
+// und er kommt auch an, wenn gerade jemand redet.
+function gong() {
+  if (!ctx) return;
+  if (ctx.state === "suspended") ctx.resume();
+  const t0 = ctx.currentTime + 0.02;
+  [880, 1174.7].forEach((hz, i) => {
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = "sine"; o.frequency.value = hz;
+    const start = t0 + i * 0.18;
+    g.gain.setValueAtTime(0, start);
+    g.gain.linearRampToValueAtTime(0.22, start + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.001, start + 0.5);
+    o.connect(g); g.connect(ctx.destination);
+    o.start(start); o.stop(start + 0.55);
+  });
+}
 
 function warnen(t) { $("warnung").textContent = t; $("warnung").style.display = "block"; }
 
@@ -352,8 +419,9 @@ function merker(text, zeigen) {
 // --- Buehne ------------------------------------------------------------------
 function buehne(art, titel, html, wann) {
   $("b-art").textContent = art;
-  $("b-art").className = "art-" + (["protokoll","recherche","hilfe"].includes(art)
-                                   ? art : "ablage");
+  $("b-art").className = "art-" + (["protokoll","recherche","hilfe","erinnerungen"]
+                                   .includes(art.toLowerCase()) ? art.toLowerCase()
+                                                                : "ablage");
   $("b-titel").textContent = titel;
   $("b-wann").textContent = wann || "";
   $("b-inhalt").innerHTML = `<div class="lauf">${html}</div>`;
@@ -389,6 +457,14 @@ function verbinden() {
                                              : "Aufzeichnung starten";
       $("led-stt").classList.toggle("da", d.stt_da);
       $("led-llm").classList.toggle("da", d.llm_da);
+      weckliste = d.wecker || [];
+      weckZeichnen();
+    } else if (d.typ === "wecker_gong") {
+      gong();
+    } else if (d.typ === "wecker_liste") {
+      const zeigen = () => buehne("Erinnerungen", "Laufende Erinnerungen",
+                                  alsHtml(d.text));
+      zeigen();
     } else if (d.typ === "text") {
       zeile(d.rolle, d.text);
     } else if (d.typ === "hilfe") {

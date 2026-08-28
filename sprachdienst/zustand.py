@@ -31,6 +31,7 @@ class Zustand:
     letzter_text: str = ""          # was zuletzt verstanden wurde
     letzte_antwort: str = ""
     hinweis: str = ""               # fuer den Monitor, z.B. "Modell wird gewechselt"
+    wecker: list = field(default_factory=list)   # laufende Timer/Erinnerungen
     seit: float = field(default_factory=time.time)
 
     def als_dict(self):

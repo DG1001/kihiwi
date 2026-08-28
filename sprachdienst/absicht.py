@@ -28,6 +28,7 @@ class Absicht(str, Enum):
     WEB          = "web"            # eine Sache schnell im Netz nachsehen
     PROTOKOLL    = "protokoll"      # das eigene Protokoll zeigen/vorlesen
     ZEIT         = "zeit"           # Datum oder Uhrzeit
+    WECKER       = "wecker"         # Timer oder Erinnerung stellen/abfragen
     WISSEN       = "wissen"         # in den Unterlagen nachschlagen
     PLAUDEREI    = "plauderei"      # kein Werkzeug nötig
 
@@ -103,6 +104,67 @@ _PLAUDER = re.compile(r"^(danke|dankeschoen|hallo|hi|guten (morgen|tag|abend)|"
                       r"wie geht|was machst du)\b")
 
 
+# --- Timer und Erinnerungen --------------------------------------------------
+# Ein Zeitwort allein genuegt nicht: "in zehn Minuten ist die Probe fertig" ist
+# eine Feststellung, keine Bestellung. Verlangt wird zusaetzlich ein Wort, das
+# den Auftrag traegt.
+# "time" und "taimer" stehen mit drin: Whisper schrieb "starte ein Time fuer
+# 30 Sekunden". Das Vokabular hilft dagegen, faengt es aber nicht immer.
+_WECK_WORT = re.compile(r"\b(timer|time|taimer|teimer|wecker|"
+                        r"erinnerung(?:en)?|alarm|"
+                        r"erinner\w*|weck\w*|sag mir bescheid|"
+                        r"gib mir bescheid|melde dich)\b")
+_WECK_ZEIGEN = re.compile(r"\b(welche|welcher|wieviel\w*|wie viel\w*|wie lange|"
+                          r"zeig\w*|liste|nenne|laeuft|laufen|gibt es|hab ich|"
+                          r"habe ich|steht noch|noch)\b")
+_WECK_WEG = re.compile(r"\b(loesch\w*|entfern\w*|streich\w*|abbrech\w*|"
+                       r"brich\w*|stopp\w*|stoppe?n?|beend\w*|weg|"
+                       r"vergiss|absag\w*|abbestell\w*)\b")
+_WECK_ALLE = re.compile(r"\b(alle|alles|saemtliche|jede[nr]?)\b")
+
+# Sonderfaelle als GANZE Aeusserung. Im Satz waeren sie mehrdeutig ("loesch
+# alle Protokolle"), allein stehend nicht -- und beide sind die natuerliche
+# Antwort auf das, was Kiwi selbst vorschlaegt beziehungsweise gerade gestellt
+# hat. Ohne sie lief "Sag alle loeschen" ins Leere.
+_NUR_ALLE = re.compile(r"^\s*(?:und\s+)?(?:alle|alles)\s+"
+                       r"(?:loesch\w*|weg|abbrech\w*|stopp\w*|entfern\w*)"
+                       r"\s*[.!?]*\s*$", re.I)
+_NUR_RESTZEIT = re.compile(r"^\s*wie\s*(?:lange|viel\s*zeit)"
+                           r"(?:\s*(?:noch|ist\s*noch|bleibt|dauert\s*(?:es|das)?))?"
+                           r"\s*[.!?]*\s*$", re.I)
+
+
+def wecker_absicht(text: str) -> str | None:
+    """'stellen', 'zeigen', 'loeschen' oder None.
+
+    Getrennt von erkennen(), weil der Dienst das selbst entscheidet und das
+    Modell hier gar nicht gefragt wird -- ein Timer, den es zu stellen
+    vergisst, faellt erst auf, wenn er nicht klingelt.
+    """
+    t = _normal(text)
+    if _NUR_ALLE.match(t):
+        return "loeschen"
+    if _NUR_RESTZEIT.match(t):
+        return "zeigen"
+    if not _WECK_WORT.search(t):
+        return None
+    if _WECK_WEG.search(t):
+        return "loeschen"
+    # Erst stellen, dann zeigen: "wie lange laeuft der Timer noch" fragt ab,
+    # "erinner mich in 10 Minuten" enthaelt kein Fragewort und stellt.
+    from . import wecker as _w
+    if _w.deuten(text) and not _WECK_ZEIGEN.search(t):
+        return "stellen"
+    if _WECK_ZEIGEN.search(t):
+        return "zeigen"
+    return "zeigen" if not _w.deuten(text) else "stellen"
+
+
+def alle_loeschen(text: str) -> bool:
+    t = _normal(text)
+    return bool(_NUR_ALLE.match(t) or _WECK_ALLE.search(t))
+
+
 def erkennen(text: str) -> Absicht:
     t = _normal(text).strip()
     if not t:
@@ -112,6 +174,11 @@ def erkennen(text: str) -> Absicht:
     # Protokoll?" ist eine Frage an die Unterlagen.
     if _ZEIT.search(t) and not _ZEIT_NICHT.search(t):
         return Absicht.ZEIT
+
+    # Vor der Aufzeichnung: "stopp den Timer" darf nicht als "stopp die
+    # Aufzeichnung" durchgehen.
+    if wecker_absicht(text):
+        return Absicht.WECKER
 
     # Vor der Aufzeichnung pruefen: "zeig mir das Protokoll" ist keine
     # Steuerung des Mitschnitts, sondern ein Abruf des Ergebnisses.
@@ -143,6 +210,7 @@ WERKZEUGE_JE_ABSICHT = {
     Absicht.WEB:          ["web_suchen"],
     Absicht.PROTOKOLL:    [],
     Absicht.ZEIT:         [],
+    Absicht.WECKER:       [],
     Absicht.WISSEN:       ["dokumente_suchen", "web_suchen"],
     Absicht.PLAUDEREI:    [],
 }
@@ -168,6 +236,7 @@ ZUSATZ_JE_ABSICHT = {
         " nichts hergeben; sag dann, dass es aus dem Internet stammt.",
     Absicht.PROTOKOLL: "",
     Absicht.ZEIT: "",
+    Absicht.WECKER: "",
     Absicht.PLAUDEREI: "",
 }
 

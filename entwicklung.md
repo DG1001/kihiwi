@@ -870,3 +870,38 @@ zweimal, `b-leer` waere im neuen Klienten zweimal entstanden.
 
 Die Schreibrichtung ins Repo bleibt weiter aus -- auf Nachfrage bestaetigt,
 „nur lesen reicht fuers erste".
+
+## Timer und Erinnerungen
+
+Gebaut nach dem Muster der Aufzeichnungssteuerung: der Dienst parst die
+Zeitangabe selbst, das Modell kommt nicht vor.
+
+Gepruefit wurde mit einer Sprechprobe -- Piper spricht den Satz, das Audio geht
+als PCM in den Dienst, die ganze Kette von der Erkennung bis zum Klingeln
+laeuft durch. Das hat drei Fehler gefunden, die eine reine Modulprobe nicht
+gezeigt haette:
+
+1. **„Time" statt „Timer".** Whisper schrieb „starte ein Time fuer 30
+   Sekunden", damit griff die Erkennung nicht und die Frage landete bei der
+   Dokumentensuche. „Timer", „Wecker" und „Erinnerung" stehen jetzt im
+   `vokabular.txt`, und das Muster akzeptiert „time" zusaetzlich.
+
+2. **„erinnert" statt „erinner".** Das Einleitungsmuster hatte feste Endungen
+   (`erinnere?`), schnitt bei „Kiwi erinnert mich" nur „erinner" weg und liess
+   das „t" stehen. Kiwi sagte daraufhin „erinnere ich dich daran, t mich daran,
+   die Pumpe abzuschalten". Die Verben stehen jetzt mit `\w*`.
+
+3. **Verb am Satzende.** Aus dem laufenden Betrieb gemeldet (Fred testete
+   nebenher im Browser): „Timer eine Minute setzen" machte „setzen" zum
+   Erinnerungstext. Das Verb wird nur noch gestrichen, wenn sonst nichts uebrig
+   bleibt -- der erste Versuch strich es blind am Satzende und machte aus „die
+   Messung zu starten" ein „die Messung zu".
+
+Zweimal ging beim Umschreiben die Klammerung verloren, die den Artikel nur
+zusammen mit dem Substantiv schluckt; „die Pumpe abzuschalten" wurde dann zu
+„Pumpe abzuschalten". Beim dritten Mal als eigene, kommentierte Gruppe gesetzt.
+
+Nicht optimiert wurde auf „Tanne" -- so verstand die Erkennung Piper's „Timer"
+in einem spaeteren Lauf. Freds eigener Test im Log zeigt „Timer 1 Minute
+setzen." korrekt; das ist ein Artefakt der synthetischen Stimme, und genau
+dieser Fehlschluss steht weiter oben schon einmal.

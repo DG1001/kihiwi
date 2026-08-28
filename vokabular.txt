@@ -71,3 +71,9 @@ KV-Cache
 Batch-Size
 Kontext
 Token pro Sekunde
+
+# --- Timer und Erinnerungen ---
+# "Timer" verstand Whisper als "Time", damit griff die Erkennung nicht.
+Timer
+Wecker
+Erinnerung

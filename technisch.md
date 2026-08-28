@@ -826,3 +826,42 @@ Ergebnis.
 **`alsHtml()`** entfernt die `<br>` unmittelbar vor und nach Ueberschriften und
 Zitaten. Die Blockelemente bringen eigenen Abstand mit, die `<br>` aus den
 Leerzeilen kamen obendrauf und rissen Loecher in den Text.
+
+### Timer und Erinnerungen (`sprachdienst/wecker.py`)
+
+Deterministisch wie die Aufzeichnungssteuerung: die Zeitangabe parst der
+Dienst, das Modell wird nicht gefragt. Ein Timer, den das Modell zu stellen
+vergisst, faellt erst auf, wenn er nicht klingelt -- und dann ist es zu spaet.
+
+**Deutung.** `deuten()` liefert `(Faelligkeit, Erinnerungstext)`:
+
+- relativ: „in/fuer/nach/auf N Sekunden|Minuten|Stunden", auch als Wort
+  („in zehn Minuten"), mit Bruechen („in einer halben Stunde", „anderthalb")
+- absolut: „um 15 Uhr", „um 15:30", „um 9 Uhr 30" -- eine Uhrzeit, die schon
+  vorbei ist, meint morgen
+- Grenzen: unter 1 s und ueber 24 h wird abgelehnt
+
+Der Erinnerungstext ist der Rest ohne Zeitangabe, Einleitung und Nachklapp.
+`anlass()` haengt ihn grammatisch passend an: Praepositionalphrasen direkt
+(„an die Besprechung"), Infinitive mit „daran," („daran, die Pumpe
+abzuschalten").
+
+**Erkennung** (`absicht.wecker_absicht`) verlangt ZWEI Dinge: ein Auftragswort
+(timer, wecker, erinner…, weck…) UND eine parsbare Zeit. „In zehn Minuten ist
+die Probe fertig" ist eine Feststellung und faellt durch. Zwei Sonderfaelle
+gelten nur als GANZE Aeusserung, weil sie im Satz mehrdeutig waeren: „alle
+loeschen" und „wie lange noch".
+
+**Ueberdauert einen Neustart** (`zustand/wecker.json`). Laengst Abgelaufenes
+klingelt nicht nach: was beim Laden mehr als 5 min ueberfaellig ist, faellt
+weg. Ohne Zuhoerer wird nicht ausgeloest -- eine Erinnerung in einen leeren
+Raum ist verloren; sie wartet bis zu 10 min auf eine Verbindung und verfaellt
+dann mit einer Logzeile. Kommt sie verspaetet, sagt sie das dazu.
+
+**Gong vor der Ansage.** Zwei Sinustoene, im Klienten erzeugt (`gong()`). Im
+Labor ist ein Ton schneller verstanden als ein Satz und kommt auch an, waehrend
+jemand redet.
+
+**Anzeige.** Der Dienst schickt absolute Zeitpunkte im Zustand (`wecker`), der
+Sekundenzaehler laeuft im Browser -- sonst muesste im Sekundentakt gefunkt
+werden.

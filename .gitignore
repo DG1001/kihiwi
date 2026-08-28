@@ -38,3 +38,6 @@ recherchen/
 
 # --- Stimmproben: erzeugt, jederzeit neu renderbar ---------------------------
 stimmproben/
+
+# Laufende Timer und Erinnerungen -- Betriebszustand, keine Quelle.
+zustand/

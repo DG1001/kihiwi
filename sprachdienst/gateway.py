@@ -28,7 +28,7 @@ from wissen import web as wissen_web
 from . import protokoll as protokoll_modul
 
 from . import absicht as absicht_modul
-from . import aktivierung, doku, konfig, llm, stt, tts, zahlwort
+from . import aktivierung, doku, konfig, llm, stt, tts, wecker as wecker_modul, zahlwort
 from .turn import Turnerkenner
 from .zustand import Phase, Zustandshalter
 
@@ -40,6 +40,13 @@ RECHERCHE = wissen_recherche.Recherche()
 # Ein Abgleich zur Zeit: zwei parallele Laeufe wuerden sich im Index
 # gegenseitig als "nicht mehr gesehen" aufraeumen.
 ABGLEICH = asyncio.Lock()
+# Timer und Erinnerungen. Im Dienst, nicht in der Sitzung: sie sollen auch
+# klingeln, wenn der Browser zwischendurch neu geladen wurde.
+WECKER = wecker_modul.Wecker()
+
+
+def wecker_melden():
+    HALTER.setzen(wecker=WECKER.als_liste())
 # Wer gerade verbunden ist. Ein Rechercheergebnis geht an die AKTUELLEN
 # Zuhoerer, nicht an die Sitzung, die den Auftrag gab -- die kann laengst weg
 # sein, waehrend jemand anders im Labor steht.
@@ -469,6 +476,14 @@ class Sitzung:
                 await self.protokoll_zeigen()
                 return
 
+            # Timer und Erinnerungen ebenfalls ohne das Modell: die
+            # Zeitangabe ist deterministisch parsbar, und ein Timer, den das
+            # Modell zu stellen vergisst, faellt erst auf, wenn er nicht
+            # klingelt.
+            if wofuer is absicht_modul.Absicht.WECKER \
+                    and await self.wecker_behandeln(text):
+                return
+
             # Aufzeichnungsbefehle direkt ausfuehren, ohne das Modell.
             #
             # Das Werkzeug wurde zwar zuverlaessig gerufen, aber die
@@ -776,6 +791,99 @@ class Sitzung:
         # Der Monitor zeigt es ohnehin, die Bestaetigung sagt es zusaetzlich.
         return "Aufzeichnung läuft jetzt." if self.rek.laeuft else "Aufzeichnung ist gestoppt."
 
+    async def wecker_behandeln(self, text: str) -> bool:
+        """Timer stellen, anzeigen, loeschen. True, wenn erledigt."""
+        was = absicht_modul.wecker_absicht(text)
+        if was == "stellen":
+            gedeutet = wecker_modul.deuten(text)
+            if not gedeutet:
+                await self.melden("Ich habe keine Zeitangabe verstanden. Sag "
+                                  "zum Beispiel: erinner mich in zehn Minuten "
+                                  "daran, die Probe zu wechseln.")
+                return True
+            faellig, was_denn = gedeutet
+            e = WECKER.stellen(faellig, was_denn)
+            wecker_melden()
+            log.info("  Wecker %s: %s in %.0f s (%r)", e.kennung,
+                     wecker_modul.uhrzeit_wort(faellig), faellig - time.time(),
+                     was_denn)
+            rest = wecker_modul.dauer_wort(faellig - time.time())
+            uhr = wecker_modul.uhrzeit_wort(faellig)
+            await self.melden(
+                f"Gemerkt. Um {uhr}, in {rest}, erinnere ich dich"
+                f"{wecker_modul.anlass(was_denn)}." if was_denn else
+                f"Gemerkt. Der Timer läuft {rest}, bis {uhr}.")
+            return True
+
+        if was == "loeschen":
+            if absicht_modul.alle_loeschen(text) or len(WECKER.laufende) == 1:
+                weg = WECKER.loeschen()
+                wecker_melden()
+                if not weg:
+                    await self.melden("Es läuft gerade nichts.")
+                elif len(weg) == 1:
+                    await self.melden("Erledigt, der Timer ist gelöscht.")
+                else:
+                    await self.melden(f"Erledigt, alle {len(weg)} Erinnerungen "
+                                      "sind gelöscht.")
+                return True
+            if not WECKER.laufende:
+                await self.melden("Es läuft gerade nichts.")
+                return True
+            # Mehrere: nicht raten, welcher gemeint ist. Nur anzeigen, nicht
+            # zusaetzlich vorlesen -- der Satz sagt es schon.
+            await self.wecker_liste_senden()
+            await self.melden(
+                f"Es laufen {len(WECKER.laufende)} Erinnerungen. Sag „alle "
+                "löschen“, wenn alle weg sollen.")
+            return True
+
+        if was == "zeigen":
+            await self.wecker_zeigen()
+            return True
+        return False
+
+    async def wecker_liste_senden(self):
+        """Die Liste auf die Buehne, ohne sie vorzulesen."""
+        jetzt = time.time()
+        zeilen = ["# Laufende Erinnerungen", ""]
+        for e in WECKER.laufende:
+            zeilen.append(
+                f"- **{wecker_modul.uhrzeit_wort(e.faellig)}** — in "
+                f"{wecker_modul.dauer_wort(e.faellig - jetzt)}"
+                + (f": {e.text}" if e.text else ""))
+        await self.ws.send(json.dumps({"typ": "wecker_liste",
+                                       "text": "\n".join(zeilen)}))
+
+    async def wecker_zeigen(self):
+        """Gesprochen kurz, angezeigt vollstaendig."""
+        laufend = WECKER.laufende
+        if not laufend:
+            # "Wie lange noch" kann auch die Recherche meinen. Sie
+            # totzuschweigen und "kein Timer" zu sagen waere die halbe Wahrheit.
+            if HALTER.z.recherche and HALTER.z.recherche_seit:
+                lief = wecker_modul.dauer_wort(time.time() - HALTER.z.recherche_seit)
+                await self.melden(f"Es läuft kein Timer. Die Recherche läuft "
+                                  f"seit {lief}.")
+            else:
+                await self.melden("Es läuft gerade kein Timer.")
+            return
+        jetzt = time.time()
+        await self.wecker_liste_senden()
+        if len(laufend) == 1:
+            e = laufend[0]
+            await self.melden(
+                f"Läuft noch {wecker_modul.dauer_wort(e.faellig - jetzt)}"
+                + (f", dann erinnere ich dich{wecker_modul.anlass(e.text)}."
+                   if e.text else "."))
+        else:
+            naechst = laufend[0]
+            await self.melden(
+                f"Es laufen {len(laufend)} Erinnerungen. Die nächste in "
+                f"{wecker_modul.dauer_wort(naechst.faellig - jetzt)}"
+                + (f"{wecker_modul.anlass(naechst.text)}." if naechst.text else ".")
+                + " Alle stehen auf dem Monitor.")
+
     async def per_ausloeser(self, art: str, thema: str, ganzer_text: str) -> bool:
         """Handelt auf ein Ausloesewort hin. True, wenn erledigt."""
         if art == "abgleich":
@@ -804,7 +912,9 @@ class Sitzung:
             gesagt = ("Du sprichst mich mit Kiwi an. Danach kannst du sagen: "
                       + ", ".join(w for w, _ in zeilen if w != "Hilfe")
                       + ". Die Aufzeichnung steuerst du mit Aufzeichnung starten "
-                      + "oder stoppen. Beenden mit Danke, Kiwi. "
+                      + "oder stoppen. Timer stellst du mit Timer zehn Minuten, "
+                      + "oder erinner mich in zehn Minuten daran, und dann was. "
+                      + "Beenden mit Danke, Kiwi. "
                       + "Die ganze Liste steht auf dem Monitor.")
             langtext = "\n".join(
                 ["# Was Kiwi versteht", "",
@@ -812,7 +922,15 @@ class Sitzung:
                  "Rückfragen brauchen kein „Kiwi" + "\u201c mehr.", "",
                  "## Auslösewörter", ""]
                 + [f"- **{w}** — {e}" for w, e in zeilen]
-                + ["", "## Aufzeichnung", "",
+                + ["", "## Timer und Erinnerungen", "",
+                   "- **Timer zehn Minuten** — reiner Timer, es gongt am Ende",
+                   "- **Erinner mich in zehn Minuten daran, die Probe zu "
+                   "wechseln** — mit Anlass",
+                   "- **Erinner mich um 15 Uhr an die Besprechung** — feste "
+                   "Uhrzeit; ist sie vorbei, gilt sie für morgen",
+                   "- **Wie lange noch?** — was läuft",
+                   "- **Alle löschen** — alles weg",
+                   "", "## Aufzeichnung", "",
                    "- **Aufzeichnung starten / stoppen** — der Mitschnitt; beim "
                    "Stoppen entsteht automatisch ein Protokoll",
                    "- **Läuft die Aufzeichnung?** — Zustand abfragen", "",
@@ -975,6 +1093,47 @@ async def nachbereiten(verz):
                 await s.melden(satz)
             except Exception:
                 pass
+
+
+async def wecker_lauf():
+    """Loest faellige Erinnerungen aus. Sekundentakt reicht -- genauer muss es
+    fuer einen Laborwecker nicht sein."""
+    while True:
+        await asyncio.sleep(1)
+        try:
+            jetzt = time.time()
+            if not any(e.faellig <= jetzt for e in WECKER.laufende):
+                continue
+            # Ohne Zuhoerer nicht ausloesen: eine Erinnerung, die in einen
+            # leeren Raum gesprochen wird, ist verloren. Sie wartet, bis
+            # jemand verbunden ist -- aber nicht ewig.
+            if not SITZUNGEN:
+                alt = [e for e in WECKER.laufende if e.faellig <= jetzt - 600]
+                for e in alt:
+                    log.warning("Erinnerung %s verfaellt: seit 10 min faellig, "
+                                "niemand verbunden (%r)", e.kennung, e.text)
+                    WECKER.loeschen(e.kennung)
+                if alt:
+                    wecker_melden()
+                continue
+            for e in WECKER.faellige(jetzt):
+                spaet = jetzt - e.faellig
+                satz = (f"Erinnerung{wecker_modul.anlass(e.text)}." if e.text
+                        else "Der Timer ist abgelaufen.")
+                if spaet > 90:
+                    satz += (f" Das war vor {wecker_modul.dauer_wort(spaet)} "
+                             "fällig, es war niemand verbunden.")
+                log.info("Wecker %s ausgeloest (%r), %d Zuhoerer",
+                         e.kennung, e.text, len(SITZUNGEN))
+                for s in list(SITZUNGEN):
+                    try:
+                        await s.ws.send(json.dumps({"typ": "wecker_gong"}))
+                        await s.melden(satz)
+                    except Exception:
+                        pass
+            wecker_melden()
+        except Exception:
+            log.exception("Weckerschleife")
 
 
 async def recherche_verteilen(auftrag):
@@ -1190,6 +1349,8 @@ async def haupt():
     log.info("Stimme %s%s geladen, %d feste Sätze im Vorrat",
              konfig.STIMME.name, f" ({art})" if art else "", n)
     asyncio.create_task(gesundheit())
+    asyncio.create_task(wecker_lauf())
+    wecker_melden()
 
     stopp = asyncio.Event()
     schleife = asyncio.get_running_loop()
