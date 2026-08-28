@@ -630,6 +630,21 @@ geredet. Ein zusammengesetztes Wort fällt nicht versehentlich; das ist billiger
 und verlässlicher als eine Rückfrage. Der Dienst sagt zusätzlich an, was er
 weitergibt.
 
+### Internetsuche und Internetrecherche trennen
+
+Fred fragte, ob die Internetsuche immer über Hermes läuft. Tut sie nicht: es gibt
+den direkten Weg über SearXNG (1–3 s, sofortige Antwort, sieht nur
+Trefferschnipsel) und den über Hermes (30–40 s, kann Suchen verketten und Seiten
+lesen).
+
+Die Trennung ist sinnvoll — eine einzelne Tatsache über Hermes zu holen dauert
+vierzigmal so lange und bremst dabei die Sprachantworten. Sie war aber unsichtbar,
+und der Router musste raten. Jetzt entscheidet das gesprochene Wort:
+`Internetsuche` für den schnellen Weg, `Internetrecherche` für den gründlichen.
+
+Gemessen: „Internetsuche Rasterelektronenmikroskop-Auflösung" → 847 ms bis zum
+ersten Ton, mit Quellenhinweis.
+
 ### Offen
 
 - Autostart (systemd-Units) — bewusst zurückgestellt.

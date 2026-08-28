@@ -455,7 +455,8 @@ sofort — wie bei „Kiwi" selbst:
 
 | Wort | Wirkung |
 |---|---|
-| `Internetrecherche`, `Webrecherche`, `recherchiere` | Rechercheauftrag an Hermes |
+| `Internetsuche`, `Netzsuche`, `Websuche` | **eine** Tatsache direkt über SearXNG, sofortige Antwort (~1 s) |
+| `Internetrecherche`, `Webrecherche`, `recherchiere` | Rechercheauftrag an Hermes, Ergebnis kommt nach (30–40 s) |
 | `Dokumentenrecherche`, `Dokumentensuche` | Suche in den Unterlagen, das Modell formuliert nur noch die Antwort |
 | `Hermesaufgabe`, `Hermesauftrag` | Anweisung **unverändert** an Hermes durchreichen |
 
@@ -464,8 +465,23 @@ bereitstand („Ich kann leider keine Internetrecherche durchführen"). Wo die
 Handlung eindeutig ist, entscheidet der Dienst. Weitere Auslöser kosten eine
 Zeile in der Tabelle.
 
-Die Reihenfolge ist festgelegt: `hermes` → `dokumente` → `recherche`.
-„Dokumentenrecherche" enthält „recherche" und würde sonst zum Internetauftrag.
+Die Reihenfolge ist festgelegt: `hermes` → `dokumente` → `websuche` →
+`recherche`. „Dokumentenrecherche" enthält „recherche" und würde sonst zum
+Internetauftrag.
+
+**Suche gegen Recherche — zwei Wege ins Netz, bewusst getrennt:**
+
+| | `web_suchen` | `rechercheauftrag` |
+|---|---|---|
+| Weg | direkt an SearXNG | über Hermes |
+| Dauer | 1–3 s, synchron | 30–40 s, im Hintergrund |
+| Kann | Trefferschnipsel lesen | Suchen verketten, Seiten öffnen, zusammenfassen |
+
+Beide landen bei derselben SearXNG-Instanz; der Unterschied ist, **wer sucht**.
+Eine einzelne Tatsache über Hermes zu holen dauert vierzigmal so lange und
+bremst dabei die Sprachantworten, weil er sich das Modell mit dem Sprachpfad
+teilt. Über die Auslösewörter entscheidet der Sprecher, statt dass der Router
+raten muss.
 
 **Warum `Hermesaufgabe` und nicht `Hermes`:** Die Durchreichung gibt einer
 gesprochenen Anweisung Zugriff auf Dateien, Browser und Codeausführung, bei

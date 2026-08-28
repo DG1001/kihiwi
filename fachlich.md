@@ -105,6 +105,18 @@ Blättern gehört nicht ins Mikrofon: Eine anklickbare Liste kann nicht
 missverstanden werden, „zeig mir das Protokoll" schon. Die **Ablage** im Client
 listet Protokolle und Recherchen, neueste zuerst, zum Anklicken.
 
+## Auslösewörter
+
+Wer eines dieser Wörter sagt, bekommt genau diesen Weg — ohne dass das
+Sprachmodell darüber entscheidet:
+
+| Wort | Wirkung |
+|---|---|
+| `Internetsuche` | eine Tatsache schnell aus dem Netz, Antwort sofort |
+| `Internetrecherche` | gründliche Recherche, Ergebnis kommt in einigen Minuten |
+| `Dokumentenrecherche` | Suche in den eigenen Unterlagen |
+| `Hermesaufgabe` | Anweisung unverändert an den Rechercheagenten |
+
 ## Zwei Stufen beim Antworten
 
 **Nachschlagen** (Sekunden): Der Assistent durchsucht die Unterlagen und

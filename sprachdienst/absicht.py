@@ -170,6 +170,11 @@ AUSLOESER = {
                  r"recherchier(?:e|st|en)?",
     "dokumente": r"dokumentenrecherche|dokumentensuche|aktenrecherche|"
                  r"unterlagenrecherche",
+    # Suche vs. Recherche: der schnelle Weg holt eine Tatsache direkt ueber
+    # SearXNG (2-3 s, sofortige Antwort), der lange laesst Hermes suchen,
+    # Seiten lesen und verketten (30-40 s, Ergebnis kommt nach). Wer das Wort
+    # waehlt, waehlt den Weg -- besser als ein Router, der raet.
+    "websuche":  r"internetsuche|netzsuche|websuche",
     # Nicht bloss "hermes": ueber den Agenten wird im Labor geredet, und die
     # Durchreichung gibt einer gesprochenen Anweisung Zugriff auf Dateien,
     # Browser und Codeausfuehrung. Ein zusammengesetztes Wort faellt nicht
@@ -187,7 +192,7 @@ def ausloeser(text: str):
     Reihenfolge: der spezifischste zuerst. "Dokumentenrecherche" enthaelt
     "recherche" -- ohne feste Reihenfolge wuerde daraus ein Internetauftrag.
     """
-    for art in ("hermes", "dokumente", "recherche"):
+    for art in ("hermes", "dokumente", "websuche", "recherche"):
         m = _AUSLOESER_RE[art].search(text)
         if m:
             return art, _thema(text, m)

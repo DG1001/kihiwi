@@ -734,16 +734,21 @@ class Sitzung:
                               "Ich recherchiere das und melde mich, wenn ich etwas habe.")
             return True
 
-        if art == "dokumente":
+        if art in ("dokumente", "websuche"):
             # Suche deterministisch, das Modell formuliert nur noch.
-            await self.melden("Ich schaue in den Unterlagen nach.")
-            ergebnis = await self.werkzeug("dokumente_suchen", {"frage": thema})
-            log.info("  Dokumentenrecherche per Auslösewort: %r", thema[:60])
+            werkzeug = ("dokumente_suchen" if art == "dokumente" else "web_suchen")
+            await self.melden("Ich schaue in den Unterlagen nach."
+                              if art == "dokumente" else
+                              "Ich schaue kurz im Netz nach.")
+            ergebnis = await self.werkzeug(werkzeug, {"frage": thema})
+            log.info("  %s per Auslösewort: %r", werkzeug, thema[:60])
             gesagt = []
             async for satz in llm.antwort_saetze_roh(
                     self.antwort_prompt(),
-                    f"Das steht in den Unterlagen:\n\n{ergebnis}\n\n"
-                    f"Beantworte damit knapp: {thema}", max_tokens=250):
+                    (f"Das steht in den Unterlagen:\n\n{ergebnis}" if art == "dokumente"
+                     else f"Das hat die Internetsuche geliefert:\n\n{ergebnis}\n"
+                          f"Sag dazu, dass es aus dem Internet stammt.")
+                    + f"\n\nBeantworte damit knapp: {thema}", max_tokens=250):
                 gesagt.append(satz)
                 await self.ws.send(json.dumps({"typ": "text", "rolle": "assistent",
                                                "text": satz}))
