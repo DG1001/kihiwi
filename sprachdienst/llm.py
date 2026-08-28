@@ -13,7 +13,10 @@ log = logging.getLogger("kihiwi.llm")
 # Satzende: Punkt/Frage/Ausruf gefolgt von Leerraum oder Textende. Die
 # Abkuerzungen davor abzufangen lohnt nicht -- ein zu frueh geschnittener Satz
 # klingt in der Sprachausgabe nur nach einer Atempause.
-_SATZENDE = re.compile(r'(?<=[.!?])\s+')
+# Nicht nach einer Ziffer trennen: "der 28. August" und "die 3. Messung" sind
+# Ordnungszahlen, keine Satzenden. Ungetrennt klingt hoechstens ein Satz zu
+# lang; falsch getrennt hoert man die Luecke mitten im Datum.
+_SATZENDE = re.compile(r'(?<![0-9]\.)(?<=[.!?])\s+')
 # Nur fuer den ERSTEN Brocken: auch an Komma, Semikolon oder Gedankenstrich
 # trennen. Der erste Brocken bestimmt die gefuehlte Latenz -- er soll kurz
 # sein, die folgenden duerfen ganze Saetze bleiben. Gemessen kostete ein

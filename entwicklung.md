@@ -762,6 +762,22 @@ Ein Werkzeug wäre wieder etwas, das das Modell aufrufen kann oder eben nicht �
 ohne Aufruf erfindet es die Zeit. Reine Zeitfragen beantwortet der Dienst
 zusätzlich direkt, weil er sonst erst in den Unterlagen und dann im Netz suchte.
 
+### Satzteiler trennte Ordnungszahlen
+
+Fred meldete „Heute ist Freitag, der 28." / „August 2026." als zwei Ausgaben —
+und fragte zu Recht, warum überhaupt geschnitten wird. Antwort: damit die
+Sprachausgabe beginnt, während das Modell noch schreibt; feste Antworten werden
+nicht geschnitten.
+
+Der Fehler war `(?<=[.!?])\s+` — „28. August" sieht damit wie ein Satzende aus.
+Der erste Korrekturversuch `(?<![0-9])(?<=[.!?])\s+` griff nicht, weil **beide
+Rückblicke dieselbe Stelle prüfen**: hinter dem Punkt steht kein Ziffer, sondern
+der Punkt selbst. Richtig ist ein Rückblick über zwei Zeichen: `(?<![0-9]\.)`.
+
+Freds konkreter Fall war ohnehin schon behoben — die Zeit-Absicht antwortet
+seither ohne Modell und damit ohne Teiler. Der Fehler betraf aber jede
+Modellantwort mit einem Datum.
+
 ### Offen
 
 - Autostart (systemd-Units) — bewusst zurückgestellt.

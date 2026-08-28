@@ -623,6 +623,19 @@ Ablauf mit Gesprächsverlauf wieder daneben.
 | Endpointing | 490–1450 ms | **der eigentliche Engpass** |
 | **Ende-zu-Ende gemessen** | **1085–2251 ms** | drei Läufe über den Sprachdienst |
 
+**Warum überhaupt satzweise?** Das Modell schreibt Token für Token, Piper
+braucht aber einen ganzen Satz — ein Bruchstück bekommt die falsche Betonung.
+Ohne Schnitt müsste man auf die vollständige Antwort warten; mit Schnitt spricht
+Piper den ersten Satz, während das Modell den zweiten schreibt. Feste Antworten
+(Datum, Aufzeichnungsstatus, Ansagen) werden **nicht** geschnitten, die sind
+schon fertig.
+
+**Nicht nach einer Ziffer trennen** (`(?<![0-9]\.)`): „der 28. August" und „die
+3. Messung" sind Ordnungszahlen, keine Satzenden. Ungetrennt klingt höchstens
+ein Satz zu lang; falsch getrennt hört man die Lücke mitten im Datum. Der erste
+Versuch griff nicht, weil beide Rückblicke dieselbe Stelle prüften — hinter dem
+Punkt statt davor.
+
 **Achtung, naheliegender Denkfehler:** Die 70 ms sind das erste *Token*, nicht
 der erste *sprechbare* Brocken. Piper braucht einen Teilsatz, also 10–25 Token.
 Eine Budgetrechnung mit TTFT ist um den Faktor fünf zu optimistisch.
