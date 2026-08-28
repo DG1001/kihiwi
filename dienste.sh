@@ -28,6 +28,14 @@ P_VLLM=8889
 P_WHISPER=8910
 P_SPRACH=8920
 
+C_VLLM=vllm-model          # Containername, den model-switch vergibt
+# Untergrenze in GiB, unter der es fuer den Sprachstapel eng wird.
+# whisper.cpp (CUDA), Piper, sherpa-onnx und der Sprachdienst brauchen
+# zusammen rund 13 GiB. Mit dem Sprachprofil (GPU_UTIL 0.55) bleiben etwa
+# 41 GiB frei, mit dem Pruefstandsprofil (0.85) rund 11 -- die Schwelle
+# liegt bequem dazwischen und haengt nicht am Modellnamen.
+MIN_FREI=20
+
 mkdir -p "$LOGS"
 
 # ------------------------------------------------------------------ Hilfsmittel
@@ -56,6 +64,16 @@ try:
     print(json.load(sys.stdin)["data"][0].get("max_model_len",""))
 except Exception:
     pass' 2>/dev/null; }
+
+# Liest --gpu-memory-utilization aus der Kommandozeile des laufenden
+# vLLM-Containers. Ueber /v1/models ist das Sprachprofil nicht mehr zu
+# erkennen: seit Hermes mindestens 64K verlangt, laeuft 'ornith-voice' mit
+# demselben Kontext wie das Pruefstandsprofil 'ornith' (131072). Frueher
+# stand hier ein Vergleich auf 32768 -- der traf seitdem nie mehr zu und
+# warnte bei jedem Start, gerade wenn alles richtig war.
+vllm_util() { docker inspect --format '{{range .Args}}{{println .}}{{end}}' \
+    "$C_VLLM" 2>/dev/null \
+    | grep -A1 -Fx -- '--gpu-memory-utilization' | tail -1; }
 bereit_whisper() { curl -sf --max-time 2 -o /dev/null "http://127.0.0.1:$P_WHISPER/"; }
 bereit_sprach()  { curl -sf --max-time 2 -o /dev/null "http://127.0.0.1:$P_SPRACH/"; }
 
@@ -67,15 +85,21 @@ fehl() { printf '  \033[31m✗\033[0m %s\n' "$*"; }
 # ------------------------------------------------------------------ Starten
 start_vllm() {
     if bereit_vllm >/dev/null; then
-        local ctx
+        local ctx util frei
         ctx=$(curl -s "http://127.0.0.1:$P_VLLM/v1/models" | modellctx)
-        if [ "$ctx" = "32768" ]; then
-            ok "vLLM laeuft bereits (Kontext $ctx)"
-        else
+        util=$(vllm_util)
+        frei=$(free -g | awk 'NR==2{print $7}')
+        ok "vLLM laeuft bereits (Kontext $ctx, GPU_UTIL ${util:-?})"
+        # Nicht das Profil pruefen, sondern was davon abhaengt: bleibt neben
+        # dem Modell genug Speicher fuer whisper.cpp, Piper und sherpa-onnx?
+        # Das gilt auch fuer ein anderes Modell auf :8889 -- beim Vergleichen
+        # laeuft hier absichtlich nicht immer Ornith.
+        if [ "${frei:-99}" -lt "$MIN_FREI" ]; then
             # Nicht ungefragt umschalten: auf dieser Maschine wird auch gemessen,
             # und ein Wechsel kostet zwei Minuten Ladezeit.
-            warn "vLLM laeuft mit Kontext $ctx, nicht mit dem Sprachprofil."
-            info "  umschalten mit: model-switch ornith-voice"
+            warn "nur ${frei} GiB frei — der Sprachstapel braucht mehr Luft"
+            info "  Sprachprofil: model-switch ornith-voice (GPU_UTIL 0.55)"
+            info "  anderes Modell: GPU_UTIL=0.55 model-switch <profil>"
         fi
         return 0
     fi

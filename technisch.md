@@ -19,10 +19,18 @@ Argumente: `ds4` | `ornith` | **`ornith-voice`** | `qwen36nvfp4` | `qwen38` |
 `nemotron` | `nemotronspec` | `qwenvl30` | `stop` | `status`.
 
 **Für kihiwi `model-switch ornith-voice` benutzen**, nicht `ornith`. Gleiches
-Modell und gleicher `served-model-name`, aber `DEF_CTX=65536` und `GPU_UTIL` auf
-0.55 statt der Prüfstands-Vorgaben 131072/0.85. Die 64K sind Hermes' Mindestmass;
-sie kosten nichts (41,1 GiB KV-Cache, 58-fache Nebenläufigkeit). Am Kontext in
-`model-switch status` sieht man, welches Profil läuft.
+Modell, gleicher `served-model-name`, gleicher Kontext — der **einzige**
+Unterschied ist `GPU_UTIL` 0.55 statt 0.85. Das kostet nichts (41,9 GiB
+KV-Cache, weit mehr als ein Sprecher braucht) und lässt rund 41 GiB für
+whisper.cpp, Piper und sherpa-onnx frei; mit 0.85 waren 110 von 121 GiB belegt
+und 6 GiB Swap in Benutzung.
+
+**Am Kontext sind die beiden Profile nicht mehr zu unterscheiden.** Beide stehen
+auf 131072, seit Hermes bei 65536 mit „Context length exceeded" abbrach. Wer
+wissen will, welches Profil läuft, muss die Speicherreservierung ansehen:
+`docker inspect vllm-model` oder einfach die Zeile „Speicher: … frei" aus
+`./dienste.sh status`. `dienste.sh` verglich früher den Kontext gegen 32768 und
+warnte deshalb bei jedem Start, gerade wenn alles richtig war.
 
 Alle vLLM-Modelle teilen sich Port **8889** und den Container `vllm-model`;
 `ds4-server` hört auf 8888 und hat **keinen** Autostart. Je Aufruf übersteuerbar:
@@ -44,6 +52,51 @@ nannte Speicher statt Kontext.
 
 **vLLM hängt sich reproduzierbar auf, und ein hängender Motor sieht aus wie ein
 langsames Modell.** Vor jeder Latenzmessung: `~/gx10-blog/bench/bereit.sh`.
+
+### Ein anderes Modell ausprobieren
+
+Nichts im Code ist an Ornith gebunden — `KIHIWI_LLM` und `KIHIWI_MODEL` reichen.
+Der Name muss der `served-model-name` des Profils sein; nur `ornith` und
+`ornith-voice` teilen sich absichtlich einen:
+
+```bash
+./dienste.sh stop
+CTX=131072 GPU_UTIL=0.55 model-switch qwen38     # 0.55 nicht vergessen!
+KIHIWI_MODEL=qwen3.8-27b ./dienste.sh start
+```
+
+`GPU_UTIL=0.55` ist der Punkt, an dem man es falsch macht: alle anderen Profile
+haben 0.85 als Vorgabe, und dann hungert der Sprachstapel. `CTX=131072` ist nur
+bei `qwenvl30` nötig (dessen `DEF_CTX` ist 65536 — Hermes' Untergrenze, an der
+er schon einmal scheiterte).
+
+**Geschwindigkeit ist hier fast egal, anders als im Prüfstand.** Piper spricht
+langsamer als jedes dieser Modelle schreibt; spürbar ist nur der erste Brocken
+(`ERSTER_MAX = 60` Zeichen). Entscheidend sind Deutsch, Kürze und
+Werkzeuggebrauch.
+
+**Gemessen am 28.08.2026** (vier Fragen end-zu-end über den WebSocket, Piper als
+Sprecher, warm):
+
+| | Ornith-1.5-35B-A3B | Qwen3.8-27B (dicht + MTP) |
+|---|---|---|
+| Generierung, warm | 78,4 tok/s | **20,0 tok/s** (ohne MTP wären es ~10) |
+| erster Satz | 0,4–2,5 s | 1,1–2,5 s |
+| Werkzeugaufrufe auf 4 Fragen | 1 | 4, davon einmal ungefragt `web_suchen` |
+
+**Qwen3.8-27B ruft Werkzeuge bereitwillig, aber es hört danach auf zu denken.**
+Auf „Unterschied zwischen Sekundär- und Rückstreuelektronen" suchte es in den
+Unterlagen, fand nichts und antwortete „Die Unterlagen enthalten keine
+Definition" — statt die Frage aus eigenem Wissen zu beantworten, wie Ornith es
+tat. Auf eine Lehrbuchfrage („warum ein Vakuum?") ging es sogar ins Netz. Der
+Eifer ist das Gegenteil von Ornith' bekannter Schwäche, aber in dieser Form
+keine Verbesserung: für einen Laborassistenten ist „steht nicht in den
+Unterlagen" auf eine allgemeine Fachfrage die falsche Antwort.
+
+Kein Nachdenken lief in die Sprachausgabe — `--default-chat-template-kwargs
+'{"enable_thinking": false}'` greift bei der Qwen-Familie. Bei Nemotron ist das
+offen; dessen Schalter heißt anders, und im Zweifel spricht Piper die
+Gedankenkette mit.
 
 ## Dienste
 

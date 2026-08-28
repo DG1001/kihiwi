@@ -1026,3 +1026,84 @@ Nachrichten oder Metadaten, und der Klon laeuft mit den Beispieldateien.
 **Ein Suchausdruck schlug falschen Alarm:** "frederik" fand 52 Treffer -- den
 neuen Autorennamen, nicht den alten Tailnet-Namen. Gezielt auf `e034` und
 `.frederik` geprueft: null.
+
+## Modellwechsel: Qwen3.8-27B gegen Ornith
+
+### Zuerst ein Fehler in `dienste.sh`
+
+`start_vllm` erkannte das Sprachprofil daran, dass der Kontext 32768 war. Seit
+`ornith-voice` wegen Hermes auf 131072 steht, traf das nie mehr zu -- der Start
+warnte bei jedem Aufruf "laeuft nicht mit dem Sprachprofil", gerade wenn alles
+richtig war. **Eine Warnung, die immer kommt, ist keine Warnung mehr**, und beim
+Modellvergleich waere sie vollends nutzlos geworden.
+
+Der Kontext taugt nicht mehr als Merkmal: `ornith` und `ornith-voice`
+unterscheiden sich inzwischen nur noch in `GPU_UTIL` (0.55 gegen 0.85), und das
+steht nirgends in `/v1/models`. Geprueft wird jetzt nicht mehr das Profil,
+sondern das, wovon es abhaengt -- **ob neben dem Modell noch Speicher fuer
+whisper.cpp, Piper und sherpa-onnx bleibt** (`MIN_FREI=20` GiB). Das gilt auch
+fuer ein fremdes Modell auf :8889, und genau darum ging es hier.
+
+### Was Modelle fuer diesen Dienst koennen muessen
+
+Vier Dinge: OpenAI-kompatibles `/chat/completions`, Werkzeugaufrufe, kein
+sichtbares Nachdenken, mindestens 64K Kontext. Alles andere ist Umgebung --
+`KIHIWI_LLM` und `KIHIWI_MODEL` reichen, kein Codeeingriff.
+
+**Geschwindigkeit zaehlt hier viel weniger als im Pruefstand.** Der misst
+Durchsatz ueber Stunden; kihiwi spricht satzweise, und Piper ist langsamer als
+jedes Modell auf dieser Maschine. Spuerbar ist nur der erste Brocken. Das oeffnet
+die Kandidatenliste erheblich -- ein dichtes Modell mit 20 tok/s ist als
+Programmierhilfe unbrauchbar und als Sprachassistent noch benutzbar.
+
+Am Speicher ist ohnehin nichts zu unterscheiden: vLLM reserviert
+`GPU_UTIL x 121 GiB` vorab, unabhaengig davon, ob die Gewichte 21 oder 31 GB
+wiegen. Alle vorhandenen Profile passen bei 0.55.
+
+### Die Messung
+
+Vier Fragen end-zu-end ueber den WebSocket, mit Piper gesprochen, warm gemessen,
+erst Ornith als Basislinie, dann Qwen3.8-27B auf demselben Audio.
+
+| | Ornith-1.5-35B-A3B | Qwen3.8-27B + MTP |
+|---|---|---|
+| Generierung, warm | 78,4 tok/s | 20,0 tok/s |
+| erster Satz | 0,4-2,5 s | 1,1-2,5 s |
+| Werkzeugaufrufe auf 4 Fragen | 1 | 4 |
+
+20,0 statt der 24,8 tok/s aus dem Pruefstand -- dort lief vLLM 0.27.1, hier
+`latest`. MTP greift (58 % Entwurfsannahme, mittlere Annahmelaenge 2,15 von 3);
+ohne waeren es rund 10.
+
+**Der Befund ist nicht die Geschwindigkeit, sondern das Verhalten.**
+Qwen3.8-27B ruft Werkzeuge viel bereitwilliger als Ornith -- und hoert danach
+auf. Auf "Unterschied zwischen Sekundaer- und Rueckstreuelektronen" suchte es in
+den Unterlagen, fand nichts und sagte "Die Unterlagen enthalten keine
+Definition". Ornith beantwortete dieselbe Frage aus eigenem Wissen. Auf eine
+Lehrbuchfrage ("warum ein Vakuum?") ging Qwen3.8 sogar ungefragt ins Netz.
+
+Das ist genau das Gegenteil von Ornith' bekannter Schwaeche -- dass es
+`dokumente_suchen` im Sprachpfad oft *nicht* aufruft -- und trotzdem keine
+Verbesserung. Fuer einen Laborassistenten ist "steht nicht in den Unterlagen"
+auf eine allgemeine Fachfrage die falsche Antwort. **Ein Modell zu suchen, das
+lieber sucht, loest das Problem nicht; die Werkzeugwahl gehoert weiter in den
+Dienst.**
+
+### Zwei Fallen beim Messen selbst
+
+**Der erste Durchlauf mass Piper, nicht das Modell.** Testfrage war "was ist ein
+Siliziumnitrid-Fenster?"; die synthetische Stimme machte daraus ein
+"Silizimetrie-Tenster", und beide Modelle antworteten korrekt, sie kennten das
+Wort nicht. Dieselbe Falle wie bei "Timer"/"Tanne" -- der Testsatz muss durch
+Piper und Whisper heil hindurchkommen, sonst misst man die Kette davor.
+
+**`GPU_UTIL=0.55` muss man mitgeben.** Alle Profile ausser `ornith-voice` haben
+0.85 als Vorgabe. Ohne den Zusatz laedt das fremde Modell und der Sprachstapel
+hungert -- derselbe Zustand, wegen dem `ornith-voice` ueberhaupt entstand.
+
+### Was nicht getestet werden kann
+
+`ds4` (DeepSeek-V4-Flash, im Pruefstand das staerkste Modell dieser Maschine)
+belegte mit `-c 65536` bereits 113 von 121 GiB. Uebrig blieben ~8 GiB fuer den
+ganzen Sprachstapel, und kleiner als 65536 geht nicht, weil Hermes daran schon
+gescheitert ist. Qwen3.8-Flash-Next wartet weiter auf llama.cpp PR #27742.
