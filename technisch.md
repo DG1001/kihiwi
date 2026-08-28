@@ -744,3 +744,23 @@ in kihiwi-Sessions nicht automatisch geladen): `gx10-zwei-modelle`,
 `gx10-modell-benchmark`, `gx10-netzwerk-serverraum`, `gx10-serverraum-umzug`,
 `gx10-ssh-key-only`, `gx10-ds4-opencode`, `hermes-searxng`,
 `qwen38-flash-wartet`. Bei Widersprüchen sind jene die Quelle.
+
+### Zahlaussprache (`sprachdienst/zahlwort.py`)
+
+Piper phonemisiert ueber eSpeak, und dessen Zahlbehandlung ist bei deutschen
+Datums- und Zeitangaben unbrauchbar: `28.08.2026` wird Ziffer fuer Ziffer samt
+Punkten gelesen, `12:38 Uhr` wird zu "zwoelf Uhr achtunddreissig Uhr" -- das
+zweite "Uhr" kommt aus dem Doppelpunkt, das erste stand im Text.
+
+Deshalb werden nur diese beiden Muster vor der Ausgabe ausgeschrieben. Einzelne
+Zahlen (`50 nm`, `2 bis 5 Nanometer`) bleiben unangetastet, sonst werden
+Messwerte unleserlich.
+
+Jahreszahlen folgen einer eigenen Regel: 1937 ist "neunzehnhundert-
+siebenunddreissig", nicht "eintausendneunhundert...". Ab 2000 gilt wieder die
+normale Form ("zweitausendsechsundzwanzig").
+
+**Nur der Sprechpfad ist betroffen.** `zahlwort.ausschreiben()` haengt in
+`_sprechbar()`, das ausschliesslich zwischen Text und Piper sitzt. Was ueber
+`melden()` in den Browser und in `verlauf` geht, ist der Originaltext mit
+Ziffern -- ausgeschriebene Zahlen waeren im Protokoll kaum lesbar.

@@ -28,7 +28,7 @@ from wissen import web as wissen_web
 from . import protokoll as protokoll_modul
 
 from . import absicht as absicht_modul
-from . import aktivierung, doku, konfig, llm, stt, tts
+from . import aktivierung, doku, konfig, llm, stt, tts, zahlwort
 from .turn import Turnerkenner
 from .zustand import Phase, Zustandshalter
 
@@ -137,6 +137,10 @@ def _sprechbar(text: str) -> str:
     text = re.sub(r"^#{1,6}\s*", "", text, flags=re.M)
     text = re.sub(r"\((?:doi|https?)[^)]*\)", "", text)   # DOIs und URLs
     text = re.sub(r"https?://\S+", "", text)
+    # Datums- und Zeitangaben ausschreiben: eSpeak liest "28.08.2026" Ziffer
+    # fuer Ziffer samt Punkten und macht aus "12:38 Uhr" ein "zwoelf Uhr
+    # achtunddreissig Uhr".
+    text = zahlwort.ausschreiben(text)
     return re.sub(r"\s{2,}", " ", text.replace("\n", " ")).strip()
 
 

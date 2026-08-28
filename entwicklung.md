@@ -789,3 +789,22 @@ Modellantwort mit einem Datum.
 - Barge-In.
 - Parakeet als Alternative im Dialogpfad — whisper.cpp bringt inzwischen
   `libparakeet.so` mit; halluziniert bei Stille konstruktionsbedingt weniger.
+
+## Zahlen in der Sprachausgabe ausschreiben
+
+Nach dem Satzteiler-Fix kam die Datumsantwort zwar als ein Stueck, wurde aber
+falsch gesprochen: die Ziffern von `28.08.2026` einzeln samt Punkten, und
+`12:38 Uhr` als "zwoelf Uhr achtunddreissig Uhr".
+
+Kein Fehler von Piper, sondern der Textform: eSpeak vokalisiert den Doppelpunkt
+bereits als "Uhr", das zusaetzliche Wort im Text verdoppelte es.
+
+`sprachdienst/zahlwort.py` schreibt Datums- und Zeitangaben aus, angehaengt an
+`_sprechbar()`. Bewusst nur diese beiden Muster -- alles auszuschreiben machte
+Messwerte unleserlich. Jahreszahlen bekamen eine eigene Regel
+(neunzehnhundert... statt eintausendneunhundert...).
+
+Der Browser bleibt bei Ziffern: `_sprechbar()` liegt allein im Sprechpfad,
+`melden()` schickt den Originaltext an Websocket und Verlauf. Auf den Hinweis
+"sonst kann man das im Protokoll im Browser kaum lesen" nachgeprueft und
+bestaetigt -- die Trennung stand schon.
