@@ -1,0 +1,20 @@
+# kihiwi — Laufzeitabhaengigkeiten.
+#
+# NICHT enthalten, weil sie keine Python-Pakete sind: whisper.cpp als Server,
+# ein OpenAI-kompatibler LLM-Server, SearXNG. Siehe README.md.
+
+numpy>=2.0
+websockets>=13.0
+
+# Sprachausgabe. ACHTUNG: GPL-3.0-or-later, siehe DRITTANBIETER.md.
+piper-tts>=1.7
+
+# Sprachaktivitaet (Silero VAD) und Sprechertrennung laufen beide darueber.
+onnxruntime>=1.20
+
+# PDF-Text fuer den Wissensindex.
+pypdf>=5.0
+
+# Sprechertrennung. Optional: fehlt es, entsteht das Protokoll ohne
+# Sprecherangabe (KIHIWI_SPRECHER=0 schaltet es ausdruecklich ab).
+sherpa-onnx>=1.13
