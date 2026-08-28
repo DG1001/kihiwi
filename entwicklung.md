@@ -645,6 +645,23 @@ und der Router musste raten. Jetzt entscheidet das gesprochene Wort:
 Gemessen: „Internetsuche Rasterelektronenmikroskop-Auflösung" → 847 ms bis zum
 ersten Ton, mit Quellenhinweis.
 
+### Auslösewörter müssen zusammengesetzt sein
+
+Fred stellte auch „Hilfe" in Frage — zu Recht, und aus demselben Grund wie bei
+„Hermes": ein Wort, das im Labor natürlich vorkommt, braucht Wächter, und
+Wächter sind Näherungen. „Ich brauche Hilfe beim Mikroskop" liess sich mit einer
+Stellungsregel abfangen, aber die kostete schon zwei Anläufe (erst in Zeichen
+statt in Wörtern gerechnet, wodurch ein vorangestelltes „Kiwi," den Treffer
+ausschloss).
+
+Jetzt `Kiwihilfe` — zusammengesetzt, unmöglich versehentlich, und die Sonderregel
+ist ersatzlos entfallen. Einzige Ausnahme: die alleinstehende Äusserung „Hilfe",
+weil nach dem Abschneiden des Aktivierungsworts aus „Kiwi, Hilfe" genau das
+übrig bleibt.
+
+**Als Regel für künftige Auslöser:** zusammengesetzt und im Fachgespräch nicht
+vorkommend. Das ist billiger als jede Erkennungsheuristik.
+
 ### Offen
 
 - Autostart (systemd-Units) — bewusst zurückgestellt.

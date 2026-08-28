@@ -116,7 +116,7 @@ Sprachmodell darüber entscheidet:
 | `Internetrecherche` | gründliche Recherche, Ergebnis kommt in einigen Minuten |
 | `Dokumentenrecherche` | Suche in den eigenen Unterlagen |
 | `Hermesaufgabe` | Anweisung unverändert an den Rechercheagenten |
-| `Hilfe` | zählt auf, was Kiwi versteht |
+| `Kiwihilfe` | zählt auf, was Kiwi versteht |
 
 ## Zwei Stufen beim Antworten
 

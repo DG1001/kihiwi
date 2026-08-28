@@ -459,7 +459,7 @@ sofort — wie bei „Kiwi" selbst:
 | `Internetrecherche`, `Webrecherche`, `recherchiere` | Rechercheauftrag an Hermes, Ergebnis kommt nach (30–40 s) |
 | `Dokumentenrecherche`, `Dokumentensuche` | Suche in den Unterlagen, das Modell formuliert nur noch die Antwort |
 | `Hermesaufgabe`, `Hermesauftrag` | Anweisung **unverändert** an Hermes durchreichen |
-| `Hilfe`, `was kannst du`, `welche Befehle` | Liste der Auslösewörter — gesprochen kurz, angezeigt vollständig |
+| `Kiwihilfe`, `Befehlsliste`, `was kannst du` | Liste der Auslösewörter — gesprochen kurz, angezeigt vollständig |
 
 **Warum:** Das Modell hat sich wiederholt geweigert, obwohl das Werkzeug
 bereitstand („Ich kann leider keine Internetrecherche durchführen"). Wo die
@@ -469,10 +469,12 @@ Zeile in der Tabelle.
 **Die Hilfe wird aus der Tabelle erzeugt** (`absicht.hilfe_zeilen()`), damit sie
 nicht veraltet, sobald jemand einen Auslöser ergänzt.
 
-„Hilfe" gilt nur, wenn danach gefragt wird: bei mehr als drei Wörtern muss das
-Wort unter den ersten beiden stehen. Sonst löste „Ich brauche Hilfe beim
-Mikroskop" aus. In WÖRTERN gerechnet, nicht in Zeichen — ein vorangestelltes
-„Kiwi," schiebt den Treffer sonst aus dem erlaubten Bereich.
+**Warum `Kiwihilfe` und nicht `Hilfe`:** dieselbe Überlegung wie bei
+`Hermesaufgabe`. „Hilfe" fällt im Labor ständig („ich brauche Hilfe beim
+Mikroskop"). Das liess sich zwar mit Stellungsregeln abfangen, aber solche
+Wächter sind Näherungen — ein zusammengesetztes Wort braucht keine. Ausnahme:
+die **alleinstehende** Äusserung „Hilfe" gilt, weil nach dem Abschneiden des
+Aktivierungsworts aus „Kiwi, Hilfe" genau das übrig bleibt.
 
 Die Reihenfolge ist festgelegt: `hilfe` → `hermes` → `dokumente` → `websuche` →
 `recherche`. „Dokumentenrecherche" enthält „recherche" und würde sonst zum

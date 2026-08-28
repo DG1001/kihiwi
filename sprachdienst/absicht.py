@@ -182,7 +182,16 @@ AUSLOESER = {
     # Zusammensetzungen gern auseinanderzieht.
     "hermes":    r"hermes[- ]?aufgabe|hermes[- ]?auftrag",
 }
-AUSLOESER["hilfe"] = r"hilfe|was kannst du|welche befehle|hilfestellung"
+# "Hilfe" allein faellt im Labor staendig ("ich brauche Hilfe beim Mikroskop").
+# Das liess sich zwar mit Stellungsregeln abfangen, aber solche Waechter sind
+# Naeherungen -- ein zusammengesetztes Wort braucht keine. Gleiche Ueberlegung
+# wie bei "Hermesaufgabe".
+AUSLOESER["hilfe"] = r"kiwi[- ]?hilfe|befehlsliste|was kannst du"
+
+# Sonderfall: "Kiwi, Hilfe" -- nach dem Abschneiden des Aktivierungsworts
+# bleibt nur "Hilfe" uebrig. Als GANZE Aeusserung ist das eindeutig; in einem
+# Satz wie "ich brauche Hilfe beim Mikroskop" nicht, und der faellt hier durch.
+_NUR_HILFE = re.compile(r"^\s*(hilfe|hilfe bitte|bitte hilfe)\s*[.!?]?\s*$", re.I)
 
 _AUSLOESER_RE = {art: re.compile(rf"\b(?:{muster})\b", re.I)
                  for art, muster in AUSLOESER.items()}
@@ -194,7 +203,7 @@ BESCHREIBUNG = {
     "recherche": ("Internetrecherche", "gründliche Recherche, Ergebnis kommt nach"),
     "dokumente": ("Dokumentenrecherche", "in unseren eigenen Unterlagen suchen"),
     "hermes":    ("Hermesaufgabe", "Anweisung unverändert an den Rechercheagenten"),
-    "hilfe":     ("Hilfe", "diese Liste"),
+    "hilfe":     ("Kiwihilfe", "diese Liste"),
 }
 
 
@@ -210,20 +219,13 @@ def ausloeser(text: str):
     Reihenfolge: der spezifischste zuerst. "Dokumentenrecherche" enthaelt
     "recherche" -- ohne feste Reihenfolge wuerde daraus ein Internetauftrag.
     """
+    if _NUR_HILFE.match(text):
+        return "hilfe", ""
+
     for art in ("hilfe", "hermes", "dokumente", "websuche", "recherche"):
         m = _AUSLOESER_RE[art].search(text)
         if not m:
             continue
-        # "Hilfe" nur, wenn danach gefragt wird -- nicht in "Ich brauche Hilfe
-        # beim Mikroskop". Also entweder kurz gesagt oder weit vorn.
-        #
-        # In WOERTERN gerechnet, nicht in Zeichen: ein vorangestelltes "Kiwi,"
-        # schiebt den Treffer sonst schon aus dem erlaubten Bereich.
-        if art == "hilfe":
-            woerter = text.split()
-            vor = len(text[:m.start()].split())
-            if len(woerter) > 3 and vor > 1:
-                continue
         return art, _thema(text, m)
     return None, ""
 
