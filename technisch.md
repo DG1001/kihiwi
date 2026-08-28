@@ -614,6 +614,16 @@ Ablauf mit Gesprächsverlauf wieder daneben.
 der erste *sprechbare* Brocken. Piper braucht einen Teilsatz, also 10–25 Token.
 Eine Budgetrechnung mit TTFT ist um den Faktor fünf zu optimistisch.
 
+**Stimme:** `de_DE-thorsten_emotional-medium` mit acht Sprechweisen im selben
+Modell (`amused`, `angry`, `disgusted`, `drunk`, `neutral`, `sleepy`,
+`surprised`, `whisper`). Gewählt über `konfig.STIMM_ART` bzw.
+`$KIHIWI_STIMM_ART`, Standard `neutral` — ohne Auswahl nimmt Piper die erste
+(`amused`), was für einen Laborassistenten nicht passt. Alle Proben unter
+`http://127.0.0.1:8920/stimmen`.
+
+Der Dienst protokolliert beim Start, welche Stimme und Sprechweise geladen
+wurde. Ohne das war nicht zu sehen, dass noch die alte lief.
+
 **Feste Sätze sind vorgerendert.** `tts.vorrendern()` erzeugt beim Start 15
 stehende Sätze („Ich schaue in den Unterlagen nach", „Ja?", die Bestätigungen)
 und behält sie im Speicher. Damit trägt sich die bessere Stimme selbst: die

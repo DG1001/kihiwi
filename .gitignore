@@ -33,3 +33,6 @@ testaudio/liste.txt
 
 # --- Rechercheergebnisse: erzeugt, oft mit fremden Inhalten ------------------
 recherchen/
+
+# --- Stimmproben: erzeugt, jederzeit neu renderbar ---------------------------
+stimmproben/

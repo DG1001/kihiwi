@@ -101,10 +101,11 @@ AUFNAHMEN  = Path(os.environ.get("KIHIWI_AUFNAHMEN", WURZEL / "aufnahmen"))
 # 24 kbit/s ergeben 10,5 MB je Stunde -- und das Transkript bleibt identisch.
 OPUS_BITRATE = os.environ.get("KIHIWI_OPUS", "24k")
 VAD_MODELL = WURZEL / "vad" / "silero_vad.onnx"
-# thorsten-high statt -medium: hoerbar besser, aber 343 statt 86 ms bis zum
-# ersten Ton. Das faellt nicht auf, weil die festen Ansagen vorgerendert sind
-# und der Satz davor sofort kommt.
-STIMME     = WURZEL / "voices" / "de_DE-thorsten-high.onnx"
+# thorsten_emotional bringt acht Sprechweisen im selben Modell mit:
+# amused, angry, disgusted, drunk, neutral, sleepy, surprised, whisper.
+# Vergleichen unter http://127.0.0.1:8920/stimmen
+STIMME     = WURZEL / "voices" / "de_DE-thorsten_emotional-medium.onnx"
+STIMM_ART  = os.environ.get("KIHIWI_STIMM_ART", "neutral")
 VOKABULAR  = WURZEL / "vokabular.txt"
 
 # Umlaute hier BEWUSST korrekt, auch wenn der Rest der Datei ASCII ist: das

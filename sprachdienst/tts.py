@@ -28,7 +28,7 @@ def vorrendern(saetze) -> int:
         if satz in _vorrat:
             continue
         _vorrat[satz] = [(c.audio_int16_bytes, c.sample_rate)
-                         for c in v.synthesize(satz)]
+                         for c in v.synthesize(satz, _einstellung())]
     return len(_vorrat)
 
 
@@ -39,6 +39,21 @@ def laden():
             from piper import PiperVoice
             _stimme = PiperVoice.load(str(konfig.STIMME))
     return _stimme
+
+
+def _einstellung():
+    """Sprechweise waehlen, falls das Modell mehrere kennt.
+
+    thorsten_emotional bringt acht mit; ohne Auswahl nimmt Piper die erste
+    (amused), was fuer einen Laborassistenten nicht passt.
+    """
+    v = laden()
+    karte = getattr(v.config, "speaker_id_map", None) or {}
+    if not karte:
+        return None
+    from piper import SynthesisConfig
+    return SynthesisConfig(speaker_id=karte.get(getattr(konfig, "STIMM_ART", "neutral"),
+                                                karte.get("neutral", 0)))
 
 
 async def sprich(text: str):
@@ -64,7 +79,7 @@ async def sprich(text: str):
 
     def lauf():
         try:
-            for stueck in laden().synthesize(text):
+            for stueck in laden().synthesize(text, _einstellung()):
                 schleife.call_soon_threadsafe(
                     q.put_nowait, (stueck.audio_int16_bytes, stueck.sample_rate))
         except Exception:                       # pragma: no cover

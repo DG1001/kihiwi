@@ -117,6 +117,12 @@ Blättern gehört nicht ins Mikrofon: Eine anklickbare Liste kann nicht
 missverstanden werden, „zeig mir das Protokoll" schon. Die **Ablage** im Client
 listet Protokolle und Recherchen, neueste zuerst, zum Anklicken.
 
+## Stimme
+
+`thorsten_emotional` mit acht Sprechweisen, eingestellt auf **neutral**.
+Umstellen über `KIHIWI_STIMM_ART`, Proben zum Vergleich unter
+`http://<gx10>:8920/stimmen`.
+
 ## Auslösewörter
 
 Wer eines dieser Wörter sagt, bekommt genau diesen Weg — ohne dass das

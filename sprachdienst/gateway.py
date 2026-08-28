@@ -1102,8 +1102,9 @@ async def haupt():
         "Das dauert mir zu lange, ich breche ab.",
     ]
     n = await asyncio.to_thread(tts.vorrendern, feste)
-    log.info("Stimme %s geladen, %d feste Sätze im Vorrat",
-             konfig.STIMME.name, n)
+    art = getattr(konfig, "STIMM_ART", "")
+    log.info("Stimme %s%s geladen, %d feste Sätze im Vorrat",
+             konfig.STIMME.name, f" ({art})" if art else "", n)
     asyncio.create_task(gesundheit())
 
     stopp = asyncio.Event()
