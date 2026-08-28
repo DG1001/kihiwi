@@ -606,6 +606,27 @@ missverständlich.
 Dass die Sprachvariante zuerst entstand, war Trägheit statt Entwurf: Der
 Sprachpfad war da, also wurde alles hineingelegt.
 
+### Auslösewörter statt Überredung
+
+Fred schlug vor, „Internetrecherche" wie ein zweites Aktivierungswort zu
+behandeln — und das ist genau die Verallgemeinerung des Musters, das an diesem
+Projekt durchgehend funktioniert: **wo die Handlung eindeutig ist, entscheidet
+der Dienst, nicht das Modell.**
+
+Anlass war wieder eine Weigerung: „Ich kann leider keine Internetrecherche
+durchführen", obwohl der Router `Absicht recherche -> 1 Werkzeug` gemeldet
+hatte. Und wie zuvor bei der Aufzeichnung vergiftete die erste Absage den
+Verlauf, sodass sie sich wiederholte.
+
+Umgesetzt als Tabelle mit drei Einträgen (Internet-, Dokumenten-, Hermes-
+Durchreichung), erweiterbar in einer Zeile. Dazu zwei Netze: der Verlauf wird
+für die Werkzeugrunde von Absagen befreit, und ein vom Router vorgesehenes
+Werkzeug wird erzwungen, wenn die Antwort trotzdem eine Absage ist.
+
+**Ein Vorbehalt zu `Hermes`:** Die Durchreichung gibt einer gesprochenen
+Anweisung Zugriff auf Dateien, Browser und Codeausführung, bei offenem Mikrofon.
+Der Dienst sagt an, was er weitergibt — mehr Schutz gibt es derzeit nicht.
+
 ### Offen
 
 - Autostart (systemd-Units) — bewusst zurückgestellt.

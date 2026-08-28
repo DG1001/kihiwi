@@ -389,6 +389,12 @@ class Sitzung:
             self.web_benutzt = False
             wofuer = absicht_modul.erkennen(text)
 
+            # Ausloesewoerter: der Dienst handelt, das Modell wird nicht
+            # gefragt. Es hat sich zu oft geweigert, obwohl das Werkzeug da war.
+            art, thema = absicht_modul.ausloeser(text)
+            if art and await self.per_ausloeser(art, thema, text):
+                return
+
             # Protokollabruf: der Dienst weiss, wo die Protokolle liegen.
             # Ueber das Modell ging es schief -- es sagte "ich sehe kein
             # Protokoll", weil es keinen Dateizugriff hat.
@@ -502,6 +508,36 @@ class Sitzung:
                                                    "text": ergebnis}))
                     await self.sag(ergebnis)
                     gerufene.add("aufzeichnung")
+
+            # Absage trotz vorhandenem Werkzeug: erzwingen. Der Router hat
+            # bereits entschieden, dass es passt -- eine Absage ist dann
+            # schlicht falsch, und sie vergiftet den weiteren Verlauf.
+            erwartet = {absicht_modul.Absicht.WEB: "web_suchen",
+                        absicht_modul.Absicht.RECHERCHE: "rechercheauftrag",
+                        absicht_modul.Absicht.WISSEN: "dokumente_suchen"}.get(wofuer)
+            if erwartet and erwartet not in gerufene and llm.ist_absage(antwort):
+                log.warning("Absage trotz Werkzeug %s — erzwinge es", erwartet)
+                args = await llm.erzwinge_werkzeug(text, [], WERKZEUGE, erwartet,
+                                                   system=self.system_prompt(wofuer))
+                if args is not None:
+                    ergebnis = await self.werkzeug(erwartet, args)
+                    gerufene.add(erwartet)
+                    await self.ws.send(json.dumps({"typ": "werkzeug", "name": erwartet,
+                                                   "args": args, "ergebnis": ergebnis,
+                                                   "nachgeholt": True}))
+                    nach = []
+                    async for satz in llm.antwort_saetze_roh(
+                            self.antwort_prompt(),
+                            f"Das haben deine Werkzeuge geliefert:\n\n{ergebnis}"
+                            f"\n\nBeantworte damit: {text}", max_tokens=250):
+                        nach.append(satz)
+                        await self.ws.send(json.dumps({"typ": "text",
+                                                       "rolle": "assistent",
+                                                       "text": satz}))
+                        await self.sag(satz)
+                    if nach:
+                        ganze = nach
+                        antwort = " ".join(nach)
 
             # Rechercheauftrag versprochen, aber nicht gestellt: nachholen.
             # Sonst wartet der Nutzer auf ein Ergebnis, das nie kommt --
@@ -672,6 +708,52 @@ class Sitzung:
         # Die Aufzeichnung ist rechtlich heikel; sie darf nie still anlaufen.
         # Der Monitor zeigt es ohnehin, die Bestaetigung sagt es zusaetzlich.
         return "Aufzeichnung läuft jetzt." if self.rek.laeuft else "Aufzeichnung ist gestoppt."
+
+    async def per_ausloeser(self, art: str, thema: str, ganzer_text: str) -> bool:
+        """Handelt auf ein Ausloesewort hin. True, wenn erledigt."""
+        if art in ("recherche", "hermes"):
+            if RECHERCHE.beschaeftigt:
+                await self.melden("Es läuft schon eine Recherche, die muss erst "
+                                  "fertig werden.")
+                return True
+            roh = art == "hermes"
+            auftrag = await RECHERCHE.starten(thema, recherche_verteilen, roh=roh)
+            if auftrag is None:
+                return False
+            HALTER.setzen(recherche=thema, recherche_seit=time.time())
+            log.info("  %s per Auslösewort: %r", art, thema[:70])
+            await self.ws.send(json.dumps({"typ": "werkzeug",
+                                           "name": "rechercheauftrag",
+                                           "args": {"frage": thema, "roh": roh},
+                                           "ergebnis": "Auftrag läuft."}))
+            # Bei Hermes ansagen, WAS weitergegeben wird -- er darf Dateien
+            # lesen, Seiten oeffnen und Code ausfuehren, und das Mikrofon steht
+            # offen. Was er tut, soll im Raum hoerbar sein.
+            await self.melden(f"Ich gebe an Hermes weiter: {thema}. Ich melde mich."
+                              if roh else
+                              "Ich recherchiere das und melde mich, wenn ich etwas habe.")
+            return True
+
+        if art == "dokumente":
+            # Suche deterministisch, das Modell formuliert nur noch.
+            await self.melden("Ich schaue in den Unterlagen nach.")
+            ergebnis = await self.werkzeug("dokumente_suchen", {"frage": thema})
+            log.info("  Dokumentenrecherche per Auslösewort: %r", thema[:60])
+            gesagt = []
+            async for satz in llm.antwort_saetze_roh(
+                    self.antwort_prompt(),
+                    f"Das steht in den Unterlagen:\n\n{ergebnis}\n\n"
+                    f"Beantworte damit knapp: {thema}", max_tokens=250):
+                gesagt.append(satz)
+                await self.ws.send(json.dumps({"typ": "text", "rolle": "assistent",
+                                               "text": satz}))
+                await self.sag(satz)
+            self.verlauf += [{"role": "user", "content": ganzer_text},
+                             {"role": "assistant", "content": " ".join(gesagt)}]
+            del self.verlauf[:-8]
+            return True
+
+        return False
 
     async def protokoll_zeigen(self):
         """Neuestes Laborprotokoll: Zusammenfassung sprechen, alles anzeigen."""

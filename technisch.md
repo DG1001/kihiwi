@@ -448,6 +448,38 @@ Nachbereitung oder Recherche lädt er sie selbst neu.
 mir das Protokoll" über das Modell zu lösen kostete einen Abend Prompt-Arbeit
 und blieb wackelig; eine Liste kann nicht missverstanden werden.
 
+### Auslösewörter: der Dienst handelt, das Modell wird nicht gefragt
+
+Tabelle in `absicht.AUSLOESER`. Fällt eines dieser Wörter, handelt der Dienst
+sofort — wie bei „Kiwi" selbst:
+
+| Wort | Wirkung |
+|---|---|
+| `Internetrecherche`, `Webrecherche`, `recherchiere` | Rechercheauftrag an Hermes |
+| `Dokumentenrecherche`, `Dokumentensuche` | Suche in den Unterlagen, das Modell formuliert nur noch die Antwort |
+| `Hermes` | Anweisung **unverändert** an Hermes durchreichen |
+
+**Warum:** Das Modell hat sich wiederholt geweigert, obwohl das Werkzeug
+bereitstand („Ich kann leider keine Internetrecherche durchführen"). Wo die
+Handlung eindeutig ist, entscheidet der Dienst. Weitere Auslöser kosten eine
+Zeile in der Tabelle.
+
+Die Reihenfolge ist festgelegt: `hermes` → `dokumente` → `recherche`.
+„Dokumentenrecherche" enthält „recherche" und würde sonst zum Internetauftrag.
+
+**Vorsicht bei `Hermes`:** Er darf Dateien lesen, Seiten öffnen und Code
+ausführen, und das Mikrofon steht offen. Der Dienst sagt deshalb hörbar an, was
+weitergegeben wird („Ich gebe an Hermes weiter: …"). Wer das enger haben will,
+sollte eine Rückfrage vor der Ausführung einbauen.
+
+### Absagen vergiften den Verlauf
+
+Sagt das Modell einmal „Ich kann nicht", steht das im Gesprächsverlauf und wird
+zur Vorlage für alle folgenden Turns. Für die **Werkzeugrunde** wird der Verlauf
+deshalb von Absagen befreit (`llm.ohne_absagen`, samt der Frage davor); in der
+Schlussantwort dürfen sie bleiben. Zusätzlich wird ein Werkzeug erzwungen, wenn
+der Router es vorgesehen hatte und die Antwort trotzdem eine Absage ist.
+
 ### Aufzeichnung läuft ohne das Modell
 
 **Befehle und Statusfragen zur Aufzeichnung werden direkt beantwortet**, ohne

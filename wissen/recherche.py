@@ -58,18 +58,21 @@ class Recherche:
     def beschaeftigt(self) -> bool:
         return self.laufend is not None
 
-    async def starten(self, frage: str, wenn_fertig) -> Auftrag | None:
+    async def starten(self, frage: str, wenn_fertig, roh: bool = False) -> Auftrag | None:
         """Nimmt einen Auftrag an. Gibt None zurueck, wenn schon einer laeuft."""
         if self.beschaeftigt:
             return None
         a = Auftrag(frage=frage)
         self.laufend = a
-        self._task = asyncio.create_task(self._lauf(a, wenn_fertig))
+        self._task = asyncio.create_task(self._lauf(a, wenn_fertig, roh))
         return a
 
-    async def _lauf(self, a: Auftrag, wenn_fertig):
+    async def _lauf(self, a: Auftrag, wenn_fertig, roh: bool = False):
         try:
-            a.ergebnis, a.hermes_sitzung = await self._hermes(a.frage + AUFTRAG_ZUSATZ)
+            # roh=True reicht die Anweisung unveraendert durch -- fuer den
+            # Fall, dass jemand Hermes direkt ansprechen will.
+            auftrag = a.frage if roh else a.frage + AUFTRAG_ZUSATZ
+            a.ergebnis, a.hermes_sitzung = await self._hermes(auftrag)
         except asyncio.TimeoutError:
             a.fehler = f"Zeitüberschreitung nach {MAX_S} s"
         except Exception as e:                        # pragma: no cover

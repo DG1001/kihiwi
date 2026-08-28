@@ -169,6 +169,33 @@ async def _saetze(nachrichten, max_tokens, temperatur):
         yield puffer.strip()
 
 
+# Absagen des Modells. Stehen sie im Verlauf, wiederholt es sie -- eine
+# einzelne falsche Antwort wird zur Vorlage fuer alle folgenden. Fuer die
+# Werkzeugrunde werden sie deshalb ausgeblendet; in der Schlussantwort duerfen
+# sie bleiben, dort richten sie keinen Schaden an.
+_ABSAGE = re.compile(
+    r"kann (ich|das)?\s*(leider\s*)?nicht|kann keine|nicht möglich|"
+    r"ausserhalb meiner|außerhalb meiner|habe keinen zugriff|"
+    r"bin (nur|lediglich) ein", re.I)
+
+
+def ist_absage(text: str) -> bool:
+    """Weist die Antwort eine Faehigkeit zurueck, die der Assistent hat?"""
+    return bool(_ABSAGE.search(text or ""))
+
+
+def ohne_absagen(verlauf):
+    """Verlauf ohne die Absagen des Modells (und die Fragen davor)."""
+    aus = []
+    for n in (verlauf or []):
+        if n.get("role") == "assistant" and _ABSAGE.search(n.get("content") or ""):
+            if aus and aus[-1].get("role") == "user":
+                aus.pop()          # die Frage dazu ebenfalls, sonst wirkt sie unbeantwortet
+            continue
+        aus.append(n)
+    return aus
+
+
 class _Teiler:
     """Zerlegt einen Token-Strom satzweise, ersten Brocken frueher.
 
@@ -256,8 +283,10 @@ async def antwort_mit_werkzeugen(frage: str, verlauf, werkzeuge, ausfuehren,
     Anweisung, kurz zu ANTWORTEN -- und antwortet eben, statt zu handeln. Der
     Sprechstil gehoert deshalb nur an die Antwort.
     """
+    # Fuer die Werkzeugentscheidung ohne Absagen: sie sind der haeufigste Grund,
+    # warum das Modell ein vorhandenes Werkzeug nicht mehr benutzt.
     nachrichten = [{"role": "system", "content": system or konfig.SYSTEM_PROMPT}]
-    nachrichten += list(verlauf or [])
+    nachrichten += ohne_absagen(verlauf)
     nachrichten.append({"role": "user", "content": frage})
 
     # Ergebnisse der Werkzeuge, als reiner Text gesammelt.

@@ -157,6 +157,60 @@ ZUSATZ_JE_ABSICHT = {
 _AUF_BEFEHL = re.compile(r"\b(nimm|zeichne|schneide?|starte?|mach)\b.{0,15}\bauf\b")
 
 
+# Feste Ausloesewoerter -- so wie "Kiwi" die Ansprache ausloest. Wer das Wort
+# sagt, will die Handlung; das Modell wird gar nicht erst gefragt. Es hat sich
+# zu oft geweigert ("Ich kann leider keine Internetrecherche durchfuehren"),
+# obwohl das Werkzeug bereitstand.
+#
+# Das Muster ist dasselbe wie bei den Aufzeichnungsbefehlen: Wo die Handlung
+# eindeutig ist, entscheidet der Dienst, nicht das Modell. Weitere Ausloeser
+# kosten hier eine Zeile.
+AUSLOESER = {
+    "recherche": r"internetrecherche|netzrecherche|webrecherche|rechercheauftrag|"
+                 r"recherchier(?:e|st|en)?",
+    "dokumente": r"dokumentenrecherche|dokumentensuche|aktenrecherche|"
+                 r"unterlagenrecherche",
+    "hermes":    r"hermes",
+}
+_AUSLOESER_RE = {art: re.compile(rf"\b(?:{muster})\b", re.I)
+                 for art, muster in AUSLOESER.items()}
+
+
+def ausloeser(text: str):
+    """Gibt (art, thema) zurueck, wenn ein Ausloesewort fiel, sonst (None, "").
+
+    Reihenfolge: der spezifischste zuerst. "Dokumentenrecherche" enthaelt
+    "recherche" -- ohne feste Reihenfolge wuerde daraus ein Internetauftrag.
+    """
+    for art in ("hermes", "dokumente", "recherche"):
+        m = _AUSLOESER_RE[art].search(text)
+        if m:
+            return art, _thema(text, m)
+    return None, ""
+
+
+def _thema(text: str, m) -> str:
+    # Thema ist der Rest ohne Ausloeser und Fuellwoerter davor.
+    rest = (text[:m.start()] + " " + text[m.end():])
+    rest = re.sub(r"\s+", " ", rest).strip()
+    # Fuellwoerter vorne wiederholt abraeumen: "Bitte mach eine ... zum X"
+    # laesst sonst "eine zum X" stehen.
+    fueller = (r"^(bitte|mal|doch|kiwi|mach|mache|starte|beginne|gib mir|"
+               r"eine|einen|ein|die|der|das|zu|zum|zur|ueber|über|nach|"
+               r"fuer|für|mir|uns)\b[\s,]*")
+    vorher = None
+    while rest != vorher:
+        vorher = rest
+        rest = re.sub(fueller, "", rest, flags=re.I).strip(" ,.")
+    return rest or text
+
+
+def rechercheauftrag(text: str) -> str | None:
+    """Nur der Internetauftrag -- Ruecksicht auf bestehende Aufrufe."""
+    art, thema = ausloeser(text)
+    return thema if art == "recherche" else None
+
+
 def will_aendern(text: str) -> bool:
     """Verlangt die Aeusserung eine Aenderung (statt nur nach dem Zustand zu
     fragen)? Nur dann wird gehandelt."""
