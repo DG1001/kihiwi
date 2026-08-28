@@ -113,6 +113,63 @@ def begriffe(frage: str) -> list[str]:
     return [x for x in w if len(x) > 2 and x not in _STOPP]
 
 
+# Deutsche Komposita: die Spracherkennung schreibt "Rasterelektronenmikroskop
+# Auflösung" gern als ein Wort zusammen, und danach findet weder FTS5 noch eine
+# Suchmaschine etwas. Zerlegt wird an den BEKANNTEN Fachbegriffen -- ohne
+# Woerterbuch, dafuer ohne Falschtrennungen.
+KOMPOSITUM_AB = 14      # kuerzere Woerter lohnen die Zerlegung nicht
+
+
+def _vokabeln() -> list[str]:
+    from sprachdienst import stt
+    return [b for b in stt.begriffe() if len(b) >= 5 and " " not in b]
+
+
+def zerlege(wort: str, vokabeln=None) -> list[str]:
+    """Zerlegt ein Kompositum an bekannten Fachbegriffen. Sonst [wort]."""
+    vok = sorted(vokabeln if vokabeln is not None else _vokabeln(),
+                 key=len, reverse=True)
+    k = wort.lower()
+    for b in vok:
+        bl = b.lower()
+        i = k.find(bl)
+        if i < 0 or len(bl) == len(k):
+            continue
+        teile = []
+        if i > 0:
+            teile += zerlege(wort[:i], vok)
+        teile.append(wort[i:i + len(bl)])
+        if i + len(bl) < len(wort):
+            teile += zerlege(wort[i + len(bl):], vok)
+        # Fugenlaute und Reste unter drei Zeichen wegwerfen.
+        return [t for t in teile if len(t) >= 3]
+    return [wort]
+
+
+def aufbrechen(frage: str, mit_original: bool = True) -> str:
+    """Bricht lange Komposita einer Anfrage auf.
+
+    `mit_original=True` haengt die Bestandteile an -- richtig fuer FTS5, das
+    die Begriffe mit ODER verknuepft.
+
+    `mit_original=False` ERSETZT das Kompositum durch seine Teile -- noetig fuer
+    Suchmaschinen, die mit UND verknuepfen: dort macht ein unauffindbares Wort
+    die ganze Anfrage leer, egal wie gut die uebrigen sind.
+    """
+    vok = _vokabeln()
+    aus = []
+    for w in frage.split():
+        rein = re.sub(r"\W", "", w)
+        teile = zerlege(rein, vok) if len(rein) >= KOMPOSITUM_AB else [w]
+        if len(teile) > 1:
+            if mit_original:
+                aus.append(w)
+            aus.extend(teile)
+        else:
+            aus.append(w)
+    return " ".join(dict.fromkeys(aus))
+
+
 def suchen(frage: str, anzahl: int = 5, c: sqlite3.Connection | None = None
            ) -> list[Treffer]:
     eigen = c is None
@@ -121,7 +178,7 @@ def suchen(frage: str, anzahl: int = 5, c: sqlite3.Connection | None = None
     except sqlite3.OperationalError:
         return []          # Index noch nicht angelegt
     try:
-        w = begriffe(frage)
+        w = begriffe(aufbrechen(frage))
         if not w:
             return []
         # Anführungszeichen um jeden Begriff: sonst deutet FTS5 Bindestriche

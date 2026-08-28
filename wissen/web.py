@@ -37,6 +37,19 @@ async def suchen(frage: str, anzahl: int = 4, timeout: float = 12.0) -> list[dic
     if not konfig.WEB_SUCHE:
         return []
     try:
-        return await asyncio.to_thread(_ruf, frage, anzahl, timeout)
+        treffer = await asyncio.to_thread(_ruf, frage, anzahl, timeout)
+    except Exception:
+        return []
+    if treffer:
+        return treffer
+    # Nichts gefunden? Deutsche Komposita aufbrechen und noch einmal.
+    # "Rasterelektronenmikroskopauflösung" liefert null Treffer,
+    # "Rasterelektronenmikroskop Auflösung" reichlich.
+    from . import index
+    zerlegt = index.aufbrechen(frage, mit_original=False)
+    if zerlegt == frage:
+        return []
+    try:
+        return await asyncio.to_thread(_ruf, zerlegt, anzahl, timeout)
     except Exception:
         return []

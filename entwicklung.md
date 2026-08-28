@@ -679,6 +679,25 @@ durchgehend — verifiziert: Quittung nach 2,2 s, die folgende Anweisung wird
 ohne erneutes Aktivierungswort angenommen. Es steht jetzt so in fachlich.md,
 weil es die Bedienung erklärt, die tatsächlich benutzt wird.
 
+### Deutsche Komposita aufbrechen
+
+„Internetsuche Rasterelektronenmikroskopauflösung" kam mit null Treffern zurück
+— die Erkennung hatte zwei Wörter zu einem verschmolzen, und danach findet
+niemand etwas. Typisch deutsch und deshalb wiederkehrend.
+
+Zerlegt wird an den **bekannten Fachbegriffen** statt mit einem Wörterbuch: kein
+zusätzliches Modell, keine Falschtrennungen, und die Vokabelliste ist ohnehin
+gepflegt. Grundbegriffe wie „Fenster" und „Dicke" wurden dafür einzeln
+aufgenommen; sie dienen als Trennstellen.
+
+**Ein Denkfehler unterwegs:** Zuerst hängte ich die Bestandteile an das
+Kompositum an. Für FTS5 ist das richtig (ODER-Verknüpfung), für eine
+Suchmaschine falsch (UND) — das unauffindbare Wort blieb drin und machte die
+Anfrage weiterhin leer. Jetzt ersetzt die Zerlegung dort das Original.
+
+Ergebnis: „Rasterelektronenmikroskopauflösung" findet Wikipedia,
+„Siliziumnitridfensterdicke" findet plano-em.de mit den Membranstärken.
+
 ### Offen
 
 - Autostart (systemd-Units) — bewusst zurückgestellt.

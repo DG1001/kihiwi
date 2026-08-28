@@ -488,6 +488,22 @@ Die Reihenfolge ist festgelegt: `hilfe` → `hermes` → `dokumente` → `websuc
 `recherche`. „Dokumentenrecherche" enthält „recherche" und würde sonst zum
 Internetauftrag.
 
+**Deutsche Komposita werden aufgebrochen.** Die Spracherkennung schreibt
+„Rasterelektronenmikroskop Auflösung" gern als ein Wort, und danach findet weder
+FTS5 noch eine Suchmaschine etwas. `index.zerlege()` trennt an den **bekannten
+Fachbegriffen** aus `vokabular.txt` — ohne Wörterbuch, dafür ohne
+Falschtrennungen. Grundbegriffe wie `Fenster`, `Membran`, `Dicke` stehen deshalb
+einzeln in der Liste: sie dienen als Trennstellen.
+
+Zwei Betriebsarten, und der Unterschied ist wesentlich:
+
+- **FTS5** verknüpft mit ODER — dort werden die Bestandteile *angehängt*.
+- **Suchmaschinen** verknüpfen mit UND — dort *ersetzt* die Zerlegung das
+  Kompositum. Bliebe es stehen, machte das eine unauffindbare Wort die ganze
+  Anfrage leer, egal wie gut die übrigen sind.
+
+Die Websuche versucht es erst unverändert und bricht nur bei null Treffern auf.
+
 **Suche gegen Recherche — zwei Wege ins Netz, bewusst getrennt:**
 
 | | `web_suchen` | `rechercheauftrag` |
