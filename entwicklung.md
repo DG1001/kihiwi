@@ -1129,3 +1129,25 @@ eigenen Versuch.
 Die leere Hermes-Sitzungskennung in den Recherchenotizen ist davon unberuehrt:
 sie fehlt in allen 21 aelteren Notizen ebenso und ist ein eigener, kosmetischer
 Punkt.
+
+### Nachtrag: Qwen3.6-35B-A3B, und eine zu breite Behauptung von mir
+
+Der Vergleich, auf den es ankam -- gleiche Bauart, gleiche Groesse, gleiche
+Quantisierung, gleiche Parser wie Ornith, nur anderes Training. Ergebnis auf
+denselben vier Fragen: 78,3 tok/s, erster Satz 1,3-2,2 s, drei Werkzeugaufrufe.
+
+**Es sucht und antwortet trotzdem.** Findet `dokumente_suchen` nichts, faellt es
+auf eigenes Wissen zurueck, statt "steht nicht in den Unterlagen" zu sagen. Auf
+die Frage nach Sekundaer- gegen Rueckstreuelektronen war es das einzige der drei
+mit einer fachlich richtigen Antwort -- Ornith sagte "werden an der Oberflaeche
+abgelenkt" (falsch), Qwen3.8 verweigerte. Ein Rechercheauftrag lief in 23 s
+durch, mit genannter Quelle.
+
+**Korrektur an mir selbst:** Ich hatte geschrieben, Geschwindigkeit sei fuer
+diesen Dienst fast egal, weil Piper ohnehin langsamer spreche. Das stimmt fuer
+den gesprochenen Zug und ist fuer die Recherche falsch. Hermes haengt dutzende
+volle Generierungen aneinander -- gemessen 48 vLLM-Anfragen in einem einzigen
+Auftrag. Bei 20 tok/s lief der Wetterauftrag in die 420-s-Grenze; bei 78 tok/s
+dauerte derselbe 23 s. **Die Aussage war nicht falsch, sondern zu breit: sie galt
+fuer den halben Dienst und ich habe sie fuer den ganzen formuliert.** Dieselbe
+Form von Fehler wie beim Hermes-Modellnamen, nur eine Ebene hoeher.

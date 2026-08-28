@@ -84,11 +84,12 @@ Werkzeuggebrauch.
 **Gemessen am 28.08.2026** (vier Fragen end-zu-end über den WebSocket, Piper als
 Sprecher, warm):
 
-| | Ornith-1.5-35B-A3B | Qwen3.8-27B (dicht + MTP) |
-|---|---|---|
-| Generierung, warm | 78,4 tok/s | **20,0 tok/s** (ohne MTP wären es ~10) |
-| erster Satz | 0,4–2,5 s | 1,1–2,5 s |
-| Werkzeugaufrufe auf 4 Fragen | 1 | 4, davon einmal ungefragt `web_suchen` |
+| | Ornith-1.5-35B-A3B | Qwen3.8-27B (dicht + MTP) | Qwen3.6-35B-A3B NVFP4 |
+|---|---|---|---|
+| Generierung, warm | 78,4 tok/s | **20,0 tok/s** (ohne MTP ~10) | 78,3 tok/s |
+| erster Satz | 0,4–2,5 s | 1,1–2,5 s | 1,3–2,2 s |
+| Werkzeugaufrufe auf 4 Fragen | 1 | 4, einmal ungefragt `web_suchen` | 3 |
+| Rechercheauftrag (Wetter) | 26–63 s | **Abbruch bei 420 s** | 23 s |
 
 **Qwen3.8-27B ruft Werkzeuge bereitwillig, aber es hört danach auf zu denken.**
 Auf „Unterschied zwischen Sekundär- und Rückstreuelektronen" suchte es in den
@@ -103,6 +104,20 @@ Kein Nachdenken lief in die Sprachausgabe — `--default-chat-template-kwargs
 '{"enable_thinking": false}'` greift bei der Qwen-Familie. Bei Nemotron ist das
 offen; dessen Schalter heißt anders, und im Zweifel spricht Piper die
 Gedankenkette mit.
+
+**Qwen3.6-35B-A3B sucht *und* antwortet — das tut sonst keines der drei.** Es
+ruft `dokumente_suchen` wie Qwen3.8, hört aber nicht dort auf: findet es nichts,
+antwortet es aus eigenem Wissen weiter. Auf die Frage nach Sekundär- gegen
+Rückstreuelektronen gab es als einziges eine fachlich richtige Antwort (Ornith:
+„Rückstreuelektronen werden an der Oberfläche abgelenkt" — falsch; Qwen3.8:
+verweigert). Der erste Satz kommt etwas später als bei Ornith, weil öfter eine
+Werkzeugrunde dazwischenliegt.
+
+**Für die Recherche zählt die Tokenrate sehr wohl.** Der Sprachpfad wird von
+Piper begrenzt, Hermes dagegen hängt dutzende volle Generierungen aneinander
+(48 vLLM-Anfragen in einem Auftrag). Bei 20 tok/s lief der Wetterauftrag in die
+420-s-Grenze und scheiterte; bei 78 tok/s braucht derselbe Auftrag 23 s. Der
+Satz „Geschwindigkeit ist hier fast egal" gilt **nur** für den gesprochenen Zug.
 
 ## Dienste
 
