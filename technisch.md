@@ -764,3 +764,35 @@ normale Form ("zweitausendsechsundzwanzig").
 `_sprechbar()`, das ausschliesslich zwischen Text und Piper sitzt. Was ueber
 `melden()` in den Browser und in `verlauf` geht, ist der Originaltext mit
 Ziffern -- ausgeschriebene Zahlen waeren im Protokoll kaum lesbar.
+
+### Wissensabgleich per Stimme
+
+„Wissensabgleich" (auch Unterlagenabgleich, Quellenabgleich, Wissensauffrischung)
+stoesst denselben Lauf an wie `./dienste.sh wissen einlesen`: `einlesen.git()`
+macht `git pull --ff-only`, danach wird neu indiziert. Eigenes Ausloesewort,
+weil es Netzverkehr macht und Sekunden dauert.
+
+`einlesen.alles()` gibt seit diesem Schritt je Quelle `{name, art, neu,
+entfernt, notiz}` zurueck, damit der Dienst sagen kann, was sich geaendert hat.
+`notiz` fuellt nur `git()`: „2 neue Commits", „frisch geklont", „unveraendert",
+„Abruf fehlgeschlagen".
+
+Zwei Fallen, beide beim Testen aufgefallen:
+
+- Die Bilanz haengt an den **Notizen**, nicht an den Dokumentzahlen. Ein Repo
+  kann Commits bringen, ohne dass sich ein indiziertes Dokument aendert -- das
+  als „alles auf dem neuesten Stand" zu melden waere gelogen.
+- Eine nicht erreichbare Quelle wird ausdruecklich genannt, bevor irgendeine
+  Erfolgsmeldung kommt. Ein Fehlschlag darf nicht als Erfolg durchgehen.
+
+Ein Lauf zur Zeit (`ABGLEICH`, `asyncio.Lock`): zwei parallele Laeufe wuerden
+sich gegenseitig als „nicht mehr gesehen" aus dem Index raeumen.
+
+### Index auf WAL
+
+`index.db` laeuft im WAL-Modus. Vorher nahm ein Indexlauf eine Schreibsperre auf
+die ganze Datei, und `lesen()` wartet nur 5 s -- ein Abgleich haette jede Suche
+ausgesperrt. Der Modus haengt an der Datei, `verbinden()` setzt ihn.
+
+**`.gitignore` musste mit:** WAL legt `index.db-wal` daneben, mit demselben
+Volltext aus dem privaten Hauptrepo. Das Muster heisst jetzt `wissen/index.db*`.

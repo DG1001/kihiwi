@@ -808,3 +808,35 @@ Der Browser bleibt bei Ziffern: `_sprechbar()` liegt allein im Sprechpfad,
 `melden()` schickt den Originaltext an Websocket und Verlauf. Auf den Hinweis
 "sonst kann man das im Protokoll im Browser kaum lesen" nachgeprueft und
 bestaetigt -- die Trennung stand schon.
+
+## Repo-Aktualisierung ueber die Stimme
+
+Frage war, ob Kiwi das Hauptrepo aktualisieren kann. Konnte er -- aber nur ueber
+die Kommandozeile: `einlesen.git()` zieht bei jedem Indexlauf per
+`git pull --ff-only`. Es fehlte der Weg ueber die Stimme.
+
+Ausloesewort „Wissensabgleich", nach demselben Muster wie Hermesaufgabe:
+zusammengesetzt, damit es nicht versehentlich faellt. Netzverkehr und ein
+Schreiblauf ueber den Index sollen nicht nebenbei passieren.
+
+Drei Dinge fielen beim Bauen auf:
+
+1. **Kein WAL.** Ein Indexlauf haette waehrend des Abgleichs jede Suche
+   gesperrt (`lesen()` wartet 5 s). Umgestellt -- und dabei gemerkt, dass
+   `.gitignore` nur `wissen/index.db` fuehrte. `index.db-wal` traegt denselben
+   privaten Volltext; das Muster heisst jetzt `wissen/index.db*`. Dieselbe
+   Leckklasse, die schon einmal ein `filter-branch` gekostet hat.
+
+2. **Die Bilanz log.** Zum Testen den Klon einen Commit zurueckgesetzt: der Pull
+   holte zwei Commits, gesprochen wurde trotzdem „alles war schon auf dem
+   neuesten Stand" -- weil kein indiziertes Dokument sich geaendert hatte und die
+   Bilanz nur an den Dokumentzahlen hing. Haengt jetzt an den Notizen.
+
+3. **`hilfe_zeilen()` hatte eine zweite Liste.** Der Kommentar versprach, die
+   Hilfe werde aus der Tabelle erzeugt „damit sie nicht veraltet" -- darunter
+   stand eine handgepflegte `reihe`, und „Wissensabgleich" fehlte prompt. Jetzt
+   wirklich abgeleitet.
+
+Offen und bewusst nicht gebaut: die **Schreibrichtung**. Kiwi holt Staende, legt
+aber nichts ins Repo. Nextcloud ist aus demselben Grund ausdruecklich nur
+lesend.

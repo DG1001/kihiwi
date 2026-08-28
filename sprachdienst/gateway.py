@@ -37,6 +37,9 @@ HALTER = Zustandshalter()
 # Global, nicht je Sitzung: Hermes und der Sprachpfad teilen sich ein Modell,
 # zwei parallele Auftraege wuerden die Sprachantworten unbrauchbar traege machen.
 RECHERCHE = wissen_recherche.Recherche()
+# Ein Abgleich zur Zeit: zwei parallele Laeufe wuerden sich im Index
+# gegenseitig als "nicht mehr gesehen" aufraeumen.
+ABGLEICH = asyncio.Lock()
 # Wer gerade verbunden ist. Ein Rechercheergebnis geht an die AKTUELLEN
 # Zuhoerer, nicht an die Sitzung, die den Auftrag gab -- die kann laengst weg
 # sein, waehrend jemand anders im Labor steht.
@@ -124,6 +127,39 @@ def _jetzt() -> str:
     n = datetime.now().astimezone()
     return (f"Heute ist {_WOCHENTAG[n.weekday()]}, der {n.strftime('%d.%m.%Y')}, "
             f"es ist {n.strftime('%H:%M')} Uhr.")
+
+
+def _abgleich_satz(bericht: list[dict]) -> str:
+    """Bilanz eines Wissensabgleichs in einen sprechbaren Satz."""
+    if not bericht:
+        return "Es sind keine Quellen eingerichtet."
+    teile = []
+    for q in bericht:
+        stueck = []
+        if q["neu"]:
+            stueck.append(f"{q['neu']} Dokument{'e' if q['neu'] != 1 else ''} neu oder geändert")
+        if q["entfernt"]:
+            stueck.append(f"{q['entfernt']} entfernt")
+        # "unveraendert" traegt nichts bei -- eine Quelle ohne Eintrag ist
+        # genau das. Alles andere ("2 neue Commits", "frisch geklont") schon.
+        if q["notiz"] and q["notiz"] != "unverändert":
+            stueck.append(q["notiz"])
+        if stueck:
+            teile.append(f"{q['name']}: " + ", ".join(stueck))
+    # Fehlschlaege zuerst und ungeschoent: eine Quelle, die nicht erreichbar
+    # war, darf nicht als "alles aktuell" durchgehen.
+    kaputt = [q["name"] for q in bericht if "fehlgeschlagen" in q["notiz"]]
+    kopf = ("Abgleich fertig, aber " + " und ".join(kaputt)
+            + (" war" if len(kaputt) == 1 else " waren") + " nicht erreichbar. "
+            ) if kaputt else "Abgleich fertig. "
+    # An "teile" haengen, nicht an den Dokumentzahlen: ein Repo kann neue
+    # Commits bringen, ohne dass sich ein indiziertes Dokument aendert. Das
+    # als "alles auf dem neuesten Stand" zu melden, waere gelogen.
+    uebrig = [t for t in teile if not any(k in t for k in kaputt)]
+    if not uebrig:
+        return kopf + ("Sonst war alles auf dem neuesten Stand." if kaputt
+                       else "Alles war schon auf dem neuesten Stand.")
+    return kopf + ". ".join(uebrig) + "."
 
 
 def _sprechbar(text: str) -> str:
@@ -742,6 +778,25 @@ class Sitzung:
 
     async def per_ausloeser(self, art: str, thema: str, ganzer_text: str) -> bool:
         """Handelt auf ein Ausloesewort hin. True, wenn erledigt."""
+        if art == "abgleich":
+            if ABGLEICH.locked():
+                await self.melden("Der Abgleich läuft schon, das dauert noch "
+                                  "einen Moment.")
+                return True
+            async with ABGLEICH:
+                await self.melden("Ich hole die neuen Stände und gleiche die "
+                                  "Unterlagen ab.")
+                log.info("  Wissensabgleich per Auslösewort")
+                # Im Thread: der Lauf holt aus dem Netz und schreibt in den
+                # Index, beides dauert Sekunden. Die Suche bleibt derweil
+                # benutzbar, seit der Index auf WAL steht.
+                bericht = await asyncio.to_thread(wissen_einlesen.alles)
+            await self.ws.send(json.dumps({"typ": "werkzeug", "name": "wissensabgleich",
+                                           "args": {}, "ergebnis": json.dumps(
+                                               bericht, ensure_ascii=False)}))
+            await self.melden(_abgleich_satz(bericht))
+            return True
+
         if art == "hilfe":
             zeilen = absicht_modul.hilfe_zeilen()
             # Gesprochen kurz, angezeigt vollstaendig -- vorlesen dauert sonst

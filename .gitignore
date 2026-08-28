@@ -14,7 +14,9 @@ __pycache__/
 # index.db traegt den Volltext der eingelesenen Quellen, darunter das PRIVATE
 # Hauptrepo. Er gehoert nicht in die Historie -- neu erzeugen mit
 # `./dienste.sh wissen einlesen`. repos/ sind Arbeitsklone.
-wissen/index.db
+# Der Stern ist wichtig: im WAL-Modus liegt derselbe Volltext auch in
+# index.db-wal und index.db-shm.
+wissen/index.db*
 wissen/repos/
 wissen/.tmp*
 

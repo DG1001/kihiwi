@@ -124,19 +124,36 @@ def lokal(q: dict, c) -> int:
     return n
 
 
+def _head(ziel: Path) -> str:
+    return subprocess.run(["git", "-C", str(ziel), "rev-parse", "--short", "HEAD"],
+                          capture_output=True, text=True).stdout.strip()
+
+
 def git(q: dict, c) -> int:
     ziel = REPOS / q["name"]
     REPOS.mkdir(parents=True, exist_ok=True)
     if ziel.exists():
+        vorher = _head(ziel)
         r = subprocess.run(["git", "-C", str(ziel), "pull", "--ff-only", "-q"],
                            capture_output=True, text=True, timeout=180)
+        nachher = _head(ziel)
+        if vorher and nachher and vorher != nachher:
+            anzahl = subprocess.run(
+                ["git", "-C", str(ziel), "rev-list", "--count", f"{vorher}..{nachher}"],
+                capture_output=True, text=True).stdout.strip()
+            NOTIZ[q["name"]] = (f"{anzahl} neuer Commit" if anzahl == "1"
+                                else f"{anzahl} neue Commits")
+            print(f"    {vorher} -> {nachher}")
+        else:
+            NOTIZ[q["name"]] = "unverändert"
     else:
+        NOTIZ[q["name"]] = "frisch geklont"
         r = subprocess.run(["git", "clone", "--depth", "1", "-q", q["url"], str(ziel)],
                            capture_output=True, text=True, timeout=300)
     if r.returncode != 0:
+        NOTIZ[q["name"]] = "Abruf fehlgeschlagen"
         print(f"    git fehlgeschlagen: {r.stderr.strip()[:120]}"); return 0
-    stand = subprocess.run(["git", "-C", str(ziel), "rev-parse", "--short", "HEAD"],
-                           capture_output=True, text=True).stdout.strip()
+    stand = _head(ziel)
     aus = set(q.get("aus", [])) | {".git", "node_modules", "__pycache__"}
     n = 0
     for p, rel in _dateien(ziel, q.get("muster"), aus):
@@ -198,6 +215,10 @@ def nextcloud(q: dict, c) -> int:
 # Was in diesem Lauf gesehen wurde -- alles andere fliegt danach aus dem Index.
 GESEHEN: set[str] = set()
 
+# Freitext je Quelle fuer den Bericht ("unveraendert", "2 neue Commits").
+# Nur git() fuellt das; bei lokalen Ordnern sagen die Zahlen schon alles.
+NOTIZ: dict[str, str] = {}
+
 
 def _eintragen(c, quelle, pfad, titel, herkunft, stand, text) -> int:
     GESEHEN.add(pfad)
@@ -216,11 +237,18 @@ def _eintragen(c, quelle, pfad, titel, herkunft, stand, text) -> int:
 ARTEN = {"lokal": lokal, "git": git, "nextcloud": nextcloud}
 
 
-def alles(nur: str | None = None) -> None:
+def alles(nur: str | None = None) -> list[dict]:
+    """Liest alle aktiven Quellen ein und gibt je Quelle Bilanz zurueck.
+
+    Der Rueckgabewert existiert, damit der Sprachdienst nach einem Abgleich
+    sagen kann, was sich geaendert hat -- auf der Kommandozeile genuegten die
+    Ausgaben.
+    """
+    bericht: list[dict] = []
     try:
         konf = json.loads(QUELLEN.read_text(encoding="utf-8"))
     except OSError:
-        print(f"Keine Quellen konfiguriert ({QUELLEN})"); return
+        print(f"Keine Quellen konfiguriert ({QUELLEN})"); return bericht
     c = index.verbinden()
     try:
         for q in konf.get("quellen", []):
@@ -233,10 +261,16 @@ def alles(nur: str | None = None) -> None:
                 print(f"  {q['name']}: unbekannte Art {q.get('art')!r}"); continue
             print(f"  {q['name']} ({q['art']}) ...")
             GESEHEN.clear()
+            NOTIZ.pop(q["name"], None)
             n = f(q, c)
             entfernt = index.aufraeumen(c, q["name"], set(GESEHEN))
             c.commit()
+            notiz = NOTIZ.get(q["name"], "")
             print(f"    {n} Dokument(e) neu oder geändert"
-                  + (f", {entfernt} entfernt" if entfernt else ""))
+                  + (f", {entfernt} entfernt" if entfernt else "")
+                  + (f" ({notiz})" if notiz else ""))
+            bericht.append({"name": q["name"], "art": q["art"], "neu": n,
+                            "entfernt": entfernt, "notiz": notiz})
     finally:
         c.close()
+    return bericht

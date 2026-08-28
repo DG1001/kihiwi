@@ -207,6 +207,11 @@ AUSLOESER = {
     # versehentlich. Getrennte Schreibung mit, weil die Erkennung
     # Zusammensetzungen gern auseinanderzieht.
     "hermes":    rf"hermes{_}aufgabe|hermes{_}auftrag",
+    # Holt neue Staende aus Git und Nextcloud und indiziert nach. Ein eigenes
+    # Wort, weil es ein paar Sekunden dauert und Netzverkehr ausloest -- das
+    # soll niemand nebenbei anstossen.
+    "abgleich":  rf"wissens{_}abgleich|unterlagen{_}abgleich|quellen{_}abgleich|"
+                 rf"wissens{_}auffrischung",
 }
 # "Hilfe" allein faellt im Labor staendig ("ich brauche Hilfe beim Mikroskop").
 # Das liess sich zwar mit Stellungsregeln abfangen, aber solche Waechter sind
@@ -229,14 +234,21 @@ BESCHREIBUNG = {
     "recherche": ("Internetrecherche", "gründliche Recherche, Ergebnis kommt nach"),
     "dokumente": ("Dokumentenrecherche", "in unseren eigenen Unterlagen suchen"),
     "hermes":    ("Hermesaufgabe", "Anweisung unverändert an den Rechercheagenten"),
+    "abgleich":  ("Wissensabgleich", "neue Stände aus Repo und Cloud holen"),
     "hilfe":     ("Kiwihilfe", "diese Liste"),
 }
 
 
 def hilfe_zeilen() -> list[tuple[str, str]]:
-    """(Wort, Erklaerung) fuer alle Ausloeser, in sinnvoller Reihenfolge."""
-    reihe = ["websuche", "recherche", "dokumente", "hermes", "hilfe"]
-    return [BESCHREIBUNG[a] for a in reihe if a in BESCHREIBUNG]
+    """(Wort, Erklaerung) fuer alle Ausloeser, in der Reihenfolge von
+    BESCHREIBUNG -- "Kiwihilfe" zuletzt.
+
+    Bewusst keine eigene Liste: eine zweite Aufzaehlung veraltet, sobald jemand
+    die Tabelle oben erweitert. Genau das war passiert, "Wissensabgleich" fehlte
+    in der Hilfe."""
+    zeilen = [(a, BESCHREIBUNG[a]) for a in BESCHREIBUNG]
+    zeilen.sort(key=lambda z: z[0] == "hilfe")
+    return [e for _, e in zeilen]
 
 
 def ausloeser(text: str):
@@ -248,7 +260,7 @@ def ausloeser(text: str):
     if _NUR_HILFE.match(text):
         return "hilfe", ""
 
-    for art in ("hilfe", "hermes", "dokumente", "websuche", "recherche"):
+    for art in ("hilfe", "abgleich", "hermes", "dokumente", "websuche", "recherche"):
         m = _AUSLOESER_RE[art].search(text)
         if not m:
             continue

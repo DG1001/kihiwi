@@ -55,6 +55,7 @@ def verbinden() -> sqlite3.Connection:
     """Zum Schreiben: legt das Schema an."""
     DB.parent.mkdir(parents=True, exist_ok=True)
     c = sqlite3.connect(DB, timeout=10)
+    c.execute("PRAGMA journal_mode=WAL")
     c.executescript(SCHEMA)
     return c
 
@@ -66,7 +67,10 @@ def lesen() -> sqlite3.Connection:
     bei jeder Suche. Im Dienst blockierte das die Werkzeugausfuehrung und der
     Assistent blieb stumm stehen. Suchen darf niemals schreiben.
     """
-    return sqlite3.connect(f"file:{DB}?mode=ro", uri=True, timeout=5)
+    c = sqlite3.connect(f"file:{DB}?mode=ro", uri=True, timeout=5)
+    # WAL: sonst sperrt ein laufender Indexlauf jede Suche aus. Der Modus haengt
+    # an der Datei, nicht an der Verbindung -- verbinden() setzt ihn.
+    return c
 
 
 def fingerabdruck_bekannt(c, pfad: str, fingerab: str) -> bool:
