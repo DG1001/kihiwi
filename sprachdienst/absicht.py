@@ -27,6 +27,7 @@ class Absicht(str, Enum):
     RECHERCHE    = "recherche"      # mehrschrittig, dauert Minuten
     WEB          = "web"            # eine Sache schnell im Netz nachsehen
     PROTOKOLL    = "protokoll"      # das eigene Protokoll zeigen/vorlesen
+    ZEIT         = "zeit"           # Datum oder Uhrzeit
     WISSEN       = "wissen"         # in den Unterlagen nachschlagen
     PLAUDEREI    = "plauderei"      # kein Werkzeug nötig
 
@@ -79,6 +80,19 @@ _PROT = re.compile(r"\bprotokoll\w*\b(?!ier)")
 _PROT_TUN = re.compile(r"zeig|lies|vorles|vorlesen|anzeig|was steht|zusammenfass|"
                        r"gib mir|schick|oeffne|sehen|sieh")
 
+# Datum und Uhrzeit. Eng gefasst: "wann haben wir das gemessen" ist eine Frage
+# an die Unterlagen, keine an die Uhr.
+_ZEIT = re.compile(
+    r"wie (spaet|spat) ist|wieviel uhr|wie viel uhr|"
+    r"welche(s|n)? (datum|tag|wochentag)|"
+    r"(datum|wochentag|uhrzeit)\b.{0,12}\b(heute|jetzt|gerade|aktuell)|"
+    r"(heute|jetzt|gerade|aktuell)\b.{0,12}\b(datum|wochentag|uhrzeit)|"
+    r"was fuer ein tag ist|welcher tag ist|den wievielten")
+
+# Verweist die Frage auf eine Quelle, ist nicht die Uhr gemeint.
+_ZEIT_NICHT = re.compile(r"protokoll|unterlage|dokument|datei|aufzeichnung|"
+                         r"steht|stand|damals|letzte[nrs]?\b|vorige")
+
 # Wissen: Frage nach Sachverhalten. Fragewörter oder ein Fragezeichen genügen.
 _FRAGE = re.compile(r"^(wie|was|wo|wer|wann|warum|weshalb|welche\w*|wieviel\w*|"
                     r"wie viel\w*|gibt es|haben wir|hatten wir|kannst du .*sagen)\b|\?")
@@ -93,6 +107,11 @@ def erkennen(text: str) -> Absicht:
     t = _normal(text).strip()
     if not t:
         return Absicht.PLAUDEREI
+
+    # Nur wenn nach der JETZIGEN Zeit gefragt wird. "Welches Datum steht im
+    # Protokoll?" ist eine Frage an die Unterlagen.
+    if _ZEIT.search(t) and not _ZEIT_NICHT.search(t):
+        return Absicht.ZEIT
 
     # Vor der Aufzeichnung pruefen: "zeig mir das Protokoll" ist keine
     # Steuerung des Mitschnitts, sondern ein Abruf des Ergebnisses.
@@ -123,6 +142,7 @@ WERKZEUGE_JE_ABSICHT = {
     Absicht.RECHERCHE:    ["rechercheauftrag"],
     Absicht.WEB:          ["web_suchen"],
     Absicht.PROTOKOLL:    [],
+    Absicht.ZEIT:         [],
     Absicht.WISSEN:       ["dokumente_suchen", "web_suchen"],
     Absicht.PLAUDEREI:    [],
 }
@@ -147,6 +167,7 @@ ZUSATZ_JE_ABSICHT = {
         " offen — erfinde keine Zahlen. 'web_suchen' nur, wenn die Unterlagen"
         " nichts hergeben; sag dann, dass es aus dem Internet stammt.",
     Absicht.PROTOKOLL: "",
+    Absicht.ZEIT: "",
     Absicht.PLAUDEREI: "",
 }
 

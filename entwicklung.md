@@ -736,6 +736,32 @@ Vorsichtsformeln gut auf solche Fragen passen.
 `index.aufraeumen()` löscht jetzt nach jedem Einlesen, was nicht mehr gesehen
 wurde. Die Quelle `kihiwi` schrumpfte damit von 16 auf 5 Dokumente.
 
+### Stimme: viel gemessen, nichts gewonnen
+
+Fred wollte die Sprachausgabe verbessern. Ergebnis nach dem Vergleich aller
+sieben deutschen Stimmen: **kein hörbarer Gewinn.** `thorsten-high` ist derselbe
+Sprecher bei gleicher Abtastrate und kostet 305 statt 83 ms je Satz;
+`thorsten_emotional` (neutral) ist mit 80 ms sogar am schnellsten, klingt aber
+ebenso ununterscheidbar. Wieder zurück auf `thorsten-medium` — gleiche
+Geschwindigkeit, ein bewegliches Teil weniger.
+
+**Der eigentliche Gewinn kam nicht von der Stimme, sondern vom Vorrat:** die 15
+festen Ansagen einmal beim Start zu rendern drückte den ersten Ton von 847 auf
+319 ms, unabhängig vom Modell. Das bleibt.
+
+Zwei Fehler unterwegs, beide erst durch Nachmessen sichtbar: die neue Stimme lief
+gar nicht (konfig.py war nach dem Neustart nochmal angefasst worden — der Dienst
+protokolliert die geladene Stimme jetzt), und die Hörproben kamen im Browser
+verfälscht an, weil ich Rohbytes durch eine Textschnittstelle geschickt hatte.
+
+### Datum und Uhrzeit
+
+Fred merkte an, dass der Assistent das Datum nicht kennt, und vermutete ein
+Werkzeug. Nach diesem Tag lag die andere Antwort näher: **in den Prompt damit.**
+Ein Werkzeug wäre wieder etwas, das das Modell aufrufen kann oder eben nicht —
+ohne Aufruf erfindet es die Zeit. Reine Zeitfragen beantwortet der Dienst
+zusätzlich direkt, weil er sonst erst in den Unterlagen und dann im Netz suchte.
+
 ### Offen
 
 - Autostart (systemd-Units) — bewusst zurückgestellt.

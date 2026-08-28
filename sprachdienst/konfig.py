@@ -101,10 +101,12 @@ AUFNAHMEN  = Path(os.environ.get("KIHIWI_AUFNAHMEN", WURZEL / "aufnahmen"))
 # 24 kbit/s ergeben 10,5 MB je Stunde -- und das Transkript bleibt identisch.
 OPUS_BITRATE = os.environ.get("KIHIWI_OPUS", "24k")
 VAD_MODELL = WURZEL / "vad" / "silero_vad.onnx"
-# thorsten_emotional bringt acht Sprechweisen im selben Modell mit:
-# amused, angry, disgusted, drunk, neutral, sleepy, surprised, whisper.
-# Vergleichen unter http://127.0.0.1:8920/stimmen
-STIMME     = WURZEL / "voices" / "de_DE-thorsten_emotional-medium.onnx"
+# Zurueck auf thorsten-medium nach dem Vergleich: -high klingt fuer das Ohr
+# gleich und kostet 305 statt 83 ms je Satz, thorsten_emotional (neutral) ist
+# ebenso schnell, aber ebenso ununterscheidbar -- und bringt eine
+# Sprecherauswahl mit, die niemand braucht. Proben unter /stimmen; die
+# Auswahllogik in tts.py bleibt, falls doch einmal gewechselt wird.
+STIMME     = WURZEL / "voices" / "de_DE-thorsten-medium.onnx"
 STIMM_ART  = os.environ.get("KIHIWI_STIMM_ART", "neutral")
 VOKABULAR  = WURZEL / "vokabular.txt"
 

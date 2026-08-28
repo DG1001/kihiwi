@@ -474,6 +474,19 @@ Nachbereitung oder Recherche lädt er sie selbst neu.
 mir das Protokoll" über das Modell zu lösen kostete einen Abend Prompt-Arbeit
 und blieb wackelig; eine Liste kann nicht missverstanden werden.
 
+### Datum und Uhrzeit stehen im Prompt
+
+`_jetzt()` setzt Wochentag, Datum und Uhrzeit in **jeden** Prompt, neu je
+Antwort. **Bewusst kein Werkzeug:** ein Werkzeug wäre wieder etwas, das das
+Modell aufrufen kann oder eben nicht — und ohne Aufruf erfindet es die Zeit
+(„Es ist ungefähr 13:41 Uhr" kam so zustande). Im Prompt steht es immer und
+kostet nichts.
+
+Reine Zeitfragen beantwortet der Dienst zusätzlich direkt (Absicht `ZEIT`),
+ohne das Modell: über den Umweg suchte er dafür erst in den Unterlagen und dann
+im Netz. Abgegrenzt gegen Fragen an die Quellen — „Welches Datum steht im
+Protokoll?" ist keine Frage an die Uhr.
+
 ### Auslösewörter: der Dienst handelt, das Modell wird nicht gefragt
 
 Tabelle in `absicht.AUSLOESER`. Fällt eines dieser Wörter, handelt der Dienst

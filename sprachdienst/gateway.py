@@ -13,6 +13,7 @@ Protokoll auf /audio
 Auf /monitor liegt nur der Zustand -- fuer den Bildschirm im Labor.
 """
 import asyncio, http, json, logging, re, signal, time
+from datetime import datetime
 from pathlib import Path
 import numpy as np
 import websockets
@@ -106,6 +107,24 @@ ANSAGE = {
     "web_suchen": "Ich schaue kurz im Netz nach.",
     "rechercheauftrag": "Das gebe ich als Rechercheauftrag ab, das dauert ein paar Minuten.",
 }
+
+_WOCHENTAG = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag",
+              "Samstag", "Sonntag"]
+
+
+def _jetzt() -> str:
+    """Datum und Uhrzeit fuer den Prompt.
+
+    Bewusst KEIN Werkzeug: ein Werkzeug waere wieder etwas, das das Modell
+    aufrufen kann oder eben nicht -- und ohne Aufruf erfindet es die Zeit
+    ("Es ist ungefaehr 13:41 Uhr" kam so zustande). Im Prompt steht es immer
+    und kostet nichts. Wird je Antwort neu gebildet, damit die Uhrzeit im
+    laufenden Gespraech stimmt.
+    """
+    n = datetime.now().astimezone()
+    return (f"Heute ist {_WOCHENTAG[n.weekday()]}, der {n.strftime('%d.%m.%Y')}, "
+            f"es ist {n.strftime('%H:%M')} Uhr.")
+
 
 def _sprechbar(text: str) -> str:
     """Markdown fuer die Sprachausgabe abraeumen.
@@ -397,6 +416,12 @@ class Sitzung:
             if art and await self.per_ausloeser(art, thema, text):
                 return
 
+            # Datum und Uhrzeit kennt der Dienst selbst. Ueber das Modell
+            # suchte er dafuer erst in den Unterlagen und dann im Netz.
+            if wofuer is absicht_modul.Absicht.ZEIT:
+                await self.melden(_jetzt())
+                return
+
             # Protokollabruf: der Dienst weiss, wo die Protokolle liegen.
             # Ueber das Modell ging es schief -- es sagte "ich sehe kein
             # Protokoll", weil es keinen Dateizugriff hat.
@@ -624,7 +649,7 @@ class Sitzung:
 
     def antwort_prompt(self) -> str:
         """Sprechstil — NUR fuer die Schlussantwort, nie fuer die Werkzeugrunde."""
-        return konfig.SYSTEM_PROMPT
+        return konfig.SYSTEM_PROMPT + " " + _jetzt()
 
     def system_prompt(self, wofuer=None) -> str:
         """Kurzer Prompt, zugeschnitten auf die erkannte Absicht.
@@ -637,7 +662,7 @@ class Sitzung:
         # Bewusst OHNE konfig.SYSTEM_PROMPT: dessen Sprechstil-Anweisung
         # unterdrueckt den Werkzeugaufruf (gemessen 0/3 gegen 3/3).
         teile = ["Du bist der Laborassistent eines KI-Labors und hast Werkzeuge. "
-                 "Benutze sie, wenn sie passen."]
+                 "Benutze sie, wenn sie passen.", _jetzt()]
         lauft = "läuft gerade" if HALTER.z.aufnahme else "läuft gerade nicht"
         teile.append(f"Die Audioaufzeichnung des Laborgesprächs {lauft}.")
         if wofuer is not None:
