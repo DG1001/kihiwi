@@ -918,3 +918,47 @@ oeffnet den Gespraechsmodus nicht.
 Geprueft mit der Sprechprobe, einmal MIT simuliertem Knopfdruck und einmal ohne
 -- der zweite Lauf ist der eigentliche Fall. Dazwischen lief „Wie dick ist das
 Fenster?" als Kontrolle und wurde korrekt verworfen ("nicht angesprochen").
+
+## Sprechertrennung im Protokoll
+
+Frage war, wie gut die Transkription Personen unterscheiden kann. Antwort
+vorher: gar nicht, das Protokoll war ein Textstrom ohne Sprecherfeld.
+whisper.cpp bringt zwei Optionen mit, die beide nicht taugen -- `--diarize`
+braucht Stereo, `--tinydiarize` gibt es nur auf Englisch und markiert nur
+Wechsel.
+
+Gebaut mit sherpa-onnx (pyannote-Segmentierung + CAM++-Embeddings, beides
+ONNX), passend zum vorhandenen onnxruntime. Als eigener Schritt in der
+Nachbereitung, abschaltbar -- der Wunsch war ausdruecklich, es notfalls wieder
+herausnehmen zu koennen.
+
+**Gemessen statt geschaetzt.** Die eigenen Aufnahmen tragen eine brauchbare
+Wahrheit in sich: Kiwis Ansagen sind ein fester Satzvorrat, alles andere ist
+Fred. Ueber sechs Sitzungen und 54 Transkriptzeilen kamen 89-91 % sauber heraus,
+und der Schwellenwert 0,7 fand meist genau zwei Cluster statt vier. Die Zahl
+gilt aber fuer den LEICHTEN Fall, Mensch gegen synthetische Stimme; zwei
+Menschen an einem Mikrofon sind schwerer. Das gehoert dazugesagt.
+
+**Was die Messung nebenbei zeigte:** lange Passagen sind stabil (ein
+dreissigsekuendiger Fachvortrag blieb durchgehend derselbe Cluster), Ein- und
+Zweisekuender bekommen eigene Etiketten. Deshalb wird unterhalb von 0,7 s und
+bei unklarer Ueberlappung gar nichts zugeordnet.
+
+**Beinahe falsch repariert.** Beim Durchsehen fiel auf, dass Kiwis eigene
+Antworten im Protokoll stehen. Das sah nach einem Fehler aus -- ist aber
+Absicht, `doku.mische()` mischt sie bewusst bei, sonst stuende nur die halbe
+Unterhaltung drin. Statt sie zu entfernen haelt der Rekorder jetzt fest, wann
+er beigemischt hat; diese Abschnitte heissen "Kiwi" und muessen nicht geraten
+werden.
+
+**Ein Fehler lag im Testclient, nicht im Code.** Zwischen den Saetzen schickte
+er sechs Sekunden gar kein Audio statt Stille. Der Rekorder rueckt aber nur mit
+ankommenden Bloecken vor -- die Zeitachse schrumpfte, und die gepufferte
+Beimischung landete ueber der naechsten Aeusserung. Genau der Stau, vor dem der
+Kommentar in `mische()` warnt. Nach der Korrektur 6 von 6 Zeilen richtig
+zugeordnet.
+
+**Und noch eine Verstuemmelung:** die Erkennung schrieb "Sprachaufzeichen und
+starten". Der Direktbefehl haengt jetzt an "sprachauf" statt an der genauen
+Schreibung -- unscharf wie das Aktivierungswort, aber immer noch eng genug,
+dass "Aufzeichnung starten" allein nicht ausloest.

@@ -10,6 +10,8 @@
 #   ./dienste.sh protokoll [...] Aufnahmen transkribieren und Protokoll bauen
 #   ./dienste.sh wissen [...]    Unterlagen einlesen/durchsuchen
 #                                (einlesen | status | suchen ... | web ...)
+#   ./dienste.sh sprechermodelle laedt die Modelle der Sprechertrennung nach
+#                                (35 MB, liegen nicht im Repo)
 #
 # Die Dienste werden ueber ihren PORT gefunden, nicht ueber den Prozessnamen:
 # `pkill -f sprachdienst.gateway` bringt die eigene Shell um, weil das Muster in
@@ -167,6 +169,33 @@ case "${1:-status}" in
     wissen)
         shift
         exec "$VENV" -m wissen "$@" ;;
+    sprechermodelle)
+        # Die einzige Stelle, die etwas aus dem Netz holt, und sie laeuft nur
+        # auf ausdrueckliche Anweisung. Zur Laufzeit geht nichts hinaus.
+        ziel="$WURZEL/modelle"; mkdir -p "$ziel"
+        basis=https://github.com/k2-fsa/sherpa-onnx/releases/download
+        if [ -d "$ziel/sherpa-onnx-pyannote-segmentation-3-0" ]; then
+            echo "  Segmentierung liegt schon da"
+        else
+            echo "  Segmentierung holen ..."
+            curl -fsSL --retry 2 -o "$ziel/seg.tar.bz2" \
+                "$basis/speaker-segmentation-models/sherpa-onnx-pyannote-segmentation-3-0.tar.bz2" \
+                && tar xjf "$ziel/seg.tar.bz2" -C "$ziel" && rm -f "$ziel/seg.tar.bz2" \
+                || { fehl "Segmentierungsmodell nicht geladen"; exit 1; }
+        fi
+        if [ -f "$ziel/campplus.onnx" ]; then
+            echo "  Sprecher-Embedding liegt schon da"
+        else
+            echo "  Sprecher-Embedding holen ..."
+            curl -fsSL --retry 2 -o "$ziel/campplus.onnx" \
+                "$basis/speaker-recongition-models/3dspeaker_speech_campplus_sv_zh_en_16k-common_advanced.onnx" \
+                || { fehl "Embedding-Modell nicht geladen"; exit 1; }
+        fi
+        "$VENV" -c "import sherpa_onnx" 2>/dev/null \
+            || { echo "  sherpa-onnx fehlt — $VENV -m pip install sherpa-onnx"; exit 1; }
+        exec "$VENV" -c "import sys; sys.path.insert(0,'$WURZEL')
+from sprachdienst import sprecher
+print('  bereit:', sprecher.laden() is not None)" ;;
     log)
         case "${2:-sprach}" in
             sprach)  tail -f "$LOGS/sprach.log" ;;

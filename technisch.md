@@ -878,3 +878,40 @@ mangels Aktivierungswort -- der Direktbefehl kostet also nichts extra.
 hoechstens sechs Woerter haben. Ohne die Kuerze wuerde „wir sollten die
 Sprachaufzeichnung nachher mal starten, wenn alle da sind" mitten im Gespraech
 den Mitschnitt anwerfen -- und zwar ohne jede Ansprache.
+
+### Sprechertrennung (`sprachdienst/sprecher.py`)
+
+Laeuft NICHT im Sprachpfad, sondern in der Nachbereitung auf dem gespeicherten
+Rohaudio. Faellt sie aus, entsteht das Protokoll wie bisher, nur ohne
+Sprecherangabe. Abschaltbar mit `KIHIWI_SPRECHER=0`.
+
+**Modelle** (35 MB, nicht im Repo, `./dienste.sh sprechermodelle`):
+pyannote-segmentation-3.0 als ONNX plus 3D-Speaker CAM++ als Embedding, beide
+aus dem sherpa-onnx-Zoo. `sherpa-onnx` laeuft auf CPU ueber onnxruntime, das
+fuer Silero-VAD ohnehin schon da ist. Gemessen 17-38x Echtzeit.
+
+**Warum whisper.cpp nicht reicht:** `--diarize` vergleicht linken und rechten
+Kanal, das Jabra liefert mono. `--tinydiarize` braucht ein tdrz-Modell, das es
+nur auf Englisch gibt, und markiert nur Sprecherwechsel, keine Personen.
+
+**Gemessene Qualitaet.** Gegen die eigenen Aufnahmen ausgewertet, mit den
+Ansagen des Assistenten als bekannte Wahrheit: **89-91 % der Transkriptzeilen
+sauber zugeordnet**, 54 Zeilen aus sechs Sitzungen. Schwellenwert 0,7 findet
+dabei meist genau zwei Cluster; 0,4 zersplittert in vier bis fuenf.
+
+**Die Zahl ist ehrlich, aber sie misst den leichten Fall** -- eine menschliche
+Stimme gegen eine synthetische. Zwei Menschen im selben Raum, an einem
+Mikrofon, in unterschiedlichem Abstand, ist deutlich schwerer. Ueberlappende
+Rede ist die eigentliche Grenze, nicht das Modell.
+
+**Lieber keine Angabe als eine falsche.** `zuordnen()` entscheidet ueber die
+groesste zeitliche Ueberlappung und laesst offen, wenn der beste Sprecher unter
+60 % des Abschnitts deckt, zwei fast gleichauf liegen (da hat jemand
+dazwischengeredet), oder der Abschnitt kuerzer als 0,7 s ist. Fuer ein "mhm"
+reicht kein Stimmprofil.
+
+**Kiwi wird nicht geraten.** Der Rekorder mischt die eigene Sprachausgabe
+bewusst in die Aufnahme (`doku.mische`, sonst stuende nur die halbe
+Unterhaltung im Protokoll) -- und haelt seither in der Begleitdatei fest, WANN
+(`eigene_stimme_ms`). Diese Abschnitte heissen "Kiwi", nicht "Sprecher B".
+Deterministisch, wie ueberall sonst auch.

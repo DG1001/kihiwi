@@ -29,6 +29,8 @@ class Rekorder:
         self.begonnen = 0.0
         self.sitzung: str | None = None
         self.beimischung = np.zeros(0, dtype=np.float32)
+        self.frames = 0                       # geschrieben in der aktuellen Datei
+        self.eigene: list[list[int]] = []     # ms-Bereiche mit Kiwis Stimme
 
     def start(self) -> str:
         self.stop()
@@ -44,6 +46,8 @@ class Rekorder:
         self.w = wave.open(str(self.pfad), "wb")
         self.w.setnchannels(1); self.w.setsampwidth(2); self.w.setframerate(konfig.RATE)
         self.begonnen = time.time()
+        self.frames = 0
+        self.eigene = []
         # Begleitdatei: ohne sie ist spaeter nicht rekonstruierbar, wann was war.
         (self.pfad.with_suffix(".json")).write_text(json.dumps({
             "begonnen_utc": datetime.now(timezone.utc).isoformat(),
@@ -53,6 +57,38 @@ class Rekorder:
     def _schliessen(self):
         if self.w:
             self.w.close(); self.w = None
+            self._eigene_sichern()
+
+    def _eigene_sichern(self):
+        """Haelt fest, WANN Kiwi selbst zu hoeren war.
+
+        Der Rekorder weiss das genau -- er hat die Sprachausgabe ja selbst
+        beigemischt. Die Sprechertrennung muesste es erraten, und "Sprecher B"
+        waere fuer den Assistenten eine unnoetig vage Angabe.
+        """
+        if not self.pfad:
+            return
+        begleit = self.pfad.with_suffix(".json")
+        try:
+            d = json.loads(begleit.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return
+        d["eigene_stimme_ms"] = self.eigene
+        try:
+            begleit.write_text(json.dumps(d, indent=1), encoding="utf-8")
+        except OSError:
+            pass
+
+    def _eigene_merken(self, n: int):
+        """n beigemischte Abtastwerte ab der aktuellen Schreibstelle."""
+        a = self.frames * 1000 // konfig.RATE
+        b = (self.frames + n) * 1000 // konfig.RATE
+        # An den vorigen Bereich anschliessen, wenn er direkt davor endet --
+        # sonst entstehen Hunderte Schnipsel von je 32 ms.
+        if self.eigene and a - self.eigene[-1][1] <= 200:
+            self.eigene[-1][1] = b
+        else:
+            self.eigene.append([a, b])
 
     def mische(self, pcm: bytes, rate: int):
         """Nimmt Sprachausgabe entgegen, die in die Aufnahme gehoert.
@@ -90,7 +126,9 @@ class Rekorder:
             samples = samples.copy()
             samples[:n] += self.beimischung[:n] * MISCH_PEGEL
             self.beimischung = self.beimischung[n:]
+            self._eigene_merken(n)
         self.w.writeframes((np.clip(samples, -1, 1) * 32767).astype(np.int16).tobytes())
+        self.frames += len(samples)
 
     def stop(self):
         self._schliessen(); self.pfad = None

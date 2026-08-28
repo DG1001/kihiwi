@@ -41,3 +41,6 @@ stimmproben/
 
 # Laufende Timer und Erinnerungen -- Betriebszustand, keine Quelle.
 zustand/
+
+# Modelle der Sprechertrennung: 35 MB, per Skript nachladbar.
+modelle/

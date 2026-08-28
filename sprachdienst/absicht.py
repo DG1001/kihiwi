@@ -170,8 +170,14 @@ def alle_loeschen(text: str) -> bool:
 # den Gespraechsmodus zu oeffnen. Zusammengesetztes Wort wie bei den anderen
 # Ausloesern: es faellt nicht versehentlich, und im Labor wird ueber die
 # Aufzeichnung durchaus geredet ("die Aufzeichnung laeuft ja").
-_DIREKT_WORT = re.compile(r"\b(sprach[- ]?(?:auf|aus)zeichnung|"
-                          r"sprach[- ]?aufnahme)\b")
+# Nicht auf die genaue Schreibung festnageln: die Erkennung schrieb
+# "Sprachaufzeichen und starten". Ein langes Kompositum wird verstuemmelt, das
+# Aktivierungswort loest dasselbe Problem seit jeher unscharf.
+#
+# Der Anker bleibt "sprachauf": damit passt weder "Aufzeichnung" allein noch
+# irgendein anderes Wort des Labors. Getrennte Schreibung wird vorher
+# zusammengezogen, die Erkennung zerlegt Komposita gern.
+_DIREKT_WORT = re.compile(r"\bsprach[- ]?(?:auf|aus)\w*")
 _DIREKT_AN  = re.compile(r"\b(start\w*|beginn\w*|los|an|anschalt\w*|"
                          r"einschalt\w*|aufnehmen|mitschneiden)\b")
 _DIREKT_AUS = re.compile(r"\b(stopp\w*|stop|beend\w*|aus|ausschalt\w*|"

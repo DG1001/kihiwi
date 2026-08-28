@@ -29,7 +29,7 @@ from pathlib import Path
 
 import numpy as np
 
-from . import konfig, llm, stt
+from . import konfig, sprecher as sprecher_modul, llm, stt
 
 # --- VAD-Zerlegung -----------------------------------------------------------
 LUECKE_MS   = 600     # kuerzere Pausen trennen nicht -- sonst zerfaellt jeder Satz
@@ -45,6 +45,7 @@ class Abschnitt:
     text_roh: str = ""
     text:     str = ""      # nach der Korrektur; leer bis dahin
     beginn_utc: str = ""    # Startzeit der Aufnahme, fuer die absolute Uhrzeit
+    sprecher: str = ""      # "Sprecher A"; leer, wenn nicht sicher zuzuordnen
 
     @property
     def zeit(self) -> str:
@@ -302,6 +303,13 @@ async def verarbeite(wav: Path, neu: bool = False) -> list[Abschnitt] | None:
     return abschnitte
 
 
+def _ueberdeckt(bereiche, start_ms: int, ende_ms: int, anteil: float = 0.5) -> bool:
+    """Faellt der Abschnitt ueberwiegend in einen der Bereiche?"""
+    dauer = max(1, ende_ms - start_ms)
+    treffer = sum(max(0, min(ende_ms, b) - max(start_ms, a)) for a, b in bereiche)
+    return treffer / dauer >= anteil
+
+
 async def verarbeite_sitzung(sitzung: Path, neu: bool = False) -> Path | None:
     alle: list[Abschnitt] = []
     versatz = 0
@@ -311,9 +319,31 @@ async def verarbeite_sitzung(sitzung: Path, neu: bool = False) -> Path | None:
         if a is None and vorhanden.exists():
             a = [Abschnitt(**d) for d in json.loads(vorhanden.read_text(encoding="utf-8"))]
             print(f"  {wav.name} ... schon transkribiert ({len(a)} Abschnitte)")
+
+        # Kiwis eigene Stimme steht als Bereich in der Begleitdatei -- der
+        # Rekorder hat sie selbst beigemischt und weiss es genau. Das schlaegt
+        # jede Schaetzung der Sprechertrennung.
+        eigene = []
+        try:
+            eigene = json.loads(wav.with_suffix(".json").read_text(
+                encoding="utf-8")).get("eigene_stimme_ms", [])
+        except (OSError, ValueError):
+            pass
+
+        # Sprechertrennung auf DIESER Datei, vor dem Versatz: die Zeiten der
+        # Diarisierung beziehen sich auf die einzelne Aufnahme.
+        beitraege = []
+        if a and sprecher_modul.verfuegbar():
+            print(f"  {wav.name} ... Sprecher trennen ", end="", flush=True)
+            beitraege = await asyncio.to_thread(
+                sprecher_modul.zerlegen, lies_audio(wav), konfig.RATE)
+            print(f"({len({r.sprecher for r in beitraege})} erkannt)")
+
         for x in (a or []):
+            wer = ("Kiwi" if _ueberdeckt(eigene, x.start_ms, x.ende_ms)
+                   else sprecher_modul.zuordnen(beitraege, x.start_ms, x.ende_ms))
             alle.append(Abschnitt(x.start_ms + versatz, x.ende_ms + versatz,
-                                  x.text_roh, x.text, x.beginn_utc))
+                                  x.text_roh, x.text, x.beginn_utc, wer))
         versatz += len(lies_audio(wav)) * 1000 // konfig.RATE
 
     if not alle:
@@ -342,9 +372,30 @@ async def verarbeite_sitzung(sitzung: Path, neu: bool = False) -> Path | None:
             "",
             bericht, "",
         ]
+    stimmen = sorted({a.sprecher for a in alle if a.sprecher})
     zeilen += ["## Transkript", ""]
+    menschen = [x for x in stimmen if x != "Kiwi"]
+    if stimmen:
+        hinweis = []
+        if menschen:
+            hinweis.append(
+                f"> **{len(menschen)} Stimme{'n' if len(menschen) != 1 else ''} "
+                f"unterschieden** ({', '.join(menschen)}). Automatisch getrennt, "
+                "nicht namentlich")
+            hinweis.append(
+                "> zugeordnet, und keine Aussage über die Zahl der Anwesenden. "
+                "Wo die Zuordnung")
+            hinweis.append(
+                "> nicht eindeutig war — kurze Einwürfe, übereinander Reden —, "
+                "steht keine.")
+        if "Kiwi" in stimmen:
+            hinweis.append("> **Kiwi** ist der Assistent selbst; das ist keine "
+                           "Schätzung, sondern protokolliert.")
+        hinweis.append("> Im Zweifel gilt die Aufnahme.")
+        zeilen += hinweis + [""]
     # Beide Zeitangaben: die Uhrzeit sagt WANN, der Versatz WO im Audio.
     zeilen += [f"**[{a.uhrzeit or a.zeit}]**" + (f" *(bei {a.zeit})*" if a.uhrzeit else "")
+               + (f" **{a.sprecher}:**" if a.sprecher else "")
                + f" {a.text}"
                + ("" if a.text == a.text_roh else f"  \n<sub>roh: {a.text_roh}</sub>")
                for a in alle]
