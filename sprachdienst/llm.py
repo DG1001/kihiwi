@@ -35,7 +35,8 @@ def _strom(nachrichten, max_tokens, temperatur, schieb, werkzeuge=None):
     Argumente als JSON-Fragmente ueber mehrere Deltas.
     """
     try:
-        rumpf = {"model": konfig.LLM_MODEL, "stream": True,
+        rumpf = {**konfig.LLM_ZUSATZ,
+                 "model": konfig.LLM_MODEL, "stream": True,
                  "max_tokens": max_tokens, "temperature": temperatur,
                  "messages": nachrichten}
         if werkzeuge:
@@ -243,7 +244,8 @@ def _einmal(nachrichten, max_tokens, temperatur, werkzeuge, timeout=60):
     Fehler und ohne dass die Anfrage im vLLM-Protokoll auftauchte. Halbierung
     am 27.08.2026 belegt. Der ungestreamte Pfad ist davon nicht betroffen.
     """
-    rumpf = {"model": konfig.LLM_MODEL, "max_tokens": max_tokens,
+    rumpf = {**konfig.LLM_ZUSATZ,
+             "model": konfig.LLM_MODEL, "max_tokens": max_tokens,
              "temperature": temperatur, "messages": nachrichten}
     if werkzeuge:
         rumpf["tools"] = werkzeuge
@@ -378,6 +380,7 @@ async def erzwinge_werkzeug(frage: str, verlauf, werkzeuge, name: str,
         req = urllib.request.Request(
             f"{konfig.LLM_URL}/chat/completions",
             data=json.dumps({
+                **konfig.LLM_ZUSATZ,
                 "model": konfig.LLM_MODEL, "max_tokens": 80, "temperature": 0,
                 "messages": nachrichten, "tools": werkzeuge,
                 "tool_choice": {"type": "function", "function": {"name": name}},
@@ -425,7 +428,8 @@ async def p_fertig(text: str, timeout: float = 5.0) -> float:
     def _p():
         req = urllib.request.Request(
             f"{konfig.LLM_URL}/chat/completions",
-            data=json.dumps({"model": konfig.LLM_MODEL, "max_tokens": 1,
+            data=json.dumps({**konfig.LLM_ZUSATZ,
+                             "model": konfig.LLM_MODEL, "max_tokens": 1,
                              "temperature": 0, "logprobs": True, "top_logprobs": 20,
                              "messages": [{"role": "system", "content": sys_p},
                                           {"role": "user", "content": text}]}).encode(),

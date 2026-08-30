@@ -70,6 +70,20 @@ haben 0.85 als Vorgabe, und dann hungert der Sprachstapel. `CTX=131072` ist nur
 bei `qwenvl30` nötig (dessen `DEF_CTX` ist 65536 — Hermes' Untergrenze, an der
 er schon einmal scheiterte).
 
+**Ein fremder Motor auf 8889: `KIHIWI_LLM_ZUSATZ`.** Was der eine Motor als
+Startflagge kennt, verlangt der andere im Anfragerumpf. vLLM schaltet das
+Nachdenken mit `--default-chat-template-kwargs` ab, `llama-server` hat dafür
+keine Vorgabe — dort muss es der Klient mitschicken. Die Variable wird als JSON
+in **jede** Anfrage gemischt:
+
+```bash
+KIHIWI_LLM_ZUSATZ='{"chat_template_kwargs":{"enable_thinking":false}}'
+```
+
+Bewusst roh durchgereicht statt auf bekannte Schalter beschränkt: welcher Motor
+hängt, entscheidet der Betrieb. Verunglückt die Variable, redet der Dienst
+trotzdem weiter — aber mit einer Zeile auf stderr, nicht still.
+
 **Hermes bekommt das Modell jetzt mit `-m` übergeben.** Ohne den Schalter nimmt
 er `model.default` aus `~/.hermes/config.yaml` — und dort steht Ornith fest.
 Nach einem Wechsel lief der Sprachpfad einwandfrei, während die Recherche mit
@@ -91,6 +105,27 @@ Sprecher, warm):
 | Werkzeugaufrufe auf 4 Fragen | 1 | 4, einmal ungefragt `web_suchen` | 3 | 1 |
 | Rechercheauftrag | 26–63 s | **Abbruch bei 420 s** | 23–46 s | 40 s |
 | Nachdenken im Sprachtext | nein | nein | nein | nein |
+
+**Qwen3.8-Flash-Next (125B/6B aktiv, Q3_K_XL, llama-server)** ist der erste
+fremde Motor am Sprachdienst und antwortet fachlich am besten — als einziges
+Modell fand es zur Beschleunigungsspannung tatsächlich etwas in den Unterlagen
+(„der Elektronenstrahl dient selbst als Voltmeter, etwa hundert ppm") statt
+„nichts gefunden", und es bildet die deutschen Komposita richtig.
+
+**Ohne `enable_thinking: false` ist es unbrauchbar.** Es schrieb rund 600 Token
+Überlegung vor dem ersten Satz: 9–17 s bis zum ersten Ton, und der Sprachdienst
+brach mit „Das dauert mir zu lange" selbst ab. Mit dem Schalter 1,1–6,2 s. Die
+Tokenrate ändert sich dabei **nicht** (28,1 gegen 29,0 tok/s) — es ist reine
+Menge.
+
+| Qwen3.8-Flash-Next | ohne Schalter | mit `enable_thinking: false` |
+|---|---|---|
+| erster Satz | 9,4–16,7 s, Abbrüche | **1,1–6,2 s** |
+| Generierung | 28,1 tok/s | 29,0 tok/s |
+
+Rechercheauftrag: 103 s — deutlich über Ornith, aber weit unter der 420-s-Grenze.
+**Hermes bekommt `KIHIWI_LLM_ZUSATZ` nicht**, das sind kihiwis eigene Rümpfe; er
+denkt also weiter mit. Kontext 65536 ist Hermes' Untergrenze und ging hier gut.
 
 **Qwen3.8-27B ruft Werkzeuge bereitwillig, aber es hört danach auf zu denken.**
 Auf „Unterschied zwischen Sekundär- und Rückstreuelektronen" suchte es in den

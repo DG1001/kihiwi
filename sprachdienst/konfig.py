@@ -3,6 +3,7 @@
 Absichtlich eine einzige Datei ohne Ladelogik -- solange es keine zweite
 Installation gibt, ist eine Konfigurationsdatei nur eine weitere Fehlerquelle.
 """
+import json, sys
 import os
 from pathlib import Path
 
@@ -19,6 +20,26 @@ PORT      = int(os.environ.get("KIHIWI_PORT", "8920"))
 STT_URL   = os.environ.get("KIHIWI_STT", "http://127.0.0.1:8910/inference")
 LLM_URL   = os.environ.get("KIHIWI_LLM", "http://127.0.0.1:8889/v1")
 LLM_MODEL = os.environ.get("KIHIWI_MODEL", "ornith-1.5-35b-a3b")
+# Zusaetzliche Felder fuer jede Anfrage an das Modell, als JSON-Objekt. Was ein
+# Motor als Startflagge kennt, verlangt ein anderer im Rumpf: vLLM schaltet das
+# Nachdenken mit --default-chat-template-kwargs ab, llama-server hat dafuer
+# keine Vorgabe -- dort muss es der Klient mitschicken. Ohne den Schalter schrieb
+# Qwen3.8-Flash-Next rund 600 Token Ueberlegung, bevor der erste Satz kam: 9 bis
+# 17 Sekunden bis zum ersten Ton, und der Dienst brach selbst ab.
+#
+#   KIHIWI_LLM_ZUSATZ='{"chat_template_kwargs":{"enable_thinking":false}}'
+#
+# Bewusst roh durchgereicht und nicht auf bekannte Schalter beschraenkt: welcher
+# Motor hier haengt, entscheidet der Betrieb, nicht dieser Code.
+try:
+    LLM_ZUSATZ = json.loads(os.environ.get("KIHIWI_LLM_ZUSATZ", "") or "{}")
+    if not isinstance(LLM_ZUSATZ, dict):
+        raise ValueError("kein Objekt")
+except ValueError as _e:
+    # Laut scheitern waere hier falsch -- der Assistent soll reden, auch wenn
+    # jemand die Variable verunglueckt. Aber still darf es nicht bleiben.
+    print(f"KIHIWI_LLM_ZUSATZ ignoriert ({_e})", file=sys.stderr)
+    LLM_ZUSATZ = {}
 
 # --- Audio ------------------------------------------------------------------
 RATE       = 16000

@@ -52,16 +52,21 @@ bereit_vllm()    { curl -sf --max-time 2 "http://127.0.0.1:$P_VLLM/v1/models"; }
 
 # Liest die /v1/models-Antwort von stdin. Als Funktion statt als Einzeiler:
 # ein f-string mit maskierten Anfuehrungszeichen scheitert in python3 -c.
+# Der Kontext steht je nach Motor woanders: vLLM nennt ihn max_model_len,
+# llama.cpp meta.n_ctx. Beide werden gelesen -- auf 8889 muss nicht vLLM
+# liegen, jeder lokale OpenAI-kompatible Server tut es.
 modellzeile() { python3 -c 'import sys,json
 try:
     d = json.load(sys.stdin)["data"][0]
-    print("%s, ctx %s" % (d["id"], d.get("max_model_len", "?")))
+    ctx = d.get("max_model_len") or (d.get("meta") or {}).get("n_ctx") or "?"
+    print("%s, ctx %s" % (d["id"], ctx))
 except Exception:
     pass' 2>/dev/null; }
 
 modellctx() { python3 -c 'import sys,json
 try:
-    print(json.load(sys.stdin)["data"][0].get("max_model_len",""))
+    d = json.load(sys.stdin)["data"][0]
+    print(d.get("max_model_len") or (d.get("meta") or {}).get("n_ctx") or "")
 except Exception:
     pass' 2>/dev/null; }
 

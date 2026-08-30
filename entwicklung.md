@@ -1279,3 +1279,43 @@ alle richtig.
 
 **Lieber nichts erkennen als das Falsche** -- dieselbe Regel, die schon fuer die
 Sprechertrennung galt.
+
+### Ein fremder Motor: Qwen3.8-Flash-Next ueber llama-server
+
+Fred hatte das Modell in einer anderen Sitzung zum Laufen gebracht (llama.cpp
+kann `qwen4exp` jetzt) und wollte es als Sprachmodell probieren. Damit haengt
+erstmals **kein vLLM** an 8889.
+
+Drei Dinge vorher geprueft, nicht nachher: `--jinja` ist gesetzt und
+Werkzeugaufrufe kommen als `tool_calls` zurueck; der Alias heisst
+`qwen3.8-flash-next`; und -- das Entscheidende -- **wohin das Nachdenken im
+Strom geht.** Es ist ein Denkmodell, aber llama.cpp trennt sauber: 145 Zeichen
+`content`, 352 `reasoning_content`. Piper spraeche also nur die Antwort.
+
+**Trotzdem war es unbrauchbar.** 9 bis 17 Sekunden bis zum ersten Satz, und der
+Dienst brach zweimal selbst ab ("Das dauert mir zu lange"). Die Messung zeigte
+warum: rund 600 Token Ueberlegung vor jeder Antwort. **Die Tokenrate war nicht
+schuld** -- 28,1 tok/s mit Denken gegen 29,0 ohne. Es ist die Menge, nicht das
+Tempo. Ohne die Gegenmessung haette ich es fuer ein zu langsames Modell gehalten
+und den falschen Schluss gezogen.
+
+**Der Schalter existiert, er wurde nur nicht mitgeschickt.** vLLM setzt
+`--default-chat-template-kwargs '{"enable_thinking": false}'` beim Start;
+`llama-server` hat dafuer keine Vorgabe, der Klient muss es in den Rumpf legen.
+Neu: `KIHIWI_LLM_ZUSATZ` als JSON-Objekt, das in jede Anfrage gemischt wird --
+roh durchgereicht, nicht auf bekannte Schalter beschraenkt. Welcher Motor haengt,
+entscheidet der Betrieb, nicht dieser Code.
+
+Danach 1,1 bis 6,2 Sekunden, keine Abbrueche mehr, und **fachlich die besten
+Antworten bisher**: als einziges Modell fand es zur Beschleunigungsspannung
+etwas in den Unterlagen ("der Elektronenstrahl dient selbst als Voltmeter, etwa
+hundert ppm") statt "nichts gefunden", und die deutschen Komposita stimmen.
+Rechercheauftrag in 103 s.
+
+Nebenbei: `dienste.sh` las den Kontext nur aus `max_model_len`, llama.cpp legt
+ihn in `meta.n_ctx` -- die Statuszeile sagte "ctx ?". Beide Felder werden jetzt
+gelesen. Auf 8889 muss kein vLLM liegen; die README verspricht das seit der
+Veroeffentlichung, gepruegt war es nie.
+
+**Der Speicher ist der Haken:** 84 GB Gewichte lassen 18 GiB fuer alles andere,
+gegen 41 GiB bei den 22-GB-Modellen. Es laeuft, aber ohne Reserve.
