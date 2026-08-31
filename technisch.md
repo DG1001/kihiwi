@@ -301,6 +301,24 @@ Assistenten.
     ./dienste.sh wissen suchen ...      Volltextsuche
     ./dienste.sh wissen web ...         SearXNG
 
+**Umlaute in beiden Schreibweisen.** Der Index faltet sie weg
+(`tokenize = unicode61 remove_diacritics 2`): „Sekundärelektronen" liegt dort
+als `sekundarelektronen`. Eine Anfrage in ae/oe/ue-Schreibweise traf das nie —
+gemessen **„Sekundärelektronen" 8 Treffer, „Sekundaerelektronen" null.**
+`begriffe()` hängt jetzt die gefalteten Varianten als zusätzliche ODER-Begriffe
+an.
+
+**Alle Kombinationen, nicht alles ersetzen.** In „rueckstreuelektronen" ist das
+erste `ue` ein Umlaut, das zweite (streu+elektronen) keiner; sequentielles
+Ersetzen machte daraus `ruckstreulektronen` und fand nichts. Bei bis zu drei
+Vorkommen werden alle 2ⁿ Schreibweisen erzeugt. Eine unsinnige Variante kostet
+nichts — bei ODER trifft sie einfach nicht.
+
+**Es wirkt in beide Richtungen.** Das Korpus selbst mischt die Schreibweisen:
+`"saeule"` kommt 81-mal vor (Dateinamen, umlautfrei geschriebene Dokumente),
+`"saule"` 189-mal. Vorher fand eine Anfrage je nach Tippweise nur eine der
+beiden Mengen, jetzt beide — 260 statt 189.
+
 **Der Auszug liegt UM die Fundstelle, nicht am Anfang des Abschnitts.**
 Vorher gingen die ersten 600 Zeichen ans Modell. Über acht Fachfragen gemessen
 enthielten **9 % der gelieferten Auszüge keinen einzigen Suchbegriff** — der

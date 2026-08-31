@@ -112,9 +112,50 @@ _STOPP = {
 }
 
 
+# Der Index faltet Umlaute weg (`tokenize = unicode61 remove_diacritics 2`):
+# "Sekundaerelektronen" steht dort als "sekundarelektronen". Eine Anfrage in
+# ae/oe/ue-Schreibweise trifft das nie -- gemessen: "Sekundärelektronen" 8
+# Treffer, "Sekundaerelektronen" null. Betrifft besonders die Tastatureingabe
+# (fremdes Tastaturlayout, Eile) und alles, was ohne Umlaute durchgereicht wird.
+_UMLAUTPAAR = re.compile(r"ae|oe|ue")
+_UMSCHRIFT_MAX = 3          # 2^3 Varianten; mehr lohnt den Aufwand nicht
+
+
+def _faltungen(wort: str) -> list[str]:
+    """Alle Schreibweisen, die aus ae/oe/ue entstehen koennen.
+
+    Nicht einfach alles ersetzen: in "rueckstreuelektronen" ist das erste "ue"
+    ein Umlaut, das zweite (streu+elektronen) keiner. Sequentielles Ersetzen
+    machte daraus "ruckstreulektronen" -- falsch, und es fand nichts. Weil die
+    Suche mit ODER verknuepft, kostet eine ueberfluessige Variante nichts: sie
+    trifft einfach nicht.
+    """
+    stellen = [m.start() for m in _UMLAUTPAAR.finditer(wort)]
+    if not stellen or len(stellen) > _UMSCHRIFT_MAX:
+        return []
+    aus = set()
+    for maske in range(1, 1 << len(stellen)):
+        z, versatz = wort, 0
+        for i, pos in enumerate(stellen):
+            if maske >> i & 1:
+                p = pos - versatz
+                z = z[:p] + z[p] + z[p + 2:]   # "ae" -> "a"
+                versatz += 1
+        aus.add(z)
+    return sorted(aus)
+
+
 def begriffe(frage: str) -> list[str]:
     w = [x.lower() for x in _WORT.findall(frage)]
-    return [x for x in w if len(x) > 2 and x not in _STOPP]
+    aus = [x for x in w if len(x) > 2 and x not in _STOPP]
+    # Die gefaltete Form ZUSAETZLICH, nicht ersetzend: "Aerosol" wuerde sonst
+    # zu "Arosol" und faende nichts mehr. Als zusaetzlicher OR-Begriff kostet
+    # eine unsinnige Variante nichts -- sie trifft einfach nichts.
+    for x in list(aus):
+        for g in _faltungen(x):
+            if len(g) > 2 and g not in aus:
+                aus.append(g)
+    return aus
 
 
 # Deutsche Komposita: die Spracherkennung schreibt "Rasterelektronenmikroskop

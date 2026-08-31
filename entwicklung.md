@@ -1419,3 +1419,24 @@ in Auszug oder Ueberschrift**, vorher 9 %.
 
 **pypdf bleibt als laute Rueckfallebene.** Fehlt pypdfium2, laeuft das Einlesen
 weiter und sagt es -- still schlechter Text waere schlimmer als ein Abbruch.
+
+### Umlaute: ein Fehler, der erst durch die Tastatur wichtig wurde
+
+Beim Vorbereiten von Punkt 2 gemessen und dabei gestolpert:
+**"Sekundaerelektronen" lieferte null Treffer, "Sekundärelektronen" acht.**
+
+Der Index faltet Umlaute (`remove_diacritics 2`), "Sekundärelektronen" liegt
+dort als `sekundarelektronen`. Eine ae/oe/ue-Anfrage trifft das nicht. Whisper
+schreibt Umlaute richtig, im Sprachpfad fiel es deshalb nie auf -- **mit der
+neuen Tastatureingabe schon**, denn wer an einem fremden Layout tippt, schreibt
+"ae".
+
+Erster Versuch war zu einfach: alle ae/oe/ue ersetzen. Daraus wurde aus
+"rueckstreuelektronen" ein `ruckstreulektronen`, weil das zweite "ue" in
+streu+elektronen kein Umlaut ist. Jetzt werden bei bis zu drei Vorkommen alle
+Kombinationen erzeugt; bei einer ODER-Suche kostet eine falsche Variante nichts.
+
+**Der Befund war groesser als der Fehler.** `"saeule"` kommt selbst 81-mal im
+Index vor -- Dateinamen und umlautfrei geschriebene Dokumente. Das Korpus mischt
+also beide Schreibweisen, und vorher fand eine Anfrage je nach Tippweise nur die
+eine Haelfte. Jetzt beide: 260 Treffer statt 189.
