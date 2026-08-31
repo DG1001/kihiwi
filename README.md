@@ -36,7 +36,8 @@ Sekunden nichts kommt.
 | **Hermesaufgabe** | Anweisung unverändert an den Rechercheagenten |
 | **Kiwihilfe** | die Liste, gesprochen und auf dem Monitor |
 
-**Ohne Aktivierungswort:** „Sprachaufzeichnung starten" und „… stoppen" wirken
+**Ohne Aktivierungswort:** „Sprachaufzeichnung starten", „Audioaufnahme
+starten", „Tonaufzeichnung stoppen" — und dieselben mit „… stoppen" — wirken
 direkt, ohne erst „Kiwi" zu rufen.
 
 **Timer und Erinnerungen.** „Timer zehn Minuten", „erinner mich in einer halben

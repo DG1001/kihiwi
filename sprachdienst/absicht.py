@@ -185,7 +185,16 @@ def alle_loeschen(text: str) -> bool:
 # Der Anker bleibt "sprachauf": damit passt weder "Aufzeichnung" allein noch
 # irgendein anderes Wort des Labors. Getrennte Schreibung wird vorher
 # zusammengezogen, die Erkennung zerlegt Komposita gern.
-_DIREKT_WORT = re.compile(r"\bsprach[- ]?(?:auf|aus)\w*")
+# Auch "Audioaufnahme", "Audioaufzeichnung", "Tonaufnahme" -- gemeldet, weil
+# genau daran vier Versuche hintereinander scheiterten: das Protokoll zeigt
+# "nicht angesprochen: 'Audioaufzeichnung starten.'". Der Sprecher sagt nicht
+# das Wort, das im Code steht, und merkt nur, dass nichts passiert.
+#
+# BEWUSST weiter nur Komposita, kein blosses "Aufzeichnung": im Labor wird
+# ueber die Aufzeichnung geredet ("die Aufzeichnung muessen wir noch
+# starten"), und ein Direktbefehl wirkt OHNE Aktivierungswort. Ein
+# zusammengesetztes Wort faellt nicht versehentlich.
+_DIREKT_WORT = re.compile(r"\b(?:sprach|audio|ton)[- ]?(?:auf|aus)\w*")
 _DIREKT_AN  = re.compile(r"\b(start\w*|beginn\w*|los|an|anschalt\w*|"
                          r"einschalt\w*|aufnehmen|mitschneiden)\b")
 _DIREKT_AUS = re.compile(r"\b(stopp\w*|stop|beend\w*|aus|ausschalt\w*|"

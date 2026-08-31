@@ -1574,3 +1574,30 @@ hiess das Verzeichnis vor der Umbenennung) und "ctx 32k" bei ornith-voice, das
 seit Hermes' Kontextuntergrenze 131072 ist. Die Datei liegt ausserhalb des
 Repos; die Kopie im Pruefstands-Repo war 269 Zeilen hinterher und ist jetzt
 abgeglichen.
+
+### "Audioaufnahme starten" tat nichts
+
+Fred meldete, der Direktbefehl ausserhalb des Gespraechsmodus gehe nicht mehr.
+Erkennung und Code waren in Ordnung -- ein Test mit "Sprachaufzeichnung
+starten" lief sauber durch. **Die Antwort stand im Protokoll:**
+
+    nicht angesprochen (lexikalisch): 'Aufzeichnung starten.'
+    nicht angesprochen (lexikalisch): 'Audioaufzeichnung starten.'
+    nicht angesprochen (lexikalisch): 'Audioaufnahme starten.'
+    nicht angesprochen (decke):       'Audioaufzeichnung starten.'
+
+Vier Versuche, alle korrekt transkribiert, alle am Wortstamm gescheitert: das
+Muster kannte nur `sprach…`. **Kein Fehler im Code, eine zu enge Vokabel** --
+und aus Sicht des Sprechers nicht zu unterscheiden, weil in beiden Faellen
+schlicht nichts passiert.
+
+Stamm jetzt `sprach|audio|ton`. Ein blosses "Aufzeichnung starten" bleibt
+draussen: im Labor wird ueber die Aufzeichnung geredet, und ein Direktbefehl
+wirkt ohne Aktivierungswort -- das Kompositum ist der ganze Schutz. Zehn
+Faelle geprueft, darunter "wir sollten die Audioaufzeichnung nachher mal
+starten" (bleibt None).
+
+**Die Lehre ist die Diagnose, nicht die Zeile.** Ich haette lange im Gateway
+gesucht; die Zeile "nicht angesprochen" mit dem WOERTLICHEN Transkript hat es
+in einer Minute geklaert. Sie steht dort, seit protokolliert wird, warum der
+Assistent schweigt -- das war eine gute Entscheidung.

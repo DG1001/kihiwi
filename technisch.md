@@ -1232,7 +1232,8 @@ werden.
 
 ### Direktbefehl ohne Aktivierungswort
 
-„Sprachaufzeichnung starten" und „Sprachaufzeichnung stoppen" wirken **ohne**
+„Sprachaufzeichnung", „Audioaufnahme", „Audioaufzeichnung", „Tonaufnahme" oder
+„Tonaufzeichnung" — jeweils mit „starten" oder „stoppen" — wirken **ohne**
 vorheriges „Kiwi" und **ohne** den Gespraechsmodus zu oeffnen. Der Dienst
 transkribiert bei offenem Mikrofon ohnehin jede Aeusserung und verwirft sie nur
 mangels Aktivierungswort -- der Direktbefehl kostet also nichts extra.
@@ -1242,6 +1243,16 @@ mangels Aktivierungswort -- der Direktbefehl kostet also nichts extra.
 hoechstens sechs Woerter haben. Ohne die Kuerze wuerde „wir sollten die
 Sprachaufzeichnung nachher mal starten, wenn alle da sind" mitten im Gespraech
 den Mitschnitt anwerfen -- und zwar ohne jede Ansprache.
+
+**Nur `sprach…` zu kennen war zu eng.** Vier Versuche hintereinander
+scheiterten, alle korrekt transkribiert: im Protokoll steht viermal „nicht
+angesprochen: 'Audioaufzeichnung starten.'" Der Sprecher sagt nicht das Wort,
+das im Code steht, und merkt nur, dass nichts passiert. Der Stamm deckt jetzt
+`sprach|audio|ton` ab.
+
+**Ein blosses „Aufzeichnung starten" bleibt bewusst draußen.** Im Labor wird
+über die Aufzeichnung geredet, und ein Direktbefehl wirkt ohne
+Aktivierungswort — das zusammengesetzte Wort ist der ganze Schutz.
 
 ### Sprechertrennung (`sprachdienst/sprecher.py`)
 
