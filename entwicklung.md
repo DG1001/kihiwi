@@ -1383,3 +1383,39 @@ das Maximum (Tabellen und Code haben keine Absatzgrenzen zum Schneiden), und
 **5 % der Abschnitte haben beim PDF-Auslesen die Leerzeichen verloren.** Die
 zweite Zahl ist der groessere Hebel -- solche Stellen sind fuer eine
 Wortsuche unerreichbar, egal wie gut der Auszug liegt.
+
+### Der groesste Hebel lag im PDF-Auslesen
+
+Aus der vorigen Messung: 5 % der Abschnitte hatten beim Auslesen die
+Leerzeichen verloren. Solcher Text ist fuer eine Wortsuche unerreichbar --
+kein noch so guter Auszug hilft, wenn der Begriff im Index nicht als Wort
+existiert.
+
+**Erst der billige Weg, und er hat nicht funktioniert.** pypdf kann
+`extraction_mode="layout"` und einen `space_width`-Schwellenwert; beides
+getestet, von 200 bis 5 -- 21 verklebte Woerter auf der Testseite, unveraendert.
+Die Leerzeichen fehlen im Inhaltsstrom, pypdf kann sie nicht erfinden.
+
+Drei Auswerter verglichen, ueber 28 PDFs:
+
+| | verklebte Woerter | Zeit |
+|---|---|---|
+| pypdf | 1380 | 1,8 s |
+| pypdfium2 | 111 | 0,3 s |
+| pdfminer.six | 111 | 0,5 s |
+
+pdfminer war gleich gut, pypdfium2 sechsmal schneller als pypdf. **PyMuPDF habe
+ich nicht genommen, obwohl es der bekannteste Kandidat ist: AGPL-3.0, und das
+Repo ist MIT.** pypdfium2 ist BSD-3-Clause/Apache-2.0.
+
+Nach dem Neueinlesen: **5,0 % betroffene Abschnitte auf 0,7 %.** Und die
+Wirkung ist keine Statistik -- die Frage "Was sagen die Unterlagen zur
+FEMM-Rechnung und den Spaltfeldern?" wird jetzt beantwortet. Derselbe Text lag
+vorher als `Spaltfelderfallensteilerab-dieFEMM-Rechnung` im Index und war
+unauffindbar.
+
+Zusammen mit dem Auszug um die Fundstelle: **0 von 60 Treffern ohne Suchbegriff
+in Auszug oder Ueberschrift**, vorher 9 %.
+
+**pypdf bleibt als laute Rueckfallebene.** Fehlt pypdfium2, laeuft das Einlesen
+weiter und sagt es -- still schlechter Text waere schlimmer als ein Abbruch.

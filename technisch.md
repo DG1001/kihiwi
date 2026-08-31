@@ -320,11 +320,29 @@ lieferte vorher „steht nichts", jetzt „dreißig Kilovolt".
   Länge und straft solche Blöcke ab, sie gewinnen also selten — im Test 3 von
   53 Treffern. Seit der Auszug um die Fundstelle liegt, richten sie auch keinen
   Schaden mehr an.
-- **5 % der Abschnitte haben beim PDF-Auslesen die Leerzeichen verloren**
-  („SpaltfelderfallensteilerabdieFEMM-Rechnung"). Diese Stellen sind für die
-  Suche praktisch unerreichbar, weil kein Suchbegriff darin als Wort vorkommt.
-  Das ist der größere Hebel als alles andere hier, und es liegt im Auslesen,
-  nicht im Index.
+**PDF-Text kommt von `pypdfium2`, nicht von `pypdf`.** Bei den Manuskripten
+hier verlor pypdf die Leerzeichen — „SpaltfelderfallensteilerabdieFEMM-Rechnung".
+Solcher Text ist für eine Volltextsuche unerreichbar, weil kein Suchbegriff
+darin als Wort vorkommt. Weder `extraction_mode="layout"` noch ein kleineres
+`space_width` half; die Leerzeichen fehlen im Inhaltsstrom, pypdf kann sie nicht
+erfinden.
+
+| über 28 PDFs | verklebte Wörter | Zeit |
+|---|---|---|
+| pypdf | 1380 | 1,8 s |
+| **pypdfium2** | **111** | **0,3 s** |
+| pdfminer.six | 111 | 0,5 s |
+
+Im Index: **5,0 % betroffene Abschnitte vorher, 0,7 % nachher.** pdfminer war
+gleich gut, pypdfium2 sechsmal schneller als pypdf. *PyMuPDF wäre die dritte
+Möglichkeit gewesen und steht unter AGPL-3.0 — für ein MIT-Repo keine gute
+Wahl; pypdfium2 ist BSD-3-Clause/Apache-2.0.*
+
+`pypdf` bleibt als **laute** Rückfallebene: fehlt pypdfium2, läuft das Einlesen
+weiter und sagt es. Still schlechter Text wäre schlimmer als ein Abbruch.
+
+- **146 von 2420 Abschnitten sind größer als `ABSCHNITT_MAX`** (siehe oben) —
+  unverändert, aber seit dem Auszug um die Fundstelle folgenlos.
 
 **SQLite FTS5, kein Vektorindex.** Eingebaut in Python, kein Embedding-Modell,
 kein GPU-Speicher (den Ornith belegt), kein zusätzlicher Dienst. Für Fachtexte

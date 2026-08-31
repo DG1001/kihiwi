@@ -12,7 +12,11 @@ piper-tts>=1.7
 # Sprachaktivitaet (Silero VAD) und Sprechertrennung laufen beide darueber.
 onnxruntime>=1.20
 
-# PDF-Text fuer den Wissensindex.
+# PDF-Text fuer den Wissensindex. pypdfium2 ist der Hauptweg: pypdf verliert
+# bei manchen Manuskripten die Leerzeichen und macht sie damit unauffindbar
+# (gemessen ueber 28 PDFs: 1380 verklebte Woerter gegen 111). pypdf bleibt als
+# Rueckfallebene, falls das Rad fuer eine Plattform fehlt.
+pypdfium2>=4.0
 pypdf>=5.0
 
 # Sprechertrennung. Optional: fehlt es, entsteht das Protokoll ohne

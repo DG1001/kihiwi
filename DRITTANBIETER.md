@@ -16,6 +16,8 @@ eigenen Lizenzen unterliegen:
 | 3D-Speaker CAM++ | Sprecher-Embeddings | Apache-2.0 |
 | [vLLM](https://github.com/vllm-project/vllm) | Sprachmodell-Server | Apache-2.0 |
 | [SearXNG](https://github.com/searxng/searxng) | Internetsuche (optional) | AGPL-3.0 |
+| [pypdfium2](https://github.com/pypdfium2-team/pypdfium2) | PDF-Text für den Index | BSD-3-Clause / Apache-2.0 |
+| [pypdf](https://github.com/py-pdf/pypdf) | PDF-Text, Rückfallebene | BSD-3-Clause |
 
 **Piper steht unter GPL-3.0.** kihiwi ruft es als eigenständige Bibliothek auf
 und wird nicht mit ihm ausgeliefert; wer kihiwi weitergibt, gibt Piper nicht mit

@@ -42,6 +42,42 @@ ABSCHNITT_MAX = 1600
 
 
 # ------------------------------------------------------------------ Textholen
+def _pdf_text(pfad: Path) -> str | None:
+    """PDF-Text, seitenweise mit Seitenmarke.
+
+    **pypdfium2, nicht pypdf.** Bei den Manuskripten hier verliert pypdf die
+    Leerzeichen: "SpaltfelderfallensteilerabdieFEMM-Rechnung". Solcher Text ist
+    fuer die Volltextsuche unerreichbar -- kein Suchbegriff kommt darin als Wort
+    vor. Gemessen ueber 28 PDFs: 1380 Woerter mit 22+ Buchstaben am Stueck gegen
+    111, und pypdfium2 ist dabei sechsmal schneller (0,3 s gegen 1,8 s).
+    Weder `extraction_mode="layout"` noch ein kleineres `space_width` half --
+    die Leerzeichen fehlen im Inhaltsstrom, pypdf kann sie nicht erfinden.
+
+    pypdf bleibt als Rueckfallebene: ohne sie liefe der Index sonst gar nicht,
+    wenn jemand pypdfium2 nicht installiert hat. Der Rueckfall ist LAUT, sonst
+    wird stillschweigend schlechter Text indiziert und niemand merkt es.
+    """
+    seiten = []
+    try:
+        import pypdfium2 as pdfium
+        dok = pdfium.PdfDocument(str(pfad))
+        for n in range(len(dok)):
+            t = dok[n].get_textpage().get_text_bounded().strip()
+            if t:
+                seiten.append(f"[Seite {n + 1}]\n{t}")
+    except ImportError:
+        # print wie im Rest des Moduls -- einlesen laeuft ueber ./dienste.sh
+        # wissen einlesen, und die Ausgabe soll dort sichtbar sein.
+        print(f"    pypdfium2 fehlt — pypdf verliert bei manchen PDFs die "
+              f"Leerzeichen: {pfad.name}")
+        from pypdf import PdfReader
+        for n, s in enumerate(PdfReader(str(pfad)).pages, 1):
+            t = (s.extract_text() or "").strip()
+            if t:
+                seiten.append(f"[Seite {n}]\n{t}")
+    return "\n\n".join(seiten) or None
+
+
 def text_aus(pfad: Path) -> str | None:
     endung = pfad.suffix.lower()
     try:
@@ -50,13 +86,7 @@ def text_aus(pfad: Path) -> str | None:
         if endung in TEXT_ENDUNGEN:
             return pfad.read_text(encoding="utf-8", errors="replace")
         if endung in PDF_ENDUNGEN:
-            from pypdf import PdfReader
-            seiten = []
-            for n, s in enumerate(PdfReader(str(pfad)).pages, 1):
-                t = (s.extract_text() or "").strip()
-                if t:
-                    seiten.append(f"[Seite {n}]\n{t}")
-            return "\n\n".join(seiten) or None
+            return _pdf_text(pfad)
     except Exception:
         return None
     return None
