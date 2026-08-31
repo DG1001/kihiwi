@@ -174,6 +174,33 @@ def aufbrechen(frage: str, mit_original: bool = True) -> str:
     return " ".join(dict.fromkeys(aus))
 
 
+def auszug(text: str, begriffe: list[str], laenge: int = 600) -> str:
+    """Ausschnitt UM die Fundstelle, nicht der Anfang des Abschnitts.
+
+    Vorher gingen die ersten 600 Zeichen ans Modell. Gemessen ueber acht
+    Fachfragen enthielten **9 % der gelieferten Auszuege keinen einzigen
+    Suchbegriff** -- der Treffer war richtig, die gezeigte Stelle nutzlos, und
+    das Modell antwortete "steht nicht in den Unterlagen" auf etwas, das
+    dasteht.
+
+    Betrifft nicht nur die uebergrossen Abschnitte: auch in einem 900-Zeichen-
+    Block kann der Begriff hinten stehen. Messwerttabellen und Codedateien
+    haben keine Absatzgrenzen, an denen einlesen.py schneiden koennte -- der
+    laengste Abschnitt im Index hat 178.602 Zeichen.
+    """
+    if len(text) <= laenge:
+        return text
+    tief = text.lower()
+    stellen = [i for i in (tief.find(b.lower()) for b in begriffe) if i >= 0]
+    if not stellen:
+        return text[:laenge]
+    # Ein Drittel Vorlauf, zwei Drittel danach: der Kontext nach einer
+    # Fundstelle traegt meist mehr (Messwert, Definition, Fortsetzung).
+    a = max(0, min(stellen) - laenge // 3)
+    aus = text[a:a + laenge]
+    return ("…" if a else "") + aus + ("…" if a + laenge < len(text) else "")
+
+
 def suchen(frage: str, anzahl: int = 5, c: sqlite3.Connection | None = None
            ) -> list[Treffer]:
     eigen = c is None

@@ -1360,3 +1360,26 @@ kennt beide.
 Bedacht, aber kein Problem: stumm landet auch nichts im Mitschnitt. Das ist
 richtig -- der Assistent hat im Raum nichts gesagt. Beinahe haette ich hier
 `doku.mische()` "repariert", wie schon einmal.
+
+### Der Auszug lag an der falschen Stelle
+
+Aufgefallen beim Erklaeren der Suche, nicht beim Suchen: der laengste Abschnitt
+im Index hat 178.602 Zeichen, und ans Modell gingen immer die ersten 600.
+
+Gemessen ueber acht Fachfragen, 53 Treffer: **9 % der gelieferten Auszuege
+enthielten keinen einzigen Suchbegriff.** Der Treffer war richtig, die gezeigte
+Stelle nutzlos -- und das Modell antwortete "steht nicht in den Unterlagen" auf
+etwas, das dasteht. Genau die Schwaeche, die mir vorher bei mehreren Modellen
+als Modellfehler erschien.
+
+`auszug()` schneidet jetzt um die erste Fundstelle, ein Drittel Vorlauf, zwei
+Drittel danach. Danach 6 %, und **alle drei Restfaelle haben den Begriff in der
+Ueberschrift**, die ohnehin in der Kopfzeile mitgeht -- effektiv null. An einer
+echten Frage: "Was steht ueber die Beschleunigungsspannung?" lieferte vorher
+"steht nichts", jetzt "dreissig Kilovolt".
+
+**Nicht behoben, aber jetzt bekannt:** 146 von 2420 Abschnitten sind groesser als
+das Maximum (Tabellen und Code haben keine Absatzgrenzen zum Schneiden), und
+**5 % der Abschnitte haben beim PDF-Auslesen die Leerzeichen verloren.** Die
+zweite Zahl ist der groessere Hebel -- solche Stellen sind fuer eine
+Wortsuche unerreichbar, egal wie gut der Auszug liegt.

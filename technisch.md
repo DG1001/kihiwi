@@ -301,6 +301,31 @@ Assistenten.
     ./dienste.sh wissen suchen ...      Volltextsuche
     ./dienste.sh wissen web ...         SearXNG
 
+**Der Auszug liegt UM die Fundstelle, nicht am Anfang des Abschnitts.**
+Vorher gingen die ersten 600 Zeichen ans Modell. Über acht Fachfragen gemessen
+enthielten **9 % der gelieferten Auszüge keinen einzigen Suchbegriff** — der
+Treffer war richtig, die gezeigte Stelle nutzlos, und das Modell antwortete
+„steht nicht in den Unterlagen" auf etwas, das dasteht. Nach der Umstellung 6 %,
+und **alle drei verbleibenden Fälle haben den Begriff in der Überschrift**, die
+ohnehin in der Kopfzeile mitgeht — effektiv null.
+
+Wirkung an einer echten Frage: „Was steht über die Beschleunigungsspannung?"
+lieferte vorher „steht nichts", jetzt „dreißig Kilovolt".
+
+**Zwei Dinge, die dabei sichtbar wurden und NICHT behoben sind:**
+
+- **146 von 2420 Abschnitten sind größer als `ABSCHNITT_MAX` (1600),** der
+  größte hat 178.602 Zeichen. `einlesen.py` schneidet an Absatzgrenzen; eine
+  Messwerttabelle oder eine Codedatei hat keine. BM25 normalisiert über die
+  Länge und straft solche Blöcke ab, sie gewinnen also selten — im Test 3 von
+  53 Treffern. Seit der Auszug um die Fundstelle liegt, richten sie auch keinen
+  Schaden mehr an.
+- **5 % der Abschnitte haben beim PDF-Auslesen die Leerzeichen verloren**
+  („SpaltfelderfallensteilerabdieFEMM-Rechnung"). Diese Stellen sind für die
+  Suche praktisch unerreichbar, weil kein Suchbegriff darin als Wort vorkommt.
+  Das ist der größere Hebel als alles andere hier, und es liegt im Auslesen,
+  nicht im Index.
+
 **SQLite FTS5, kein Vektorindex.** Eingebaut in Python, kein Embedding-Modell,
 kein GPU-Speicher (den Ornith belegt), kein zusätzlicher Dienst. Für Fachtexte
 ist Stichwortsuche stark — gefragt wird nach „Siliziumnitrid", „JEOL",

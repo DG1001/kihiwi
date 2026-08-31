@@ -869,11 +869,15 @@ class Sitzung:
             if not treffer:
                 return ("Nichts in den Unterlagen gefunden. Sag das offen, statt zu "
                         "raten.")
+            # Ausschnitt um die Fundstelle statt der ersten 600 Zeichen:
+            # sonst kam bei jedem elften Treffer ein Auszug an, in dem der
+            # gesuchte Begriff gar nicht vorkam.
+            begriffe = wissen_index.begriffe(wissen_index.aufbrechen(frage))
             teile = []
             for t in treffer:
                 # Quelle mitgeben, damit das Modell zitieren kann statt zu behaupten.
                 teile.append(f"[{t.quelle} — {t.titel}, Abschnitt: {t.ueberschrift}]\n"
-                             f"{t.text[:600]}")
+                             f"{wissen_index.auszug(t.text, begriffe)}")
             return "\n\n".join(teile)
 
         if name == "web_suchen":
