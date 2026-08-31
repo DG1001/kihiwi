@@ -56,6 +56,31 @@ BUEHNE_DATEI = konfig.WURZEL / "zustand" / "buehne.json"
 BUEHNE_MAX = 400_000
 
 
+async def nachziehen_lauf():
+    """Schlagwoerter, Kurzfassungen und Vektoren nach einem Abgleich.
+
+    Im Hintergrund und mit Obergrenze: Nachziehen und Antworten teilen sich die
+    GPU. Bleibt zu viel offen, wird es GEMELDET statt stillschweigend halb
+    getan -- ein halb erschlossener Index sieht aus wie ein schlechtes Modell.
+    """
+    try:
+        e = await wissen_erschliessen.nachziehen()
+    except Exception as exc:
+        log.warning("Nachziehen gescheitert: %r", exc)
+        return
+    if e.get("uebersprungen"):
+        log.warning("Nachziehen uebersprungen: %d Abschnitte ohne Schlagwoerter, "
+                    "%d ohne Vektor (Grenze %d) — './dienste.sh wissen einlesen' "
+                    "von Hand laufen lassen",
+                    e["offen_schlagwoerter"], e["offen_vektoren"], e["grenze"])
+        return
+    teile = [f"{n}: {(e.get(n) or {}).get('erledigt', 0)}"
+             for n in ("schlagwoerter", "kurzfassungen", "vektoren")
+             if (e.get(n) or {}).get("erledigt")]
+    if teile:
+        log.info("Nachgezogen — %s", ", ".join(teile))
+
+
 def wecker_melden():
     HALTER.setzen(wecker=WECKER.als_liste())
 
@@ -1067,6 +1092,12 @@ class Sitzung:
                                            "args": {}, "ergebnis": json.dumps(
                                                bericht, ensure_ascii=False)}))
             await self.melden(_abgleich_satz(bericht))
+            # Nachziehen im Hintergrund: neue Abschnitte brauchen Schlagwoerter
+            # und Vektoren, sonst sind sie nur ueber den reinen Volltext
+            # auffindbar (gemessen 23,3 statt 40,0 % bei umschriebenen Fragen).
+            # NICHT vor der Antwort: der Abgleich soll nicht dadurch minutenlang
+            # dauern, dass danach noch eingebettet wird.
+            asyncio.create_task(nachziehen_lauf())
             return True
 
         if art == "hilfe":

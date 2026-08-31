@@ -7,10 +7,28 @@ from . import einlesen, erschliessen, index, vektor, web
 def main(argv):
     befehl = argv[0] if argv else "status"
     if befehl == "einlesen":
+        import asyncio
         print("Lese Quellen ein ...")
-        einlesen.alles(nur=argv[1] if len(argv) > 1 else None)
+        nur = next((a for a in argv[1:] if not a.startswith("--")), None)
+        einlesen.alles(nur=nur)
         s = index.stand()
         print(f"Index: {s['dokumente']} Dokumente, {s['abschnitte']} Abschnitte")
+        if "--nur-lesen" in argv:
+            print("  (Nachziehen übersprungen — './dienste.sh wissen erschliessen'"
+                  " und '... vektoren' laufen lassen)")
+            return 0
+        # Ohne Obergrenze: auf der Kommandozeile darf es dauern.
+        print("Ziehe Schlagwörter, Kurzfassungen und Vektoren nach ...")
+        e = asyncio.run(erschliessen.nachziehen(grenze=None))
+        for name in ("schlagwoerter", "kurzfassungen"):
+            t = e.get(name) or {}
+            if t.get("offen"):
+                print(f"  {name}: {t['erledigt']} von {t['offen']}, {t['sekunden']:.0f} s")
+        v = e.get("vektoren") or {}
+        if v.get("fehler"):
+            print(f"  vektoren: übersprungen ({v['fehler'][:80]})")
+        elif v.get("offen"):
+            print(f"  vektoren: {v['erledigt']} von {v['offen']}, {v['sekunden']:.0f} s")
     elif befehl == "erschliessen":
         # Braucht das Sprachmodell. Laut scheitern, nicht still weniger tun.
         import asyncio

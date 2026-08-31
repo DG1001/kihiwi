@@ -398,6 +398,21 @@ weiter und sagt es. Still schlechter Text wäre schlimmer als ein Abbruch.
 - **146 von 2420 Abschnitten sind größer als `ABSCHNITT_MAX`** (siehe oben) —
   unverändert, aber seit dem Auszug um die Fundstelle folgenlos.
 
+**`wissen einlesen` zieht alles nach.** Nach dem Lesen folgen Schlagwörter,
+Kurzfassungen und Vektoren — alle drei nur für Fehlendes, also nach einem
+gewöhnlichen Abgleich Sekunden. `--nur-lesen` überspringt sie.
+
+**Im Sprachpfad im Hintergrund und mit Obergrenze** (`NACHZIEH_GRENZE = 300`).
+Der Wissensabgleich lässt sich per Zuruf auslösen, und Nachziehen und Antworten
+teilen sich die GPU. Bleibt mehr offen als die Grenze, wird es **gemeldet statt
+stillschweigend halb getan** — ein halb erschlossener Index sieht aus wie ein
+schlechtes Modell.
+
+**Erledigt heißt versucht, nicht ergiebig.** Offen ist ein Abschnitt, dessen
+Hash nicht in `erschliessung` steht — nicht einer mit leerer Spalte. Ein
+67 Zeichen langes Formelfragment aus einem PDF liefert keine Schlagwörter und
+lief vorher bei *jedem* Aufruf wieder mit.
+
 ### Volltext und Vektoren gemischt
 
 **Gemessen, nicht geglaubt.** 60 Fragenpaare, vom Modell aus zufällig gezogenen

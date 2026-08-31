@@ -122,9 +122,16 @@ def _saeubern(roh: str) -> str:
 
 async def alles(nur_fehlende: bool = True, grenze: int | None = None) -> dict:
     c = index.verbinden()
-    wo = "WHERE schlagwoerter = ''" if nur_fehlende else ""
-    zeilen = c.execute(
-        f"SELECT rowid, text FROM abschnitte {wo} ORDER BY rowid").fetchall()
+    zeilen = c.execute("SELECT rowid, text FROM abschnitte ORDER BY rowid").fetchall()
+    if nur_fehlende:
+        # Nach HASH aussortieren, nicht nach leerer Spalte. Ein Abschnitt, aus
+        # dem sich keine Schlagwoerter gewinnen lassen -- ein 67 Zeichen langes
+        # Formelfragment aus einem PDF -- bleibt sonst fuer immer "offen" und
+        # kostet bei jedem Lauf einen Modellaufruf. Erledigt heisst versucht,
+        # nicht ergiebig.
+        fertig = {r[0] for r in c.execute("SELECT hash FROM erschliessung")}
+        zeilen = [(r, t) for r, t in zeilen
+                  if index.abschnitt_hash(t) not in fertig]
     if grenze:
         zeilen = zeilen[:grenze]
     if not zeilen:
@@ -134,13 +141,13 @@ async def alles(nur_fehlende: bool = True, grenze: int | None = None) -> dict:
     modell = modell_am_endpunkt()
     motor_bereit(modell)
     t0 = time.time()
-    erledigt = gescheitert = 0
+    erledigt = gescheitert = leer = 0
     erster_fehler = None
     sperre = asyncio.Semaphore(GLEICHZEITIG)
     stand = datetime.now(timezone.utc).isoformat(timespec="seconds")
 
     async def eine(rowid, text):
-        nonlocal erledigt, gescheitert
+        nonlocal erledigt, gescheitert, leer
         async with sperre:
             try:
                 roh = await asyncio.to_thread(_einmal, text, modell)
@@ -161,8 +168,10 @@ async def alles(nur_fehlende: bool = True, grenze: int | None = None) -> dict:
                 return None
         w = _saeubern(roh)
         if not w:
-            gescheitert += 1
-            return None
+            # Trotzdem vermerken: versucht und nichts zu holen. Sonst laeuft
+            # derselbe Abschnitt bei jedem Aufruf wieder mit.
+            leer += 1
+            return (rowid, index.abschnitt_hash(text), "")
         erledigt += 1
         return (rowid, index.abschnitt_hash(text), w)
 
@@ -178,11 +187,12 @@ async def alles(nur_fehlende: bool = True, grenze: int | None = None) -> dict:
             c.execute("UPDATE abschnitte SET schlagwoerter=? WHERE rowid=?", (w, rowid))
         c.commit()
         print(f"    {min(i + BLOCK, len(zeilen))}/{len(zeilen)} "
-              f"({erledigt} erschlossen, {gescheitert} gescheitert)")
+              f"({erledigt} erschlossen, {leer} ohne Ertrag, "
+              f"{gescheitert} gescheitert)")
     c.close()
     return {"offen": len(zeilen), "erledigt": erledigt, "modell": modell,
-            "gescheitert": gescheitert, "fehler": erster_fehler,
-            "sekunden": time.time() - t0}
+            "gescheitert": gescheitert, "ohne_ertrag": leer,
+            "fehler": erster_fehler, "sekunden": time.time() - t0}
 
 
 # --------------------------------------------------------- Kurzfassungen
@@ -306,3 +316,41 @@ def ueberblick(max_zeichen: int = 120_000) -> str:
             break
         aus.append(z)
     return "\n".join(aus).strip()
+
+
+# --------------------------------------------------------- Nachziehen
+# Nach dem Einlesen fehlen den neuen Abschnitten Schlagwoerter, Kurzfassung und
+# Vektor. Ohne diese Stufe sind sie zwar auffindbar, aber nur ueber den reinen
+# Volltext -- gemessen 23,3 statt 40,0 % bei umschriebenen Fragen.
+#
+# Die Obergrenze gibt es wegen des Sprachpfads: der Wissensabgleich laesst sich
+# per Zuruf ausloesen, und die GPU teilen sich Nachziehen und Antworten. Bleibt
+# mehr offen als die Grenze, wird NICHT stillschweigend weniger getan, sondern
+# gemeldet, dass ein Lauf von Hand faellig ist.
+NACHZIEH_GRENZE = 300
+
+
+async def nachziehen(grenze: int | None = NACHZIEH_GRENZE) -> dict:
+    """Schlagwoerter, Kurzfassungen und Vektoren fuer alles Fehlende."""
+    from . import vektor
+    c = index.lesen()
+    try:
+        offen_w = c.execute(
+            "SELECT COUNT(*) FROM abschnitte WHERE schlagwoerter = ''").fetchone()[0]
+    finally:
+        c.close()
+    mit_v, ges = vektor.bestand()
+    offen_v = ges - mit_v
+    if grenze is not None and max(offen_w, offen_v) > grenze:
+        return {"uebersprungen": True, "offen_schlagwoerter": offen_w,
+                "offen_vektoren": offen_v, "grenze": grenze}
+
+    aus = {"uebersprungen": False}
+    aus["schlagwoerter"] = await alles()
+    aus["kurzfassungen"] = await kurzfassungen()
+    try:
+        aus["vektoren"] = vektor.nachtragen()
+    except Exception as e:
+        # Der Vektorteil ist optional; ohne ihn sucht kihiwi weiter im Volltext.
+        aus["vektoren"] = {"fehler": repr(e)}
+    return aus

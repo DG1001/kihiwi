@@ -1523,3 +1523,24 @@ Eingebaut als RRF-Verschmelzung in `index.suchen()`, Vektoren nach Inhalts-Hash
 wie die Schlagwoerter. Nachgemessen am eingebauten Stand: 86,7 % und 40,0 %,
 Suche 80-116 ms, erster Aufruf 1,4 s. Der Vektorteil steht in einem try und
 faellt auf reinen Volltext zurueck -- schlechter, aber nie kaputt.
+
+### Einlesen zieht nach
+
+Bis hierhin musste man nach jedem `wissen einlesen` drei weitere Befehle von
+Hand starten. Jetzt haengen sie dran -- alle drei arbeiten ohnehin nur das
+Fehlende ab, nach einem gewoehnlichen Abgleich sind das Sekunden (gemessen:
+16 Abschnitte, 3 Dokumente, 16 Vektoren in 16 s).
+
+**Im Sprachpfad war das nicht so einfach.** Der Wissensabgleich laesst sich per
+Zuruf ausloesen, und der Assistent sagt danach, was sich geaendert hat. Haenge
+ich dort eine Einbettung an, wartet der Sprecher Minuten. Geloest mit zwei
+Entscheidungen: das Nachziehen laeuft als Hintergrundaufgabe NACH der Antwort,
+und es hat eine Obergrenze. Bleibt mehr offen, wird es protokolliert statt halb
+getan -- ein halb erschlossener Index sieht aus wie ein schlechtes Modell, und
+genau solche Verwechslungen haben diesen Abend mehrfach Zeit gekostet.
+
+**Ein Abschnitt scheiterte seit dem ersten Lauf**, immer derselbe: 67 Zeichen
+Formelfragment aus einem PDF, mathematische Symbole ohne ein einziges Wort. Kein
+Fehler -- aber mein Code fragte bei jedem Lauf wieder das Modell. Das Merkmal
+"offen" haengt jetzt am Hash in `erschliessung` statt an der leeren Spalte:
+**erledigt heisst versucht, nicht ergiebig.**
