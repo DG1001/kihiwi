@@ -1340,3 +1340,23 @@ beantwortet, "Kiwi, warum ..." korrekt auf "warum ..." gekuerzt, "Was ist ein
 Kiwi?" ungekuerzt durchgelassen (erkannt() prueft nur den Anfang), "Kiwihilfe"
 loeste aus und landete auf der Buehne. Danach die Gegenprobe auf dem Sprachweg
 -- unveraendert.
+
+### Stummschalter
+
+Nachgereicht zur Texteingabe: wer tippt, will vielleicht nicht, dass der Rechner
+im Raum antwortet.
+
+**Serverseitig geloest, nicht im Klienten.** Der naheliegende Weg waere gewesen,
+den Ton einfach nicht abzuspielen -- dann erzeugt Piper ihn aber weiter und
+schiebt ihn ueber die Leitung. `sag()` steigt jetzt vorne aus. Gemessen: stumm
+0 Tonstroeme und 0 Audio-Bytes gegen 1 Strom und 275 kB, bei identischem
+Antworttext.
+
+Die Einstellung liegt im localStorage des Browsers und wird bei jedem `onopen`
+neu geschickt. **Sie gehoert zum Arbeitsplatz, nicht zum Dienst** -- am
+Laborrechner mag laut richtig sein und am Schreibtisch stumm, und der Dienst
+kennt beide.
+
+Bedacht, aber kein Problem: stumm landet auch nichts im Mitschnitt. Das ist
+richtig -- der Assistent hat im Raum nichts gesagt. Beinahe haette ich hier
+`doku.mische()` "repariert", wie schon einmal.

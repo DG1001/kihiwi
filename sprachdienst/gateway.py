@@ -294,6 +294,10 @@ class Sitzung:
         self.antwort_task: asyncio.Task | None = None
         self.letzte_ansprache = 0.0
         self.web_benutzt = False
+        # Vorlesen laesst sich je Verbindung abschalten -- fuer den Fall, dass
+        # jemand tippt und nicht will, dass der Rechner im Raum antwortet.
+        # Vorgabe an: der Assistent ist zuerst ein Sprachassistent.
+        self.vorlesen = True
 
     async def schliessen(self):
         self.aufzeichnung_stoppen()
@@ -322,6 +326,9 @@ class Sitzung:
             if HALTER.z.mikro:
                 self.turn.reset()
                 HALTER.setzen(phase=Phase.HOEREN)
+        elif art == "vorlesen":
+            self.vorlesen = bool(b.get("an"))
+            log.info("Vorlesen %s", "an" if self.vorlesen else "aus")
         elif art == "text":
             await self.getippt(str(b.get("text") or ""))
         elif art == "abbrechen":
@@ -1171,6 +1178,13 @@ class Sitzung:
         import time as _t
         satz = _sprechbar(satz)
         if not satz:
+            return
+        if not self.vorlesen:
+            # Stumm heisst wirklich stumm: kein Piper-Aufruf, kein Audio ueber
+            # die Leitung. Und nichts in die Aufzeichnung -- der Assistent hat
+            # im Raum tatsaechlich nichts gesagt, also gehoert dort auch nichts
+            # hin. Der Text steht ohnehin im Verlauf, melden() hat ihn vorher
+            # geschickt.
             return
         _ts = _t.time()
         erster = True

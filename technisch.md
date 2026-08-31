@@ -993,6 +993,21 @@ Drei Entscheidungen dahinter:
 Eine laufende Antwort wird abgebrochen — wer tippt, während geredet wird, will
 das Neue.
 
+**Stummschalter (🔊/🔇) daneben.** `{"befehl":"vorlesen","an":false}` setzt ein
+Flag je Verbindung; `sag()` steigt dann sofort aus. **Nicht der Klient hört auf
+abzuspielen, sondern der Dienst hört auf zu erzeugen** — sonst liefe Piper
+weiter für nichts. Gemessen: stumm 0 Tonströme und 0 Audio-Bytes, laut 1 Strom
+und 275 kB, bei identischem Antworttext.
+
+Die Einstellung liegt im `localStorage` des Browsers, nicht im Dienst: sie
+gehört zum Arbeitsplatz, nicht zum Assistenten. Sie wird bei jedem `onopen` neu
+geschickt und übersteht damit Neuladen und Dienstneustart.
+
+**Wechselwirkung mit der Aufzeichnung:** stumm wird auch nichts in den
+Mitschnitt gemischt. Das ist richtig und kein Verlust — der Assistent hat im
+Raum tatsächlich nichts gesagt, also gehört im Raumprotokoll auch nichts hin.
+Der Text steht im Gesprächsverlauf.
+
 **Die Buehne ueberlebt Neuladen und Dienstneustart.** Der letzte Buehneninhalt
 liegt in `zustand/buehne.json` und wird beim Verbindungsaufbau mit `wieder:
 true` nachgereicht; der Klient zeigt ihn an, vermerkt „von vorhin" und setzt

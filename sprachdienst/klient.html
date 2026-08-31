@@ -204,6 +204,8 @@
     <input id="tipp-feld" type="text" placeholder="… oder tippen (ohne „Kiwi“)"
            aria-label="Anweisung tippen" maxlength="2000">
     <button type="submit" class="klein">senden</button>
+    <button type="button" class="klein" id="vorlesen"
+            title="Antworten laut vorlesen">🔊</button>
   </form>
 
   <div id="leds">
@@ -459,7 +461,12 @@ function buehne(art, titel, html, wann) {
 function verbinden() {
   ws = new WebSocket(`ws://${location.host}/audio`);
   ws.binaryType = "arraybuffer";
-  ws.onopen  = () => $("led-ws").classList.add("da");
+  ws.onopen  = () => {
+    $("led-ws").classList.add("da");
+    // Beim Verbinden neu schicken: der Dienst kennt die Einstellung nicht,
+    // sie lebt im Browser und muss jeden Neustart ueberdauern.
+    senden({befehl: "vorlesen", an: vorlesen});
+  };
   ws.onclose = () => { $("led-ws").classList.remove("da"); setTimeout(verbinden, 1500); };
   ws.onmessage = e => {
     if (e.data instanceof ArrayBuffer) { abspielen(e.data); return; }
@@ -530,6 +537,27 @@ $("tippen").addEventListener("submit", e => {
   senden({befehl: "text", text: t});
   f.value = "";
 });
+
+/* Vorlesen abschalten. Der Dienst hoert auf, Ton zu erzeugen -- nicht der
+   Klient hoert auf, ihn abzuspielen: sonst liefe Piper weiter fuer nichts.
+   Die Einstellung liegt im Browser, weil sie zum Arbeitsplatz gehoert und
+   nicht zum Dienst, und wird bei jedem Verbinden neu geschickt. */
+let vorlesen = true;
+try { vorlesen = localStorage.getItem("vorlesen") !== "aus"; } catch (e) {}
+function vorlesenZeichnen() {
+  const b = $("vorlesen");
+  b.textContent = vorlesen ? "🔊" : "🔇";
+  b.title = vorlesen ? "Antworten werden vorgelesen — klicken für stumm"
+                     : "stumm — klicken zum Vorlesen";
+  b.style.opacity = vorlesen ? "" : ".55";
+}
+$("vorlesen").onclick = () => {
+  vorlesen = !vorlesen;
+  try { localStorage.setItem("vorlesen", vorlesen ? "an" : "aus"); } catch (e) {}
+  vorlesenZeichnen();
+  senden({befehl: "vorlesen", an: vorlesen});
+};
+vorlesenZeichnen();
 
 $("mikro").onclick = async () => {
   if (ctx) {
