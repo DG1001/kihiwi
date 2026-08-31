@@ -31,6 +31,11 @@ P_WHISPER=8910
 P_SPRACH=8920
 
 C_VLLM=vllm-model          # Containername, den model-switch vergibt
+# Welches model-switch-Profil `start` laedt, wenn nichts auf :8889 laeuft.
+# Ueberschreibbar: KIHIWI_PROFIL=qwen36nvfp4-voice ./dienste.sh start
+# Immer ein *-voice-Profil nehmen -- die Pruefstandsprofile reservieren 0.85
+# des Speichers, und dann hungert der Rest des Sprachstapels.
+PROFIL="${KIHIWI_PROFIL:-ornith-voice}"
 # Untergrenze in GiB, unter der es fuer den Sprachstapel eng wird.
 # whisper.cpp (CUDA), Piper, sherpa-onnx und der Sprachdienst brauchen
 # zusammen rund 13 GiB. Mit dem Sprachprofil (GPU_UTIL 0.55) bleiben etwa
@@ -65,6 +70,12 @@ try:
 except Exception:
     pass' 2>/dev/null; }
 
+modellname() { python3 -c 'import sys,json
+try:
+    print(json.load(sys.stdin)["data"][0]["id"])
+except Exception:
+    pass' 2>/dev/null; }
+
 modellctx() { python3 -c 'import sys,json
 try:
     d = json.load(sys.stdin)["data"][0]
@@ -90,6 +101,23 @@ warn() { printf '  \033[33m!\033[0m %s\n' "$*"; }
 fehl() { printf '  \033[31m✗\033[0m %s\n' "$*"; }
 
 # ------------------------------------------------------------------ Starten
+# Der Name, unter dem der Server das Modell anbietet, muss zu KIHIWI_MODEL
+# passen -- sonst antwortet vLLM auf jede Anfrage mit 404. Diese Fehlerklasse
+# hat schon zweimal zugeschlagen (Hermes mit eigenem Namen aus seiner Konfig,
+# und ein Stapellauf ohne gesetztes KIHIWI_MODEL: 100 Anfragen in den 404,
+# gemeldet als "100 gescheitert" ohne Grund). Deshalb hier laut, sofort.
+modell_pruefen() {
+    local angeboten gewuenscht
+    angeboten=$(curl -s "http://127.0.0.1:$P_VLLM/v1/models" | modellname)
+    gewuenscht="${KIHIWI_MODEL:-}"
+    # Getrennte Bedingungen: "A || B && C" liest sich wie eine Absicht und
+    # ist keine -- in bash binden || und && gleich stark, von links.
+    if [ -z "$gewuenscht" ] || [ -z "$angeboten" ]; then return 0; fi
+    if [ "$angeboten" = "$gewuenscht" ]; then return 0; fi
+    warn "KIHIWI_MODEL='$gewuenscht', angeboten wird '$angeboten' — jede Anfrage"
+    warn "  laeuft in einen 404. Eines von beiden anpassen."
+}
+
 start_vllm() {
     if bereit_vllm >/dev/null; then
         local ctx util frei
@@ -97,6 +125,7 @@ start_vllm() {
         util=$(vllm_util)
         frei=$(free -g | awk 'NR==2{print $7}')
         ok "vLLM laeuft bereits (Kontext $ctx, GPU_UTIL ${util:-?})"
+        modell_pruefen
         # Nicht das Profil pruefen, sondern was davon abhaengt: bleibt neben
         # dem Modell genug Speicher fuer whisper.cpp, Piper und sherpa-onnx?
         # Das gilt auch fuer ein anderes Modell auf :8889 -- beim Vergleichen
@@ -110,9 +139,11 @@ start_vllm() {
         fi
         return 0
     fi
-    info "starte vLLM (ornith-voice) — das dauert ein bis zwei Minuten"
-    "$HOME/.local/bin/model-switch" ornith-voice >"$LOGS/vllm.log" 2>&1
-    bereit_vllm >/dev/null && ok "vLLM bereit" || { fehl "vLLM kam nicht hoch, siehe $LOGS/vllm.log"; return 1; }
+    info "starte vLLM ($PROFIL) — das dauert ein bis zwei Minuten"
+    "$HOME/.local/bin/model-switch" "$PROFIL" >"$LOGS/vllm.log" 2>&1
+    bereit_vllm >/dev/null || { fehl "vLLM kam nicht hoch, siehe $LOGS/vllm.log"; return 1; }
+    ok "vLLM bereit"
+    modell_pruefen
 }
 
 start_whisper() {

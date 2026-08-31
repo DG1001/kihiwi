@@ -1544,3 +1544,33 @@ Formelfragment aus einem PDF, mathematische Symbole ohne ein einziges Wort. Kein
 Fehler -- aber mein Code fragte bei jedem Lauf wieder das Modell. Das Merkmal
 "offen" haengt jetzt am Hash in `erschliessung` statt an der leeren Spalte:
 **erledigt heisst versucht, nicht ergiebig.**
+
+### KIHIWI_PROFIL, und ein Namensabgleich beim Start
+
+`dienste.sh` startete `ornith-voice` fest verdrahtet. Seit qwen36nvfp4 der
+bessere Kandidat fuer den Sprachbetrieb ist, war das inkonsequent: ein
+`./dienste.sh start` bei ausgeschaltetem vLLM haette Ornith geladen, waehrend
+KIHIWI_MODEL auf Qwen zeigt -- und dann laeuft jede Anfrage in einen 404.
+
+Zwei Aenderungen. `KIHIWI_PROFIL` waehlt das Profil (Vorgabe bleibt
+`ornith-voice`, damit sich nichts unangekuendigt aendert). Und `dienste.sh`
+vergleicht nach dem Start den angebotenen Modellnamen mit KIHIWI_MODEL und
+**warnt laut**, wenn beide auseinanderlaufen -- auch im Zweig "laeuft schon",
+wo es am wichtigsten ist.
+
+**Diese Fehlerklasse hat jetzt dreimal zugeschlagen** (Hermes, der
+Erschliessungslauf, und beinahe hier). Sie ist immer dieselbe: irgendwo steht
+ein Modellname, der nicht der ist, den der Server anbietet. Jedes Mal war das
+Symptom ein stiller 404, nie eine verstaendliche Meldung.
+
+Nebenbei ein neues Profil `qwen36nvfp4-voice` in `~/.local/bin/model-switch`,
+parallel zu `ornith-voice`: dasselbe Modell, derselbe served-model-name,
+derselbe Kontext, nur GPU_UTIL 0.55 statt 0.85. Geprueft ueber eine isolierte
+Ausfuehrung von `load_spec`, nicht ueber einen echten Start -- ein Neustart
+haette zwei Minuten gekostet und nichts geaendert.
+
+Zwei veraltete Angaben im Kopf der Datei mitkorrigiert: "Projekt aihiwi" (so
+hiess das Verzeichnis vor der Umbenennung) und "ctx 32k" bei ornith-voice, das
+seit Hermes' Kontextuntergrenze 131072 ist. Die Datei liegt ausserhalb des
+Repos; die Kopie im Pruefstands-Repo war 269 Zeilen hinterher und ist jetzt
+abgeglichen.

@@ -18,6 +18,19 @@ und GPU teilen sich diese Bandbreite, ein großes CPU-Modell hilft nicht.
 Argumente: `ds4` | `ornith` | **`ornith-voice`** | `qwen36nvfp4` | `qwen38` |
 `nemotron` | `nemotronspec` | `qwenvl30` | `stop` | `status`.
 
+**Für kihiwi ein `*-voice`-Profil benutzen**, nicht das Prüfstandsprofil.
+Es gibt `ornith-voice` und `qwen36nvfp4-voice`; welches `./dienste.sh start`
+lädt, steht in `KIHIWI_PROFIL` (Vorgabe `ornith-voice`):
+
+```bash
+KIHIWI_PROFIL=qwen36nvfp4-voice KIHIWI_MODEL=qwen3.6-35b-a3b-nvfp4 ./dienste.sh start
+```
+
+**`dienste.sh` warnt, wenn `KIHIWI_MODEL` nicht zum angebotenen Namen passt.**
+Diese Fehlerklasse hat zweimal zugeschlagen — Hermes mit dem Namen aus seiner
+eigenen Konfiguration, und ein Stapellauf ohne gesetztes `KIHIWI_MODEL`, der
+100 Anfragen in einen 404 schickte und das als „100 gescheitert" meldete.
+
 **Für kihiwi `model-switch ornith-voice` benutzen**, nicht `ornith`. Gleiches
 Modell, gleicher `served-model-name`, gleicher Kontext — der **einzige**
 Unterschied ist `GPU_UTIL` 0.55 statt 0.85. Das kostet nichts (41,9 GiB
