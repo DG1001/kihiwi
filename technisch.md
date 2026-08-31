@@ -20,11 +20,19 @@ Argumente: `ds4` | `ornith` | **`ornith-voice`** | `qwen36nvfp4` | `qwen38` |
 
 **Für kihiwi ein `*-voice`-Profil benutzen**, nicht das Prüfstandsprofil.
 Es gibt `ornith-voice` und `qwen36nvfp4-voice`; welches `./dienste.sh start`
-lädt, steht in `KIHIWI_PROFIL` (Vorgabe `ornith-voice`):
+lädt, steht in `KIHIWI_PROFIL`. **Vorgabe ist seit dem 01.09.2026
+`qwen36nvfp4-voice`** — gleiche Bauart und gleicher Durchsatz wie Ornith
+(78,3 gegen 78,4 tok/s), aber es sucht in den Unterlagen *und* antwortet
+trotzdem aus eigenem Wissen, wenn nichts zu finden ist.
 
 ```bash
-KIHIWI_PROFIL=qwen36nvfp4-voice KIHIWI_MODEL=qwen3.6-35b-a3b-nvfp4 ./dienste.sh start
+./dienste.sh start                              # Qwen3.6-35B-A3B NVFP4
+KIHIWI_PROFIL=ornith-voice ./dienste.sh start   # Ornith wie bisher
 ```
+
+**`KIHIWI_MODEL` in `konfig.py` muss mitziehen** — Vorgabe dort ebenfalls
+`qwen3.6-35b-a3b-nvfp4`. Läuft eines von beiden auseinander, antwortet vLLM
+auf jede Anfrage mit 404.
 
 **`dienste.sh` warnt, wenn `KIHIWI_MODEL` nicht zum angebotenen Namen passt.**
 Diese Fehlerklasse hat zweimal zugeschlagen — Hermes mit dem Namen aus seiner

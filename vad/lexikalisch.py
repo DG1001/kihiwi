@@ -11,6 +11,8 @@ import numpy as np
 sys.path.insert(0, '.')
 from vad.silero import Vad, FENSTER, RATE
 from vad.endpoint import bloecke, BLOCK_MS
+# Nicht fest verdrahten: der Name muss der sein, den der Server anbietet.
+from sprachdienst.konfig import LLM_MODEL
 
 STT = "http://127.0.0.1:8910/inference"
 LLM = "http://127.0.0.1:8889/v1/chat/completions"
@@ -38,7 +40,7 @@ def transkribiere(samples):
 
 def fertig(text):
     req = urllib.request.Request(LLM, data=json.dumps({
-        "model": "ornith-1.5-35b-a3b", "max_tokens": 3, "temperature": 0,
+        "model": LLM_MODEL, "max_tokens": 3, "temperature": 0,
         "messages": [{"role":"system","content":SYS},
                      {"role":"user","content":text}]}).encode(),
         headers={"Content-Type":"application/json"})
@@ -89,7 +91,7 @@ def p_fertig(text):
     # "Kannst du den Sweep nochmal laufen lassen" von P=0,914 auf P=0,182.
     text = text.rstrip().rstrip(".,;:…").rstrip()
     req = urllib.request.Request(LLM, data=json.dumps({
-        "model": "ornith-1.5-35b-a3b", "max_tokens": 1, "temperature": 0,
+        "model": LLM_MODEL, "max_tokens": 1, "temperature": 0,
         "logprobs": True, "top_logprobs": 20,
         "messages": [{"role":"system","content":SYS},
                      {"role":"user","content":text}]}).encode(),

@@ -19,7 +19,10 @@ PORT      = int(os.environ.get("KIHIWI_PORT", "8920"))
 
 STT_URL   = os.environ.get("KIHIWI_STT", "http://127.0.0.1:8910/inference")
 LLM_URL   = os.environ.get("KIHIWI_LLM", "http://127.0.0.1:8889/v1")
-LLM_MODEL = os.environ.get("KIHIWI_MODEL", "ornith-1.5-35b-a3b")
+# Muss zum Vorgabeprofil in dienste.sh passen (KIHIWI_PROFIL), sonst
+# antwortet vLLM auf jede Anfrage mit 404. dienste.sh warnt beim Start, wenn
+# beide auseinanderlaufen -- diese Fehlerklasse hat dreimal zugeschlagen.
+LLM_MODEL = os.environ.get("KIHIWI_MODEL", "qwen3.6-35b-a3b-nvfp4")
 # Zusaetzliche Felder fuer jede Anfrage an das Modell, als JSON-Objekt. Was ein
 # Motor als Startflagge kennt, verlangt ein anderer im Rumpf: vLLM schaltet das
 # Nachdenken mit --default-chat-template-kwargs ab, llama-server hat dafuer

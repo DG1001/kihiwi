@@ -1601,3 +1601,25 @@ starten" (bleibt None).
 gesucht; die Zeile "nicht angesprochen" mit dem WOERTLICHEN Transkript hat es
 in einer Minute geklaert. Sie steht dort, seit protokolliert wird, warum der
 Assistent schweigt -- das war eine gute Entscheidung.
+
+### Qwen3.6-35B-A3B ist der Standard
+
+`KIHIWI_PROFIL` steht jetzt auf `qwen36nvfp4-voice`. Grundlage ist die Messung
+vom 28.08.: gleiche Bauart, gleiche Groesse, gleiche Quantisierung, gleicher
+Durchsatz wie Ornith -- **der Unterschied ist das Verhalten.** Es ruft
+`dokumente_suchen` haeufiger und bleibt trotzdem nicht bei "steht nicht in den
+Unterlagen" stehen, wenn nichts zu finden ist. Ornith bleibt als Profil.
+
+**Ein Standard ist nie eine Zeile.** Mit dem Profil musste `KIHIWI_MODEL` in
+`konfig.py` mitziehen -- sonst haette ein nacktes `./dienste.sh start` Qwen
+geladen und Ornith angefragt, also genau den 404 erzeugt, den ich einen Commit
+zuvor sichtbar gemacht habe. Und in `vad/lexikalisch.py` stand der Name noch
+zweimal fest verdrahtet; die Datei gehoert zum verworfenen lexikalischen
+Endpointing und wird nirgends importiert, aber ein toter Modellname darin
+haette beim naechsten Versuch wieder eine halbe Stunde gekostet. Jetzt zieht
+sie ihn aus `konfig`.
+
+Geprueft mit `env -u KIHIWI_MODEL -u KIHIWI_PROFIL -u KIHIWI_LLM_ZUSATZ` und
+entladenem vLLM -- also wirklich ohne Umgebung. Startet Qwen3.6, beantwortet
+eine Dokumentenfrage mit "dreissig Kilovolt", und die Warnung schlaegt an,
+sobald man KIHIWI_MODEL absichtlich verstellt.
