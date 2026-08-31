@@ -1485,3 +1485,41 @@ liefert zusaetzlich das "was wird wie gemacht".
 mit 200, `/chat/completions` nie wieder. Genau die dokumentierte Falle. Der
 Stapellauf fordert jetzt vor dem Start eine kurze Antwort ab und scheitert
 laut, statt zehn Minuten auf `ep_poll` zu warten.
+
+### Der Embedding-Vergleich -- und wo ich falsch lag
+
+Ich hatte argumentiert, ein Vektorindex bringe hier wenig: die gefundenen Fehler
+laegen in der Aufbereitung, und die Fragen seien lexikalisch. Fred wollte es
+gemessen haben. Zu Recht.
+
+60 Fragenpaare, vom Modell aus zufaellig gezogenen Abschnitten erzeugt -- je eine
+Frage mit den Fachwoertern und eine, die sie meidet:
+
+| | mit Fachwoertern | umschrieben |
+|---|---|---|
+| FTS5 mit Schlagwoertern | 83,3 % | 23,3 % |
+| nur Vektoren | 75,0 % | **41,7 %** |
+| Mischung (RRF) | **90,0 %** | 38,3 % |
+
+**Bei umschriebenen Fragen fast verdoppelt der Vektorindex die Trefferquote.**
+Das ist kein Randfall. Mein Fehlschluss war, aus "die gefundenen Fehler lagen in
+der Aufbereitung" zu folgern, dass es sonst keine gibt -- Aufbereitungsfehler und
+Vokabularluecke sind zwei verschiedene Probleme, und ich hatte nur nach dem
+ersten gesucht.
+
+Recht behalten habe ich beim lexikalischen Fall: bei woertlichen Fragen verliert
+der Vektorindex deutlich (75 gegen 83 %, MRR 0,495 gegen 0,693). Er findet das
+Thema, nicht die Stelle mit der Zahl. **Der eigentliche Befund ist die dritte
+Zeile: nicht entweder-oder.**
+
+**Beinahe haette ich eine erfundene Null veroeffentlicht.** Das erste
+Einbettungsmodell lieferte auf dieser Maschine stumm NaN, und die Auswertung
+meldete pflichtschuldig 0/60 fuer Vektoren -- passend zu meiner These. Aufgefallen
+ist es nur, weil 0/60 bei woertlichen Fragen unmoeglich ist. Ein Ergebnis, das
+die eigene Erwartung bestaetigt, verdient die genauere Pruefung, nicht die
+nachlaessigere.
+
+Eingebaut als RRF-Verschmelzung in `index.suchen()`, Vektoren nach Inhalts-Hash
+wie die Schlagwoerter. Nachgemessen am eingebauten Stand: 86,7 % und 40,0 %,
+Suche 80-116 ms, erster Aufruf 1,4 s. Der Vektorteil steht in einem try und
+faellt auf reinen Volltext zurueck -- schlechter, aber nie kaputt.

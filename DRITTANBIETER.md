@@ -18,6 +18,8 @@ eigenen Lizenzen unterliegen:
 | [SearXNG](https://github.com/searxng/searxng) | Internetsuche (optional) | AGPL-3.0 |
 | [pypdfium2](https://github.com/pypdfium2-team/pypdfium2) | PDF-Text für den Index | BSD-3-Clause / Apache-2.0 |
 | [pypdf](https://github.com/py-pdf/pypdf) | PDF-Text, Rückfallebene | BSD-3-Clause |
+| [fastembed](https://github.com/qdrant/fastembed) | Vektorindex (optional) | Apache-2.0 |
+| multilingual-e5-large | Einbettungsmodell | MIT |
 
 **Piper steht unter GPL-3.0.** kihiwi ruft es als eigenständige Bibliothek auf
 und wird nicht mit ihm ausgeliefert; wer kihiwi weitergibt, gibt Piper nicht mit

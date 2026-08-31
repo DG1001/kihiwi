@@ -22,3 +22,9 @@ pypdf>=5.0
 # Sprechertrennung. Optional: fehlt es, entsteht das Protokoll ohne
 # Sprecherangabe (KIHIWI_SPRECHER=0 schaltet es ausdruecklich ab).
 sherpa-onnx>=1.13
+
+# Vektorindex neben der Volltextsuche. ONNX ueber onnxruntime, kein torch --
+# dieselbe Laufzeit, die VAD und Sprechertrennung schon benutzen. Optional:
+# fehlt fastembed, sucht kihiwi nur im Volltext (messbar schlechter bei
+# umschriebenen Fragen, aber nie kaputt).
+fastembed>=0.8

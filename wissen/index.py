@@ -12,12 +12,15 @@ das Modell soll zitieren können, was es benutzt hat.
 from __future__ import annotations
 
 import hashlib
+import logging
 import re
 import sqlite3
 from dataclasses import dataclass
 from pathlib import Path
 
 from sprachdienst import konfig
+
+log = logging.getLogger("kihiwi.wissen")
 
 DB = Path(konfig.WURZEL / "wissen" / "index.db")
 
@@ -39,6 +42,16 @@ CREATE VIRTUAL TABLE IF NOT EXISTS abschnitte USING fts5(
     dok_id   UNINDEXED,
     nr       UNINDEXED,
     tokenize = 'unicode61 remove_diacritics 2'
+);
+-- Vektoren je Abschnitt, ebenfalls nach Inhalts-Hash. Getrennt von der
+-- FTS-Tabelle aus demselben Grund wie die Schlagwoerter: einbetten kostet
+-- (1180 s fuer 2774 Abschnitte auf der CPU), ein erneutes Einlesen soll es
+-- nicht wegwerfen.
+CREATE TABLE IF NOT EXISTS vektoren (
+    hash   TEXT PRIMARY KEY,
+    v      BLOB NOT NULL,
+    modell TEXT,
+    stand  TEXT
 );
 -- Erschlossene Schlagwoerter, nach Inhalts-Hash des ABSCHNITTS.
 -- Getrennt von der FTS-Tabelle, damit sie ein erneutes Einlesen ueberleben:
@@ -327,14 +340,46 @@ def suchen(frage: str, anzahl: int = 5, c: sqlite3.Connection | None = None
         # Anführungszeichen um jeden Begriff: sonst deutet FTS5 Bindestriche
         # als Operatoren und scheitert an "Siliziumnitrid-Fenster".
         ausdruck = " OR ".join(f'"{x}"' for x in w)
+        # Mehr holen als gebraucht: die Verschmelzung soll aus beiden Listen
+        # waehlen koennen, nicht nur aus den ersten acht.
+        breit = anzahl * 3
         zeilen = c.execute("""
-            SELECT a.text, a.ueberschrift, a.schlagwoerter,
+            SELECT a.rowid, a.text, a.ueberschrift, a.schlagwoerter,
                    d.titel, d.quelle, d.herkunft,
                    bm25(abschnitte, 1.0, 2.0, 1.5) AS punkte
             FROM abschnitte a JOIN dokumente d ON d.id = a.dok_id
             WHERE abschnitte MATCH ?
-            ORDER BY punkte LIMIT ?""", (ausdruck, anzahl)).fetchall()
-        return [Treffer(*z) for z in zeilen]
+            ORDER BY punkte LIMIT ?""", (ausdruck, breit)).fetchall()
+        nach_id = {z[0]: z for z in zeilen}
+        volltext = [z[0] for z in zeilen]
+
+        # Vektoren dazu, wenn welche da sind. Gemessen ueber 60 Fragenpaare:
+        # die Mischung trifft bei woertlichen Fragen 90,0 % gegen 83,3 %
+        # (Volltext) und 75,0 % (Vektoren), bei umschriebenen 38,3 % gegen
+        # 23,3 %. Fehlt der Vektorindex, bleibt es beim reinen Volltext --
+        # schlechter, aber nie kaputt.
+        rangfolge = volltext
+        try:
+            from . import vektor
+            nah = vektor.aehnlich(frage, breit)
+            if nah:
+                rangfolge = vektor.verschmelzen(volltext, nah, anzahl=anzahl)
+                fehlend = [r for r in rangfolge if r not in nach_id]
+                if fehlend:
+                    marken = ",".join("?" * len(fehlend))
+                    for z in c.execute(f"""
+                        SELECT a.rowid, a.text, a.ueberschrift, a.schlagwoerter,
+                               d.titel, d.quelle, d.herkunft, 0.0
+                        FROM abschnitte a JOIN dokumente d ON d.id = a.dok_id
+                        WHERE a.rowid IN ({marken})""", fehlend):
+                        nach_id[z[0]] = z
+        except Exception as e:
+            # Der Vektorteil darf die Suche nie mitreissen: fehlendes Modell,
+            # fehlende Bibliothek, NaN. Dann eben nur Volltext.
+            log.warning("Vektorteil uebersprungen: %r", e)
+
+        return [Treffer(*nach_id[r][1:]) for r in rangfolge[:anzahl]
+                if r in nach_id]
     except sqlite3.OperationalError:
         return []
     finally:

@@ -1,7 +1,7 @@
-"""Kommandozeile: ./dienste.sh wissen [einlesen|erschliessen|katalog|ueberblick|status|suchen ...]"""
+"""Kommandozeile: ./dienste.sh wissen [einlesen|erschliessen|vektoren|katalog|ueberblick|status|suchen ...]"""
 import sys
 
-from . import einlesen, erschliessen, index, web
+from . import einlesen, erschliessen, index, vektor, web
 
 
 def main(argv):
@@ -27,6 +27,13 @@ def main(argv):
                   f"{e['sekunden']:.0f} s")
         if e["gescheitert"]:
             return 1
+    elif befehl == "vektoren":
+        print(f"Bette fehlende Abschnitte ein ({vektor.MODELL}) ...")
+        e = vektor.nachtragen()
+        if not e["offen"]:
+            print("  Nichts zu tun — alle Abschnitte haben einen Vektor.")
+        else:
+            print(f"  {e['erledigt']} eingebettet, {e['sekunden']:.0f} s")
     elif befehl == "katalog":
         import asyncio
         from sprachdienst import konfig
@@ -49,9 +56,12 @@ def main(argv):
         c = index.lesen()
         mit = c.execute("SELECT COUNT(*) FROM abschnitte WHERE schlagwoerter != ''").fetchone()[0]
         kurz = c.execute("SELECT COUNT(*) FROM kurzfassung").fetchone()[0]
+        vek, _ = vektor.bestand(c)
         c.close()
         print(f"  erschlossen: {mit} von {s['abschnitte']} Abschnitten")
         print(f"  Kurzfassungen: {kurz} von {s['dokumente']} Dokumenten")
+        print(f"  Vektoren: {vek} von {s['abschnitte']} Abschnitten"
+              + ("" if vek else "  (Suche laeuft nur ueber den Volltext)"))
         for q, n in sorted(s["quellen"].items()):
             print(f"  {q:<16} {n}")
         if not s["quellen"]:

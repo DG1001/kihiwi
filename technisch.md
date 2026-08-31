@@ -398,6 +398,43 @@ weiter und sagt es. Still schlechter Text wäre schlimmer als ein Abbruch.
 - **146 von 2420 Abschnitten sind größer als `ABSCHNITT_MAX`** (siehe oben) —
   unverändert, aber seit dem Auszug um die Fundstelle folgenlos.
 
+### Volltext und Vektoren gemischt
+
+**Gemessen, nicht geglaubt.** 60 Fragenpaare, vom Modell aus zufällig gezogenen
+Abschnitten erzeugt: je eine Frage mit den Fachwörtern des Abschnitts und eine,
+die sie ausdrücklich meidet. Gezählt wurde, ob der Quellabschnitt in den ersten
+acht Treffern steht.
+
+| | mit den Fachwörtern | umschrieben |
+|---|---|---|
+| FTS5 ohne Schlagwörter | 85,0 % · MRR 0,657 | 21,7 % · MRR 0,137 |
+| FTS5 mit Schlagwörtern | 83,3 % · MRR 0,693 | 23,3 % · MRR 0,134 |
+| nur Vektoren (e5-large) | 75,0 % · MRR 0,495 | **41,7 %** · MRR 0,220 |
+| **Mischung (RRF)** | **90,0 %** · MRR 0,679 | 38,3 % · MRR 0,185 |
+
+**Die Volltextsuche gewinnt, wo das Wort wörtlich dasteht** — eine Zahl, ein
+Bezeichner, `FENSTER_NM`. **Der Vektorindex fast verdoppelt die Trefferquote,
+wo jemand die Sache umschreibt.** Die Mischung ist bei wörtlichen Fragen besser
+als beide Einzelverfahren.
+
+Der eingebaute Stand, gegen dieselbe Grundwahrheit geprüft: **86,7 %** bzw.
+**40,0 %**, Suche 80–116 ms, erster Aufruf nach dem Start 1,4 s (Modell laden).
+
+**RRF statt Punktemischung.** BM25-Punkte und Kosinusähnlichkeit haben keine
+gemeinsame Skala; sie zu addieren verlangt einen Faktor, den man auf 60 Fragen
+überanpasst. Reciprocal Rank Fusion benutzt nur die Rangplätze.
+
+**Der Vektorteil darf die Suche nie mitreißen.** Fehlt `fastembed`, fehlt das
+Modell oder liefert es NaN, bleibt es beim reinen Volltext — schlechter, aber
+nie kaputt. `wissen status` zeigt die Abdeckung.
+
+**Warnung aus dem Verlauf:** das erste Modell (`jina-embeddings-v2-base-de`)
+lieferte unter onnxruntime auf aarch64 **stumm NaN**, auch bei trivialem Text.
+Die Auswertung meldete daraufhin 0/60 für Vektoren — eine Zahl, die gut in die
+vorherige These gepasst hätte. Aufgefallen ist es nur, weil 0/60 bei wörtlichen
+Fragen unmöglich ist. Seitdem prüft `vektor.einbetten()` bei jedem Aufruf auf
+NaN.
+
 **SQLite FTS5, kein Vektorindex.** Eingebaut in Python, kein Embedding-Modell,
 kein GPU-Speicher (den Ornith belegt), kein zusätzlicher Dienst. Für Fachtexte
 ist Stichwortsuche stark — gefragt wird nach „Siliziumnitrid", „JEOL",
