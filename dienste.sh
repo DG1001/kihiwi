@@ -9,7 +9,8 @@
 #   ./dienste.sh log [name]      Protokoll folgen (sprach | whisper | vllm)
 #   ./dienste.sh protokoll [...] Aufnahmen transkribieren und Protokoll bauen
 #   ./dienste.sh wissen [...]    Unterlagen einlesen/durchsuchen
-#                                (einlesen | status | suchen ... | web ...)
+#                                (einlesen | erschliessen | katalog |
+#                                 ueberblick | status | suchen ... | web ...)
 #   ./dienste.sh sprechermodelle laedt die Modelle der Sprechertrennung nach
 #                                (35 MB, liegen nicht im Repo)
 #

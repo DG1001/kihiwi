@@ -22,6 +22,7 @@ from websockets.datastructures import Headers
 from websockets.http11 import Response
 
 from wissen import einlesen as wissen_einlesen
+from wissen import erschliessen as wissen_erschliessen
 from wissen import index as wissen_index, recherche as wissen_recherche
 from wissen import web as wissen_web
 
@@ -238,6 +239,20 @@ WERKZEUGE = [{
             "properties": {"frage": {"type": "string",
                                      "description": "Suchbegriffe oder die Frage"}},
             "required": ["frage"]},
+    }}, {
+    "type": "function",
+    "function": {
+        # Bewusst ein eigenes Werkzeug und NICHT im Systemprompt: der
+        # Ueberblick sind rund 27k Token, die jeden Sprachzug um Sekunden
+        # verlaengern wuerden. Gezogen wird er nur, wenn die Frage nach
+        # Orientierung klingt statt nach einer Stelle.
+        "name": "unterlagen_ueberblick",
+        "description": ("Listet ALLE vorhandenen Unterlagen mit einer Kurzfassung "
+                        "je Dokument. Benutzen, wenn gefragt wird, WAS es überhaupt "
+                        "gibt, WO etwas stehen könnte oder ob zu einem Thema etwas "
+                        "vorliegt — nicht für eine einzelne Tatsache, dafür ist "
+                        "dokumente_suchen da."),
+        "parameters": {"type": "object", "properties": {}},
     }}, {
     "type": "function",
     "function": {
@@ -876,9 +891,30 @@ class Sitzung:
             teile = []
             for t in treffer:
                 # Quelle mitgeben, damit das Modell zitieren kann statt zu behaupten.
-                teile.append(f"[{t.quelle} — {t.titel}, Abschnitt: {t.ueberschrift}]\n"
-                             f"{wissen_index.auszug(t.text, begriffe)}")
+                kopf = f"[{t.quelle} — {t.titel}, Abschnitt: {t.ueberschrift}"
+                # Kam der Treffer NUR ueber erschlossene Schlagwoerter, steht das
+                # gesuchte Wort nicht im Auszug -- ohne Hinweis haelt das Modell
+                # die Stelle fuer unpassend und sagt "steht nicht in den
+                # Unterlagen". Ausdruecklich als erschlossen gekennzeichnet:
+                # abgeleitet bleibt abgeleitet, es wird nichts zitierfaehig.
+                if not any(b in t.text.lower() for b in begriffe):
+                    passend = [x.strip() for x in (t.schlagwoerter or "").split(",")
+                               if any(b in x.lower() for b in begriffe)]
+                    if passend:
+                        kopf += f"; erschlossen als: {', '.join(passend[:4])}"
+                teile.append(f"{kopf}]\n{wissen_index.auszug(t.text, begriffe)}")
             return "\n\n".join(teile)
+
+        if name == "unterlagen_ueberblick":
+            t = await asyncio.to_thread(wissen_erschliessen.ueberblick)
+            if not t.strip():
+                return "Es sind noch keine Unterlagen eingelesen."
+            # Ausdruecklich als abgeleitet gekennzeichnet: die Kurzfassungen
+            # stammen vom Modell, nicht aus den Dokumenten. Sie taugen zur
+            # Orientierung, nie als Beleg fuer eine Zahl.
+            return ("Übersicht der Unterlagen. Die Kurzfassungen sind "
+                    "ERSCHLOSSEN, nicht zitierfähig — für Werte immer "
+                    "dokumente_suchen benutzen.\n\n" + t)
 
         if name == "web_suchen":
             if not konfig.WEB_SUCHE:

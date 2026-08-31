@@ -301,6 +301,42 @@ Assistenten.
     ./dienste.sh wissen suchen ...      Volltextsuche
     ./dienste.sh wissen web ...         SearXNG
 
+**Quelltext wird an Symbolen geschnitten, nicht an `#`.** In Python leitet
+`#` einen Kommentar ein — die Markdown-Zerlegung machte daraus Überschriften.
+Im Index standen Einträge wie `----------------------------------------`, und
+geschnitten wurde an Kommentarzeilen statt an Funktionen. Betroffen waren 879
+von 2495 Abschnitten, gut ein Drittel. Jetzt trägt die Überschrift den
+Symbolnamen (`Mikroskop_Objekt_4.py — probe_cameras`), und der Block vor dem
+ersten Symbol bekommt einen eigenen Abschnitt: **dort stehen die Messwerte**,
+`FENSTER_NM = 50.0` etwa.
+
+Dazu zwei Netze: eine **zeilenweise Obergrenze** für alles, was auch nach der
+Absatztrennung zu groß bleibt (Messwerttabellen haben keine Absätze), und ein
+**Datenblock-Filter** — der größte Abschnitt im Index war
+`BILD_B64 = "iVBORw0KGgo…"`, ein eingebettetes PNG mit 178.484 Zeichen in einer
+Zeile. Ergebnis: größter Abschnitt 1.596 statt 178.602 Zeichen, **keiner mehr
+über der Grenze** (vorher 166).
+
+**`ZERLEGER_FASSUNG` gehört in den Fingerabdruck.** Der erste Versuch blieb
+wirkungslos: `einlesen` meldete „0 Dokumente geändert", weil der Fingerabdruck
+nur den Inhalt abdeckt. Eine Änderung am Schnitt erzwingt jetzt das Neulesen.
+
+**Erschlossene Schlagwörter (`wissen erschliessen`).** Ein LLM-Durchlauf je
+Abschnitt erzeugt 8–14 Suchbegriffe, darunter zu jeder Abkürzung die
+ausgeschriebene Form und umgekehrt. Sie liegen in einer eigenen FTS-Spalte
+(Gewicht 1,5) und in der Tabelle `erschliessung` nach Inhalts-Hash — dadurch
+überleben sie jedes `wissen einlesen`. Gemessen: 1312 neue Abschnitte in 392 s,
+1462 kamen ohne Modellaufruf zurück. **Vier Gewichte wurden verglichen; 1,5
+bleibt** — mehr bringt fünf Brückentreffer und kostet vier Auszüge, die den
+Suchbegriff tragen.
+
+**Katalog (`wissen katalog`, `wissen ueberblick`).** Drei Sätze je Dokument,
+179 Stück in 95 s, zusammen 71.713 Zeichen ≈ **19k Token** — der ganze Bestand
+passt in ein Siebtel des Kontexts. Abrufbar über das Werkzeug
+`unterlagen_ueberblick`, **nicht** im Systemprompt: 19k Token in jedem
+Sprachzug wären Sekunden je Antwort. Die Kurzfassungen sind ausdrücklich als
+erschlossen gekennzeichnet und nie zitierfähig.
+
 **Umlaute in beiden Schreibweisen.** Der Index faltet sie weg
 (`tokenize = unicode61 remove_diacritics 2`): „Sekundärelektronen" liegt dort
 als `sekundarelektronen`. Eine Anfrage in ae/oe/ue-Schreibweise traf das nie —

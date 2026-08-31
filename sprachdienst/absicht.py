@@ -258,7 +258,10 @@ WERKZEUGE_JE_ABSICHT = {
     Absicht.PROTOKOLL:    [],
     Absicht.ZEIT:         [],
     Absicht.WECKER:       [],
-    Absicht.WISSEN:       ["dokumente_suchen", "web_suchen"],
+    # unterlagen_ueberblick nur hier: die Landkarte beantwortet "was gibt es
+    # ueberhaupt", nicht "wie hoch ist die Spannung". Bei den anderen Absichten
+    # waere sie nur ein teurer Umweg.
+    Absicht.WISSEN:       ["dokumente_suchen", "unterlagen_ueberblick", "web_suchen"],
     Absicht.PLAUDEREI:    [],
 }
 

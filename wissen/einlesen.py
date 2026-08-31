@@ -94,14 +94,85 @@ def text_aus(pfad: Path) -> str | None:
 
 _UEBERSCHRIFT = re.compile(r"^(#{1,6})\s+(.*)$|^\[Seite (\d+)\]$", re.M)
 
+# Quelltext wird an Symbolen geschnitten, nicht an "#".
+#
+# Vorher lief Quelltext durch dieselbe Markdown-Zerlegung -- und in Python
+# leitet "#" einen KOMMENTAR ein. Damit wurde jede Kommentarzeile zur
+# Ueberschrift: im Index standen Ueberschriften wie
+# "----------------------------------------" und "genau der Fehler, den man nur
+# einmal macht". Das Feld wiegt in BM25 doppelt, war also mit Zufallstext
+# gefuellt. Geschnitten wurde an Kommentaren statt an Funktionen, und wo keine
+# Kommentare standen, gar nicht -- daher der 178.602-Zeichen-Abschnitt.
+# Betroffen waren 879 von 2495 Abschnitten, gut ein Drittel des Index.
+# Hochzaehlen, sobald sich die Zerlegung aendert -- erzwingt neues Einlesen.
+ZERLEGER_FASSUNG = 3
+CODE_ENDUNGEN = {".py", ".sh", ".c", ".h", ".cpp", ".java", ".js", ".ts", ".sql"}
+_SYMBOL = re.compile(
+    r"^(?:async\s+)?(?:def|class)\s+([A-Za-z_]\w*)"          # Python
+    r"|^(?:export\s+)?(?:async\s+)?function\s+([A-Za-z_$][\w$]*)"   # JS/TS
+    r"|^(?:[A-Za-z_][\w:<>,\s*&]*?)\b([A-Za-z_]\w*)\s*\([^;]*\)\s*\{"  # C/Java
+    r"|^([A-Za-z_]\w*)\s*\(\)\s*\{",                              # sh
+    re.M)
 
-def zerlegen(text: str, titel: str) -> list[tuple[str, str]]:
+
+def _zerlegen_code(text: str, titel: str) -> list[tuple[str, str]]:
+    """Blockweise an Symbolen auf Spaltenposition 0."""
+    marken = [(m.start(), next(g for g in m.groups() if g))
+              for m in _SYMBOL.finditer(text)]
+    if not marken:
+        return [(titel, text)]
+    bloecke = []
+    if marken[0][0] > 0:
+        # Alles vor dem ersten Symbol: Importe, Modul-Docstring, Konstanten.
+        # Traegt oft die Messwerte -- FENSTER_NM = 50.0 steht genau dort.
+        bloecke.append((f"{titel} — Kopf und Konstanten", text[:marken[0][0]]))
+    for i, (pos, name) in enumerate(marken):
+        ende = marken[i + 1][0] if i + 1 < len(marken) else len(text)
+        bloecke.append((f"{titel} — {name}", text[pos:ende]))
+    return bloecke
+
+
+# Ein zusammenhaengender "Wort"-Lauf ohne Leerzeichen laenger als das ist kein
+# Text mehr. Der groesste Abschnitt im Index war eine Zeile mit 178.484 Zeichen:
+# `BILD_B64 = "iVBORw0KGgo..."`, ein eingebettetes PNG. Suchbar ist daran
+# nichts, aber es verzerrte jede Statistik und blieb allen Schnittregeln
+# gewachsen -- auch der zeilenweisen, denn es ist EINE Zeile.
+DATENLAUF_AB = 500
+
+
+def _ist_datenblock(text: str) -> bool:
+    """Base64-Anhaenge, Bilddaten, kodierte Felder -- kein durchsuchbarer Text."""
+    laengster = max((len(w) for w in text.split()), default=0)
+    return laengster > DATENLAUF_AB and laengster > len(text) * 0.5
+
+
+def _nach_zeilen(ueb: str, block: str) -> list[tuple[str, str]]:
+    """Letzte Instanz fuer Bloecke ohne jede Struktur -- Datenfelder, Tabellen.
+    Stumpf nach Zeichenzahl an Zeilengrenzen, damit kein Abschnitt mehr
+    unbegrenzt wachsen kann."""
+    aus, puffer = [], ""
+    for zeile in block.splitlines(keepends=True):
+        if len(puffer) + len(zeile) > ABSCHNITT_ZIEL and puffer:
+            aus.append((ueb, puffer.strip())); puffer = ""
+        puffer += zeile
+    if puffer.strip():
+        aus.append((ueb, puffer.strip()))
+    return aus
+
+
+def zerlegen(text: str, titel: str, endung: str = "") -> list[tuple[str, str]]:
     """Zerlegt in (ueberschrift, text). Schneidet an Ueberschriften und
     Absaetzen, nicht an fester Zeichenzahl -- ein mitten im Satz getrennter
     Abschnitt ist als Zitat wertlos."""
-    marken = [(m.start(), (m.group(2) or f"Seite {m.group(3)}").strip())
-              for m in _UEBERSCHRIFT.finditer(text)]
-    if not marken:
+    if endung.lower() in CODE_ENDUNGEN:
+        bloecke = _zerlegen_code(text, titel)
+        marken = True          # nur fuer den Zweig unten
+    else:
+        marken = [(m.start(), (m.group(2) or f"Seite {m.group(3)}").strip())
+                  for m in _UEBERSCHRIFT.finditer(text)]
+    if endung.lower() in CODE_ENDUNGEN:
+        pass
+    elif not marken:
         bloecke = [(titel, text)]
     else:
         bloecke = []
@@ -125,7 +196,15 @@ def zerlegen(text: str, titel: str) -> list[tuple[str, str]]:
             puffer += absatz + "\n\n"
         if puffer.strip():
             aus.append((ueb, puffer.strip()))
-    return [(u, t) for u, t in aus if len(t) > 40]
+    # Harte Obergrenze: was auch nach der Absatztrennung zu gross ist, hat
+    # keine Absaetze -- Datenfelder, Messwerttabellen, Bilddaten. Vorher blieb
+    # so etwas ungeteilt und wurde zum 178.602-Zeichen-Abschnitt.
+    endgueltig = []
+    for u, t in aus:
+        if _ist_datenblock(t):
+            continue
+        endgueltig += _nach_zeilen(u, t) if len(t) > ABSCHNITT_MAX else [(u, t)]
+    return [(u, t) for u, t in endgueltig if len(t) > 40]
 
 
 # ------------------------------------------------------------------ Quellen
@@ -258,10 +337,18 @@ def _eintragen(c, quelle, pfad, titel, herkunft, stand, text) -> int:
     GESEHEN.add(pfad)
     if not text or not text.strip():
         return 0
-    fp = hashlib.sha256(text.encode("utf-8", "replace")).hexdigest()[:16]
+    # Die Fassung der Zerlegung gehoert IN den Fingerabdruck. Sonst aendert
+    # sich der Schnitt, `einlesen` meldet "0 Dokumente geaendert" und der Index
+    # behaelt die alte Aufteilung -- genau so ist der Quelltext-Schnitt beim
+    # ersten Versuch wirkungslos geblieben.
+    fp = hashlib.sha256(
+        f"{ZERLEGER_FASSUNG}\n".encode() + text.encode("utf-8", "replace")
+    ).hexdigest()[:16]
     if index.fingerabdruck_bekannt(c, pfad, fp):
         return 0
-    absch = zerlegen(text, titel)
+    # Endung aus dem Titel: der traegt den Dateinamen, auch bei Nextcloud und
+    # git, wo kein lokaler Pfad existiert.
+    absch = zerlegen(text, titel, Path(titel).suffix)
     if not absch:
         return 0
     index.dokument_setzen(c, quelle, pfad, titel, herkunft, stand, fp, absch)

@@ -11,6 +11,7 @@ das Modell soll zitieren können, was es benutzt hat.
 """
 from __future__ import annotations
 
+import hashlib
 import re
 import sqlite3
 from dataclasses import dataclass
@@ -33,10 +34,30 @@ CREATE TABLE IF NOT EXISTS dokumente (
 CREATE VIRTUAL TABLE IF NOT EXISTS abschnitte USING fts5(
     text,
     ueberschrift,
+    schlagwoerter,                    -- erschlossen, nicht aus der Quelle
     pfad     UNINDEXED,
     dok_id   UNINDEXED,
     nr       UNINDEXED,
     tokenize = 'unicode61 remove_diacritics 2'
+);
+-- Erschlossene Schlagwoerter, nach Inhalts-Hash des ABSCHNITTS.
+-- Getrennt von der FTS-Tabelle, damit sie ein erneutes Einlesen ueberleben:
+-- sonst waere jeder `wissen einlesen` ein neuer Modelldurchlauf.
+-- Kurzfassung je DOKUMENT, damit das Modell die Landkarte sehen kann statt nur
+-- acht Ausschnitte. An den Fingerabdruck gebunden: aendert sich die Datei,
+-- verfaellt die Kurzfassung. Abgeleitet -- nie Quelle fuer eine Zahl.
+CREATE TABLE IF NOT EXISTS kurzfassung (
+    pfad     TEXT PRIMARY KEY,
+    fingerab TEXT,
+    text     TEXT NOT NULL,
+    modell   TEXT,
+    stand    TEXT
+);
+CREATE TABLE IF NOT EXISTS erschliessung (
+    hash    TEXT PRIMARY KEY,
+    woerter TEXT NOT NULL,
+    modell  TEXT,
+    stand   TEXT
 );
 """
 
@@ -45,6 +66,7 @@ CREATE VIRTUAL TABLE IF NOT EXISTS abschnitte USING fts5(
 class Treffer:
     text: str
     ueberschrift: str
+    schlagwoerter: str          # erschlossen, nie zitierfaehig
     titel: str
     quelle: str
     herkunft: str
@@ -57,6 +79,8 @@ def verbinden() -> sqlite3.Connection:
     c = sqlite3.connect(DB, timeout=10)
     c.execute("PRAGMA journal_mode=WAL")
     c.executescript(SCHEMA)
+    if _migrieren(c):
+        print("    Index umgebaut (Schlagwortspalte) — alle Quellen werden neu gelesen")
     return c
 
 
@@ -78,6 +102,32 @@ def fingerabdruck_bekannt(c, pfad: str, fingerab: str) -> bool:
     return bool(r and r[0] == fingerab)
 
 
+def abschnitt_hash(text: str) -> str:
+    """Kennung eines Abschnitts fuer die Erschliessung -- ueber den INHALT, nicht
+    ueber Pfad und Nummer. Verschiebt sich ein Abschnitt im Dokument oder wird
+    die Datei umbenannt, bleiben die Schlagwoerter gueltig; aendert sich der
+    Text, verfallen sie von selbst."""
+    return hashlib.sha1(text.encode("utf-8")).hexdigest()
+
+
+def _migrieren(c):
+    """Alte Indizes ohne Schlagwortspalte umbauen.
+
+    FTS5 kennt kein ALTER TABLE ADD COLUMN. Die Abschnitte werden verworfen und
+    die Fingerabdruecke geleert, damit `wissen einlesen` alles neu liest --
+    das ist billig. Die Tabelle `erschliessung` bleibt: sie haengt am
+    Inhalts-Hash, nicht an Zeilennummern, und ist das Teure.
+    """
+    spalten = [r[1] for r in c.execute("PRAGMA table_info(abschnitte)")]
+    if not spalten or "schlagwoerter" in spalten:
+        return False
+    c.execute("DROP TABLE abschnitte")
+    c.executescript(SCHEMA)
+    c.execute("UPDATE dokumente SET fingerab = NULL")
+    c.commit()
+    return True
+
+
 def dokument_setzen(c, quelle, pfad, titel, herkunft, stand, fingerab,
                     abschnitte: list[tuple[str, str]]):
     """Ersetzt ein Dokument samt Abschnitten. abschnitte = [(ueberschrift, text)]."""
@@ -89,9 +139,16 @@ def dokument_setzen(c, quelle, pfad, titel, herkunft, stand, fingerab,
         "INSERT INTO dokumente (quelle,pfad,titel,herkunft,stand,fingerab) "
         "VALUES (?,?,?,?,?,?)", (quelle, pfad, titel, herkunft, stand, fingerab))
     did = cur.lastrowid
+    # Schon erschlossene Schlagwoerter gleich mitnehmen: nach einem erneuten
+    # Einlesen sollen sie sofort wieder wirken, ohne Modelldurchlauf.
+    zeilen = []
+    for i, (u, t) in enumerate(abschnitte):
+        r = c.execute("SELECT woerter FROM erschliessung WHERE hash=?",
+                      (abschnitt_hash(t),)).fetchone()
+        zeilen.append((t, u, r[0] if r else "", pfad, did, i))
     c.executemany(
-        "INSERT INTO abschnitte (text,ueberschrift,pfad,dok_id,nr) VALUES (?,?,?,?,?)",
-        [(t, u, pfad, did, i) for i, (u, t) in enumerate(abschnitte)])
+        "INSERT INTO abschnitte (text,ueberschrift,schlagwoerter,pfad,dok_id,nr) "
+        "VALUES (?,?,?,?,?,?)", zeilen)
     return did
 
 
@@ -146,8 +203,22 @@ def _faltungen(wort: str) -> list[str]:
 
 
 def begriffe(frage: str) -> list[str]:
-    w = [x.lower() for x in _WORT.findall(frage)]
-    aus = [x for x in w if len(x) > 2 and x not in _STOPP]
+    """Suchbegriffe aus einer Frage.
+
+    **Zweibuchstabige Abkuerzungen bleiben drin, wenn sie gross geschrieben
+    oder Formelzeichen sind.** Die Laengengrenze warf `SE`, `HV`, `WD` und `Bz`
+    weg -- allesamt Fachbegriffe hier -- und die Suche lieferte darauf null
+    Treffer, nicht etwa schlechte. Gewoehnliche kurze Woerter fallen weiter
+    heraus: sie stehen klein im Satz und in `_STOPP`.
+    """
+    aus = []
+    for roh in _WORT.findall(frage):
+        x = roh.lower()
+        if x in _STOPP:
+            continue
+        kurz_erlaubt = len(roh) == 2 and (roh[0].isupper() or any(z.isdigit() for z in roh))
+        if len(x) > 2 or kurz_erlaubt:
+            aus.append(x)
     # Die gefaltete Form ZUSAETZLICH, nicht ersetzend: "Aerosol" wuerde sonst
     # zu "Arosol" und faende nichts mehr. Als zusaetzlicher OR-Begriff kostet
     # eine unsinnige Variante nichts -- sie trifft einfach nichts.
@@ -257,8 +328,9 @@ def suchen(frage: str, anzahl: int = 5, c: sqlite3.Connection | None = None
         # als Operatoren und scheitert an "Siliziumnitrid-Fenster".
         ausdruck = " OR ".join(f'"{x}"' for x in w)
         zeilen = c.execute("""
-            SELECT a.text, a.ueberschrift, d.titel, d.quelle, d.herkunft,
-                   bm25(abschnitte, 1.0, 2.0) AS punkte
+            SELECT a.text, a.ueberschrift, a.schlagwoerter,
+                   d.titel, d.quelle, d.herkunft,
+                   bm25(abschnitte, 1.0, 2.0, 1.5) AS punkte
             FROM abschnitte a JOIN dokumente d ON d.id = a.dok_id
             WHERE abschnitte MATCH ?
             ORDER BY punkte LIMIT ?""", (ausdruck, anzahl)).fetchall()

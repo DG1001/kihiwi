@@ -1440,3 +1440,48 @@ Kombinationen erzeugt; bei einer ODER-Suche kostet eine falsche Variante nichts.
 Index vor -- Dateinamen und umlautfrei geschriebene Dokumente. Das Korpus mischt
 also beide Schreibweisen, und vorher fand eine Anfrage je nach Tippweise nur die
 eine Haelfte. Jetzt beide: 260 Treffer statt 189.
+
+### Quelltext, Schlagwoerter, Katalog
+
+**Quelltext lief durch die Markdown-Zerlegung.** In Python ist `#` ein
+Kommentar, kein Ueberschriftszeichen -- also wurde jede Kommentarzeile zur
+Ueberschrift, und das Feld wiegt in BM25 doppelt. Im Index standen
+Ueberschriften wie `------------------------` und "genau der Fehler, den man nur
+einmal macht". Geschnitten wurde an Kommentaren statt an Funktionen; wo keine
+Kommentare standen, gar nicht. 879 von 2495 Abschnitten betroffen.
+
+Jetzt wird an `def`/`class`/`function` geschnitten, die Ueberschrift ist der
+Symbolname, und der Block davor heisst "Kopf und Konstanten" -- dort stehen die
+Messwerte. Dazu eine zeilenweise Obergrenze und ein Datenblock-Filter: der
+groesste Abschnitt war ein eingebettetes PNG als base64, 178.484 Zeichen in
+einer Zeile. **Groesster Abschnitt jetzt 1.596 statt 178.602, keiner mehr ueber
+der Grenze.**
+
+**Der erste Versuch aenderte nichts** -- `einlesen` meldete "0 Dokumente
+geaendert", weil der Fingerabdruck den Inhalt abdeckt und nicht die Zerlegung.
+`ZERLEGER_FASSUNG` geht jetzt in den Fingerabdruck ein.
+
+**Fred wollte Quelltext durch Zusammenfassungen ersetzen.** Dagegen sprach ein
+konkreter Fall: `FENSTER_NM = 50.0` steht ausschliesslich in
+`saeulen_auslegung.py` -- genau der Wert, wegen dem das Trefferlimit von 4 auf 8
+stieg. Eine Zusammenfassung im Sinne von "was wird wie gemacht" enthaelt keine
+50.0. In einem Labor, dessen Auslegung im Code steht, ist der Code teilweise
+Primaerquelle. Ergebnis: beides -- Code bleibt indiziert, und der Katalog
+liefert zusaetzlich das "was wird wie gemacht".
+
+**Drei eigene Fehler in dieser Runde**, alle behoben und alle lehrreich:
+
+1. Der Stapellauf fragte nach `ornith-1.5-35b-a3b`, weil die Kommandozeile ohne
+   KIHIWI_MODEL laeuft -- 100 Anfragen in einen 404, gemeldet als "100
+   gescheitert" ohne Grund. Jetzt fragt er den Endpunkt nach dem angebotenen
+   Modell und nennt den ersten Fehler im Klartext.
+2. Ein Wartewaechter suchte mit `pgrep -f "wissen erschliessen"` und fand **sich
+   selbst** -- 54 Minuten Deadlock. Steht so in CLAUDE.md, und ich bin trotzdem
+   hineingelaufen. Ueber PID warten, nicht ueber Namensmuster.
+3. `kurzfassungen()` benutzte die SQLite-Verbindung des Hauptthreads in einem
+   Arbeitsthread. Die Dokumenttexte werden jetzt vorher gelesen.
+
+**Und vLLM haengte sich mitten im Lauf auf** -- `/v1/models` antwortete weiter
+mit 200, `/chat/completions` nie wieder. Genau die dokumentierte Falle. Der
+Stapellauf fordert jetzt vor dem Start eine kurze Antwort ab und scheitert
+laut, statt zehn Minuten auf `ep_poll` zu warten.

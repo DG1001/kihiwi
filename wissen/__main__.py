@@ -1,7 +1,7 @@
-"""Kommandozeile: ./dienste.sh wissen [einlesen|status|suchen ...]"""
+"""Kommandozeile: ./dienste.sh wissen [einlesen|erschliessen|katalog|ueberblick|status|suchen ...]"""
 import sys
 
-from . import einlesen, index, web
+from . import einlesen, erschliessen, index, web
 
 
 def main(argv):
@@ -11,9 +11,47 @@ def main(argv):
         einlesen.alles(nur=argv[1] if len(argv) > 1 else None)
         s = index.stand()
         print(f"Index: {s['dokumente']} Dokumente, {s['abschnitte']} Abschnitte")
+    elif befehl == "erschliessen":
+        # Braucht das Sprachmodell. Laut scheitern, nicht still weniger tun.
+        import asyncio
+        from sprachdienst import konfig
+        alle = "--alle" in argv
+        grenze = next((int(a) for a in argv[1:] if a.isdigit()), None)
+        print(f"Erschliesse Abschnitte mit {konfig.LLM_MODEL} "
+              f"({'alle' if alle else 'nur ohne Schlagwoerter'}) ...")
+        e = asyncio.run(erschliessen.alles(nur_fehlende=not alle, grenze=grenze))
+        if not e["offen"]:
+            print("  Nichts zu tun — alle Abschnitte haben Schlagwoerter.")
+        else:
+            print(f"  {e['erledigt']} erschlossen, {e['gescheitert']} gescheitert, "
+                  f"{e['sekunden']:.0f} s")
+        if e["gescheitert"]:
+            return 1
+    elif befehl == "katalog":
+        import asyncio
+        from sprachdienst import konfig
+        print("Baue Kurzfassungen je Dokument ...")
+        e = asyncio.run(erschliessen.kurzfassungen(neu_bauen="--alle" in argv))
+        if not e["offen"]:
+            print("  Nichts zu tun — alle Dokumente haben eine Kurzfassung.")
+        else:
+            print(f"  {e['erledigt']} gebaut, {e['gescheitert']} gescheitert, "
+                  f"{e['sekunden']:.0f} s")
+        if e["gescheitert"]:
+            return 1
+    elif befehl == "ueberblick":
+        t = erschliessen.ueberblick()
+        print(t)
+        print(f"\n({len(t)} Zeichen, rund {len(t)/3.7/1000:.0f}k Token)")
     elif befehl == "status":
         s = index.stand()
         print(f"Index: {s['dokumente']} Dokumente, {s['abschnitte']} Abschnitte")
+        c = index.lesen()
+        mit = c.execute("SELECT COUNT(*) FROM abschnitte WHERE schlagwoerter != ''").fetchone()[0]
+        kurz = c.execute("SELECT COUNT(*) FROM kurzfassung").fetchone()[0]
+        c.close()
+        print(f"  erschlossen: {mit} von {s['abschnitte']} Abschnitten")
+        print(f"  Kurzfassungen: {kurz} von {s['dokumente']} Dokumenten")
         for q, n in sorted(s["quellen"].items()):
             print(f"  {q:<16} {n}")
         if not s["quellen"]:
