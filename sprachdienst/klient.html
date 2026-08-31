@@ -98,6 +98,16 @@
   .merker span:not(.pfeil) { display:-webkit-box; -webkit-line-clamp:2;
                              -webkit-box-orient:vertical; overflow:hidden; }
 
+  /* Texteingabe: zweiter, gleichwertiger Weg neben der Stimme. Am Client
+     kann eine Tastatur haengen, und im Labor ist es laut. Sie sitzt unter dem
+     Verlauf und ueber den Leuchten -- dort, wo man beim Lesen ohnehin
+     hinschaut, und ohne der Buehne Platz zu nehmen. */
+  #tippen { display:flex; gap:.5rem; flex:none; padding:.7rem 0 .5rem; }
+  #tippen input { flex:1; min-width:0; background:var(--karte); color:var(--fg);
+                  border:1px solid var(--linie); border-radius:6px;
+                  padding:.5rem .7rem; font:inherit; font-size:.9rem; }
+  #tippen input:focus { outline:none; border-color:#6b4c1a; }
+  #tippen button { flex:none; }
   #leds { display:flex; gap:1rem; font-size:.78rem; color:var(--matt); flex:none;
           border-top:1px solid var(--linie); padding:.6rem 0; flex-wrap:wrap; }
   .led { display:inline-block; width:.55em; height:.55em; border-radius:50%;
@@ -189,6 +199,12 @@
   <div id="wecker"></div>
 
   <div id="verlauf"></div>
+
+  <form id="tippen" autocomplete="off">
+    <input id="tipp-feld" type="text" placeholder="… oder tippen (ohne „Kiwi“)"
+           aria-label="Anweisung tippen" maxlength="2000">
+    <button type="submit" class="klein">senden</button>
+  </form>
 
   <div id="leds">
     <span><span class="led" id="led-ws"></span>Verbindung</span>
@@ -503,6 +519,17 @@ function verbinden() {
 }
 
 const senden = o => ws && ws.readyState === 1 && ws.send(JSON.stringify(o));
+
+/* Getippt ist gleichwertig zu gesprochen: derselbe Weg im Dienst, dieselbe
+   Antwort, dieselbe Buehne. Der Dienst braucht dafuer kein Mikrofon -- das
+   Feld bleibt also auch bedienbar, wenn die Aufnahme aus ist. */
+$("tippen").addEventListener("submit", e => {
+  e.preventDefault();
+  const f = $("tipp-feld"), t = f.value.trim();
+  if (!t) return;
+  senden({befehl: "text", text: t});
+  f.value = "";
+});
 
 $("mikro").onclick = async () => {
   if (ctx) {

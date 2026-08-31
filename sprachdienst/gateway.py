@@ -29,7 +29,7 @@ from . import protokoll as protokoll_modul
 
 from . import absicht as absicht_modul
 from . import aktivierung, doku, konfig, llm, stt, tts, wecker as wecker_modul, zahlwort
-from .turn import Turnerkenner
+from .turn import Endpoint, Turnerkenner
 from .zustand import Phase, Zustandshalter
 
 log = logging.getLogger("kihiwi")
@@ -322,10 +322,48 @@ class Sitzung:
             if HALTER.z.mikro:
                 self.turn.reset()
                 HALTER.setzen(phase=Phase.HOEREN)
+        elif art == "text":
+            await self.getippt(str(b.get("text") or ""))
         elif art == "abbrechen":
             if self.antwort_task and not self.antwort_task.done():
                 self.antwort_task.cancel()
             HALTER.setzen(phase=Phase.BEREIT if HALTER.z.mikro else Phase.LEERLAUF)
+
+    async def getippt(self, text: str):
+        """Getippte Eingabe -- gleichwertig zur gesprochenen, nur ohne Audio.
+
+        Steigt genau dort ein, wo audio() nach dem Endpunkt einsteigt. VAD,
+        Transkription und Nachschaerfen entfallen, der Text steht ja fest;
+        alles danach ist unveraendert -- Absichten, Ausloesewoerter, Wecker,
+        Werkzeuge, Buehne.
+
+        **Ohne Aktivierungswort.** Wer tippt, spricht den Assistenten
+        absichtlich an -- dieselbe Ueberlegung wie beim Knopf "ansprechen".
+        Ein vorangestelltes "Kiwi," wird trotzdem entfernt, sonst steht es in
+        der Frage. Nur der Anfang wird geprueft, "Was ist ein Kiwi?" bleibt
+        also heil.
+
+        **Braucht das Mikrofon NICHT.** Am Client kann eine Tastatur haengen,
+        wo kein brauchbares Mikrofon steht, und im Labor ist es laut.
+        """
+        text = (text or "").strip()
+        if not text:
+            return
+        ja, rest = aktivierung.erkannt(text)
+        if ja and rest.strip():
+            text = rest.strip()
+        if self.antwort_task and not self.antwort_task.done():
+            # Wer tippt, waehrend noch geantwortet wird, will das Neue.
+            self.antwort_task.cancel()
+        self.letzte_ansprache = time.time()
+        # gespraech=True: nach einer getippten Frage soll eine gesprochene
+        # Rueckfrage ohne erneutes "Kiwi" durchgehen -- getippt und gesprochen
+        # sind dasselbe Gespraech, nicht zwei.
+        HALTER.setzen(gespraech=True, phase=Phase.DENKEN)
+        log.info("Endpoint: getippt, %d Zeichen: %r", len(text), text[:70])
+        ep = Endpoint(samples=np.zeros(0, dtype=np.float32), text=text,
+                      grund="getippt", dauer_ms=0.0)
+        self.antwort_task = asyncio.create_task(self.antworten(ep))
 
     async def audio(self, roh: bytes):
         x = np.frombuffer(roh, dtype=np.int16).astype(np.float32) / 32768.0

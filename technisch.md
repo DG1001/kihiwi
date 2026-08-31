@@ -971,6 +971,28 @@ Ausfuehrliche steht auf dem Monitor". Stattdessen erscheint ein anklickbarer
 **Merker**, der den Inhalt auf der Buehne wieder aufruft. Damit bleibt er
 erreichbar, ohne den Verlauf zuzuschuetten.
 
+**Texteingabe neben der Stimme.** Ein Feld unter dem Verlauf schickt
+`{"befehl":"text","text":…}`. Der Dienst baut daraus einen `Endpoint` mit
+`grund="getippt"` und ruft `antworten()` — also genau der Einstieg, den auch
+`audio()` nach dem Endpunkt nimmt. VAD, Transkription und Nachschärfen
+entfallen, der Text steht fest; alles danach ist unverändert (Absichten,
+Auslösewörter, Wecker, Werkzeuge, Bühne).
+
+Drei Entscheidungen dahinter:
+
+- **Kein Aktivierungswort.** Wer tippt, spricht den Assistenten absichtlich an
+  — dieselbe Überlegung wie beim Knopf „ansprechen". Ein vorangestelltes
+  „Kiwi," wird trotzdem entfernt; `aktivierung.erkannt()` prüft nur den Anfang,
+  „Was ist ein Kiwi?" bleibt also heil.
+- **Kein Mikrofon nötig.** Am Client kann eine Tastatur hängen, wo kein
+  brauchbares Mikrofon steht, und im Labor ist es laut. Das Feld funktioniert
+  mit ausgeschalteter Aufnahme.
+- **`gespraech=True`.** Getippt und gesprochen sind dasselbe Gespräch: eine
+  Rückfrage per Stimme braucht danach kein erneutes „Kiwi".
+
+Eine laufende Antwort wird abgebrochen — wer tippt, während geredet wird, will
+das Neue.
+
 **Die Buehne ueberlebt Neuladen und Dienstneustart.** Der letzte Buehneninhalt
 liegt in `zustand/buehne.json` und wird beim Verbindungsaufbau mit `wieder:
 true` nachgereicht; der Klient zeigt ihn an, vermerkt „von vorhin" und setzt

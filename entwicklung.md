@@ -1319,3 +1319,24 @@ Veroeffentlichung, gepruegt war es nie.
 
 **Der Speicher ist der Haken:** 84 GB Gewichte lassen 18 GiB fuer alles andere,
 gegen 41 GiB bei den 22-GB-Modellen. Es laeuft, aber ohne Reserve.
+
+### Texteingabe neben der Stimme
+
+Fuer den Fall, dass am Client eine Tastatur haengt. Kein zweiter Pfad im Dienst:
+`getippt()` baut einen `Endpoint` mit `grund="getippt"` und ruft `antworten()` --
+denselben Einstieg, den `audio()` nach dem Endpunkt nimmt. Damit gilt alles
+Vorhandene automatisch weiter: Absichten, Ausloesewoerter, Wecker, Werkzeuge,
+Buehne. **Was schon einmal richtig gebaut wurde, muss man nicht zweimal
+bauen** -- die Trennung von Endpunkterkennung und Antwort hat sich hier
+ausgezahlt, ohne dass sie dafuer gedacht war.
+
+Drei Entscheidungen: ohne Aktivierungswort (wer tippt, spricht absichtlich an),
+ohne Mikrofon (am Futro steht vielleicht keins, und im Labor ist es laut), und
+`gespraech=True`, damit eine gesprochene Rueckfrage nach einer getippten Frage
+kein erneutes "Kiwi" braucht.
+
+Geprueft ueber den WebSocket, **bewusst ohne** `{"befehl":"mikro"}`: Zeitfrage
+beantwortet, "Kiwi, warum ..." korrekt auf "warum ..." gekuerzt, "Was ist ein
+Kiwi?" ungekuerzt durchgelassen (erkannt() prueft nur den Anfang), "Kiwihilfe"
+loeste aus und landete auf der Buehne. Danach die Gegenprobe auf dem Sprachweg
+-- unveraendert.
