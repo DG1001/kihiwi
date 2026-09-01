@@ -111,16 +111,31 @@ fehl() { printf '  \033[31m✗\033[0m %s\n' "$*"; }
 # hat schon zweimal zugeschlagen (Hermes mit eigenem Namen aus seiner Konfig,
 # und ein Stapellauf ohne gesetztes KIHIWI_MODEL: 100 Anfragen in den 404,
 # gemeldet als "100 gescheitert" ohne Grund). Deshalb hier laut, sofort.
+# Die Vorgabe steht in konfig.py, nicht hier -- sonst laufen zwei Wahrheiten
+# nebeneinander her.
+vorgabe_modell() {
+    "$VENV" -c 'from sprachdienst import konfig; print(konfig.LLM_MODEL)' 2>/dev/null
+}
+
 modell_pruefen() {
     local angeboten gewuenscht
     angeboten=$(curl -s "http://127.0.0.1:$P_VLLM/v1/models" | modellname)
+    # Die WIRKSAME Vorgabe, nicht nur die Umgebungsvariable. Ohne das schwieg
+    # die Pruefung genau im gefaehrlichsten Fall: KIHIWI_MODEL nicht gesetzt,
+    # der Dienst nimmt die Vorgabe aus konfig.py, und die passt nicht zum
+    # geladenen Profil. Aufgefallen beim Testlauf von ornith-voice, nachdem
+    # die Vorgabe auf Qwen umgestellt war.
     gewuenscht="${KIHIWI_MODEL:-}"
     # Getrennte Bedingungen: "A || B && C" liest sich wie eine Absicht und
     # ist keine -- in bash binden || und && gleich stark, von links.
-    if [ -z "$gewuenscht" ] || [ -z "$angeboten" ]; then return 0; fi
+    if [ -z "$angeboten" ]; then return 0; fi
+    # Ist KIHIWI_MODEL NICHT gesetzt, uebernimmt start_sprach den angebotenen
+    # Namen. Dann hier zu warnen waere falsch: die Warnung kuendigte einen 404
+    # an, den der naechste Schritt gerade behebt.
+    if [ -z "$gewuenscht" ]; then return 0; fi
     if [ "$angeboten" = "$gewuenscht" ]; then return 0; fi
     warn "KIHIWI_MODEL='$gewuenscht', angeboten wird '$angeboten' — jede Anfrage"
-    warn "  laeuft in einen 404. Eines von beiden anpassen."
+    warn "  laeuft in einen 404. Selbst gesetzt, also selbst anpassen."
 }
 
 start_vllm() {
@@ -171,6 +186,17 @@ start_sprach() {
     if belegt $P_SPRACH; then ok "Sprachdienst laeuft bereits (:$P_SPRACH)"; return 0; fi
     [ -x "$VENV" ] || { fehl "venv fehlt: $VENV"; return 1; }
     info "starte Sprachdienst"
+    # Passt die Vorgabe nicht zum geladenen Profil, den ANGEBOTENEN Namen
+    # nehmen. Wer KIHIWI_MODEL selbst setzt, behaelt die Kontrolle; wer nichts
+    # setzt, soll nicht an einem 404 scheitern, weil er das Profil gewechselt
+    # hat.
+    if [ -z "${KIHIWI_MODEL:-}" ]; then
+        local angeboten; angeboten=$(curl -s "http://127.0.0.1:$P_VLLM/v1/models" | modellname)
+        if [ -n "$angeboten" ] && [ "$angeboten" != "$(vorgabe_modell)" ]; then
+            info "KIHIWI_MODEL=$angeboten (aus dem laufenden Profil)"
+            export KIHIWI_MODEL="$angeboten"
+        fi
+    fi
     ( cd "$WURZEL" && setsid --fork nohup "$VENV" -m sprachdienst.gateway \
         </dev/null >"$LOGS/sprach.log" 2>&1 & )
     warte 30 bereit_sprach && ok "Sprachdienst bereit (:$P_SPRACH)" \

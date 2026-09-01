@@ -558,6 +558,22 @@ class Sitzung:
                 await self.sag("Das dauert mir zu lange, ich breche ab.")
             except Exception:
                 pass
+        except asyncio.CancelledError:
+            raise
+        except Exception as e:
+            # Ohne diesen Zweig verschluckt asyncio jede Ausnahme der Aufgabe:
+            # der Assistent verstummt spurlos, im Protokoll steht nichts.
+            # Genau so sah ein falscher Modellname aus -- Eingabe angenommen,
+            # keine Antwort, keine Zeile. Stumm ist die schlechteste
+            # Fehlermeldung, die ein Sprachassistent geben kann.
+            log.exception("Antwort gescheitert: %r", e)
+            try:
+                sagen = "Da ist etwas schiefgegangen, ich konnte nicht antworten."
+                await self.ws.send(json.dumps(
+                    {"typ": "text", "rolle": "assistent", "text": sagen}))
+                await self.sag(sagen)
+            except Exception:
+                pass
         finally:
             self.letzte_ansprache = time.time()
             if HALTER.z.phase in (Phase.DENKEN, Phase.ANTWORTEN):

@@ -1623,3 +1623,33 @@ Geprueft mit `env -u KIHIWI_MODEL -u KIHIWI_PROFIL -u KIHIWI_LLM_ZUSATZ` und
 entladenem vLLM -- also wirklich ohne Umgebung. Startet Qwen3.6, beantwortet
 eine Dokumentenfrage mit "dreissig Kilovolt", und die Warnung schlaegt an,
 sobald man KIHIWI_MODEL absichtlich verstellt.
+
+### Der Testlauf von ornith-voice deckte zwei Loecher auf
+
+Fred wollte nur wissen, ob das Profil nach der Standardumstellung noch geht. Es
+ging -- Ornith lud sauber, 43 GiB frei. **Der Dienst antwortete trotzdem nicht.**
+
+`KIHIWI_MODEL` war nicht gesetzt, also nahm er die Vorgabe aus `konfig.py`, und
+die zeigt seit dem Vormittag auf Qwen. Jede Anfrage lief in einen 404.
+
+**Zwei Fehler, beide meine, beide aus derselben Woche.**
+
+Der erste: `modell_pruefen`, gebaut um genau das zu verhindern, sah nur die
+UMGEBUNGSVARIABLE an. War sie leer, kehrte die Pruefung zurueck -- und leer ist
+sie genau dann, wenn die Vorgabe aus dem Code greift. **Die Pruefung schwieg im
+gefaehrlichsten Fall.** Sie vergleicht jetzt die wirksame Vorgabe, und
+`start_sprach` uebernimmt bei nicht gesetzter Variable den ANGEBOTENEN Namen:
+ein Profilwechsel allein kann keinen 404 mehr erzeugen.
+
+Der zweite ist der schlimmere. Die Zeitfrage braucht das Modell gar nicht, und
+sie blieb trotzdem unbeantwortet -- **ohne eine Zeile im Protokoll.**
+`antworten()` fing nur `asyncio.TimeoutError`; jede andere Ausnahme verliess die
+Aufgabe und wurde von asyncio verschluckt. Jetzt wird sie protokolliert, und
+der Nutzer hoert einen Satz statt Stille. **Stumm ist die schlechteste
+Fehlermeldung, die ein Sprachassistent geben kann** -- man kann sie nicht von
+"hat mich nicht gehoert" unterscheiden, und genau daran haben wir diese Woche
+schon einmal Zeit verloren (der Direktbefehl, der am Wortstamm scheiterte).
+
+Und eine dritte Kleinigkeit, die beim Nachbessern entstand: die Warnung feuerte
+auch dort, wo der naechste Schritt den Fehler gerade behob. Eine Warnung, die
+etwas Falsches ankuendigt, ist schlimmer als keine.

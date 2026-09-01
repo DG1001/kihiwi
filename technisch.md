@@ -30,9 +30,22 @@ trotzdem aus eigenem Wissen, wenn nichts zu finden ist.
 KIHIWI_PROFIL=ornith-voice ./dienste.sh start   # Ornith wie bisher
 ```
 
-**`KIHIWI_MODEL` in `konfig.py` muss mitziehen** — Vorgabe dort ebenfalls
-`qwen3.6-35b-a3b-nvfp4`. Läuft eines von beiden auseinander, antwortet vLLM
-auf jede Anfrage mit 404.
+**`dienste.sh` hält Profil und Modellnamen zusammen.** Ist `KIHIWI_MODEL`
+nicht gesetzt, übernimmt `start_sprach` den Namen, den der Server tatsächlich
+anbietet — ein Profilwechsel allein kann damit keinen 404 mehr erzeugen. Wer
+`KIHIWI_MODEL` selbst setzt, behält die Kontrolle und wird gewarnt, wenn es
+nicht passt.
+
+*Die erste Fassung dieser Prüfung sah nur die Umgebungsvariable an und schwieg
+deshalb im gefährlichsten Fall: nichts gesetzt, Vorgabe aus `konfig.py`, Profil
+gewechselt. Aufgefallen beim Testlauf von `ornith-voice`.*
+
+**Eine Ausnahme in der Antwortaufgabe verstummte spurlos.** `antworten()` fing
+nur `TimeoutError`; alles andere verließ die Aufgabe und wurde von asyncio
+verschluckt — Eingabe angenommen, keine Antwort, keine Zeile im Protokoll.
+Jetzt wird jede Ausnahme protokolliert und der Nutzer bekommt einen Satz.
+**Stumm ist die schlechteste Fehlermeldung, die ein Sprachassistent geben
+kann.**
 
 **`dienste.sh` warnt, wenn `KIHIWI_MODEL` nicht zum angebotenen Namen passt.**
 Diese Fehlerklasse hat zweimal zugeschlagen — Hermes mit dem Namen aus seiner
