@@ -1210,7 +1210,23 @@ class Sitzung:
             await self.melden(gesagt)
             return True
 
+        if art == "abbruch":
+            frage = await RECHERCHE.abbrechen()
+            if frage:
+                log.info("  Recherche abgebrochen: %r", frage[:60])
+                HALTER.setzen(recherche="", recherche_seit=0.0)
+                await self.melden(f"Ich habe die Recherche abgebrochen: {frage}")
+            else:
+                await self.melden("Es läuft gerade keine Recherche.")
+            return True
+
         if art in ("recherche", "hermes"):
+            if not thema.strip():
+                # Lieber nachfragen als einen leeren Auftrag losschicken: der
+                # laeuft minutenlang, blockiert den naechsten und liefert
+                # nichts.
+                await self.melden("Was soll ich recherchieren?")
+                return True
             if RECHERCHE.beschaeftigt:
                 await self.melden("Es läuft schon eine Recherche, die muss erst "
                                   "fertig werden.")
@@ -1239,7 +1255,9 @@ class Sitzung:
             await self.melden("Ich schaue in den Unterlagen nach."
                               if art == "dokumente" else
                               "Ich schaue kurz im Netz nach.")
-            ergebnis = await self.werkzeug(werkzeug, {"frage": thema})
+            # Hier ist der ganze Satz ein brauchbarer Suchbegriff -- anders
+            # als bei einem Rechercheauftrag, der eine Frage braucht.
+            ergebnis = await self.werkzeug(werkzeug, {"frage": thema or ganzer_text})
             log.info("  %s per Auslösewort: %r", werkzeug, thema[:60])
             gesagt = []
             async for satz in llm.antwort_saetze_roh(
@@ -1247,7 +1265,7 @@ class Sitzung:
                     (f"Das steht in den Unterlagen:\n\n{ergebnis}" if art == "dokumente"
                      else f"Das hat die Internetsuche geliefert:\n\n{ergebnis}\n"
                           f"Sag dazu, dass es aus dem Internet stammt.")
-                    + f"\n\nBeantworte damit knapp: {thema}", max_tokens=250):
+                    + f"\n\nBeantworte damit knapp: {thema or ganzer_text}", max_tokens=250):
                 gesagt.append(satz)
                 await self.ws.send(json.dumps({"typ": "text", "rolle": "assistent",
                                                "text": satz}))
@@ -1426,6 +1444,11 @@ async def recherche_verteilen(auftrag):
     Sekunden. Das Ganze steht auf dem Monitor und in `recherchen/`.
     """
     HALTER.setzen(recherche="", recherche_seit=0.0)
+    if auftrag.fehler == "abgebrochen":
+        # Wer abbricht, weiss es -- der Abbruch wurde schon quittiert. Ein
+        # zusaetzliches "hat nicht geklappt" liest sich wie ein Fehler.
+        log.info("Recherche abgebrochen nach %.0f s", auftrag.dauer)
+        return
     if auftrag.fehler:
         text = f"Die Recherche ist gescheitert: {auftrag.fehler}"
         kurz = "Die Recherche hat nicht geklappt."

@@ -340,6 +340,17 @@ AUSLOESER = {
     # soll niemand nebenbei anstossen.
     "abgleich":  rf"wissens{_}abgleich|unterlagen{_}abgleich|quellen{_}abgleich|"
                  rf"wissens{_}auffrischung",
+    # Bricht einen laufenden Rechercheauftrag ab. Muss VOR "recherche" geprueft
+    # werden, sonst startet "Recherche abbrechen" eine neue.
+    #
+    # Es gab keinen Weg dafuer: ein Auftrag mit leerem Thema lief drei Minuten,
+    # blockierte den naechsten -- und auf "kannst du die Recherche abbrechen?"
+    # antwortete das Modell aus der Vorstellung ("ich habe keine laufenden
+    # Prozesse"). Ohne Werkzeug erfindet es eines.
+    "abbruch":   rf"(?:recherche|auftrag|hermes{_}aufgabe|hermes{_}auftrag)"
+                 rf"{_}?(?:abbrechen|abbruch|stoppen|stopp|beenden|abblasen)|"
+                 rf"(?:brich|stoppe|beende)\s+(?:die\s+|den\s+)?"
+                 rf"(?:recherche|auftrag)(?:\s+ab)?",
 }
 # "Hilfe" allein faellt im Labor staendig ("ich brauche Hilfe beim Mikroskop").
 # Das liess sich zwar mit Stellungsregeln abfangen, aber solche Waechter sind
@@ -363,6 +374,7 @@ BESCHREIBUNG = {
     "dokumente": ("Dokumentenrecherche", "in unseren eigenen Unterlagen suchen"),
     "hermes":    ("Hermesaufgabe", "Anweisung unverändert an den Rechercheagenten"),
     "abgleich":  ("Wissensabgleich", "neue Stände aus Repo und Cloud holen"),
+    "abbruch":   ("Recherche abbrechen", "einen laufenden Auftrag beenden"),
     "hilfe":     ("Kiwihilfe", "diese Liste"),
 }
 
@@ -388,7 +400,9 @@ def ausloeser(text: str):
     if _NUR_HILFE.match(text):
         return "hilfe", ""
 
-    for art in ("hilfe", "abgleich", "hermes", "dokumente", "websuche", "recherche"):
+    # abbruch vor recherche: "Recherche abbrechen" darf keine neue starten.
+    for art in ("hilfe", "abbruch", "abgleich", "hermes", "dokumente",
+                "websuche", "recherche"):
         m = _AUSLOESER_RE[art].search(text)
         if not m:
             continue
@@ -411,7 +425,15 @@ def _thema(text: str, m) -> str:
     while rest != vorher:
         vorher = rest
         rest = re.sub(fueller, "", rest, flags=re.I).strip(" ,.:;–—-")
-    return rest or text
+    # LEER, wenn nichts uebrig bleibt -- nicht der ganze Text.
+    #
+    # Vorher stand hier `rest or text`. Auf "Hermes Aufgabe:" (ohne Auftrag)
+    # wurde damit das Ausloesewort selbst zur Forschungsfrage: der Agent lief
+    # drei Minuten durch Dateien, blockierte die naechste Anfrage und war nicht
+    # abzubrechen. Wer entscheiden will, was ein leeres Thema bedeutet, braucht
+    # die Information, DASS es leer ist -- der ganze Text steht dem Aufrufer
+    # ohnehin zur Verfuegung.
+    return rest
 
 
 def rechercheauftrag(text: str) -> str | None:

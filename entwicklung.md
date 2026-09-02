@@ -1764,3 +1764,38 @@ Jetzt wird jede Quelle genannt. Ab fuenf stillen nur noch gezaehlt -- eine
 Aufzaehlung vorzulesen dauert laenger, als sie anzusehen. Sechs Faelle geprueft,
 darunter der, in dem die einzige Quelle scheitert: dort faellt "Sonst war alles
 auf dem neuesten Stand" weg, weil es kein Sonst gibt.
+
+### Ein leerer Auftrag, der sich nicht abbrechen liess
+
+Fred sagte "Hermes Aufgabe:" und danach, in einer zweiten Aeusserung, den
+eigentlichen Auftrag. Der erste Satz startete bereits eine Recherche -- mit dem
+Ausloesewort selbst als Forschungsfrage:
+
+    hermes per Ausloesewort: 'Hermes Aufgabe'
+    -q "Hermes Aufgabe"
+
+Der Agent irrte drei Minuten durch Dateien, blockierte den echten Auftrag ("Es
+laeuft schon eine Recherche") und war nicht zu stoppen. Auf "kannst du die
+laufende Recherche abbrechen?" antwortete das Modell: **"da ich keine laufenden
+Prozesse habe"** -- waehrend einer lief. Ohne Werkzeug erfindet es eines; das
+steht seit Wochen als Grundsatz im Projekt und ist hier wieder eingetreten.
+
+**Zwei Fehler.**
+
+Der erste in `_thema()`: `return rest or text`. Bleibt nach dem Ausloesewort
+nichts uebrig, wurde der ganze Text zum Thema. Fuer die Dokumentensuche ist das
+sinnvoll -- der Satz ist ein brauchbarer Suchbegriff --, fuer einen
+Rechercheauftrag ist es Unsinn. Jetzt gibt `_thema()` `""` zurueck, und **der
+Aufrufer entscheidet**: Suche faellt auf den ganzen Satz zurueck, Recherche
+fragt nach ("Was soll ich recherchieren?").
+
+Der zweite: es gab keinen Abbruch. Neues Ausloesewort `abbruch`, geprueft VOR
+`recherche` (sonst startet "Recherche abbrechen" eine neue).
+`Recherche.abbrechen()` bricht die Aufgabe ab und **killt den Kindprozess** --
+asyncio raeumt keine Fremdprozesse auf, hermes liefe sonst weiter. Geprueft:
+nach dem Abbruch null hermes-Prozesse.
+
+**Und beim Pruefen bin ich wieder in den Selbsttreffer gelaufen:**
+`pgrep -f "hermes chat"` zaehlte drei Prozesse, und alle drei waren meine eigene
+Shell und `ps` -- die Zeichenkette steht in ihrer Kommandozeile. Das ist die
+dritte Wiederholung derselben Falle in dieser Woche.

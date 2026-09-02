@@ -60,6 +60,10 @@ class Recherche:
     def __init__(self):
         self.laufend: Auftrag | None = None
         self._task: asyncio.Task | None = None
+        # Der Kindprozess, damit ein Abbruch ihn wirklich beendet. Ohne die
+        # Referenz laeuft hermes weiter, auch wenn die Aufgabe abgebrochen ist:
+        # asyncio raeumt keine Fremdprozesse auf.
+        self._proz = None
 
     @property
     def beschaeftigt(self) -> bool:
@@ -74,12 +78,35 @@ class Recherche:
         self._task = asyncio.create_task(self._lauf(a, wenn_fertig, roh))
         return a
 
+    async def abbrechen(self) -> str | None:
+        """Bricht den laufenden Auftrag ab. Gibt dessen Frage zurueck, sonst None.
+
+        Gebraucht, weil es keinen Weg gab: ein Auftrag mit leerem Thema lief
+        drei Minuten, blockierte den naechsten -- und auf "kannst du die
+        Recherche abbrechen?" antwortete das Modell aus der Vorstellung
+        ("ich habe keine laufenden Prozesse"). Ohne Werkzeug erfindet es eines.
+        """
+        a = self.laufend
+        if a is None:
+            return None
+        p = self._proz
+        if p is not None and p.returncode is None:
+            try:
+                p.kill()
+            except ProcessLookupError:
+                pass
+        if self._task is not None:
+            self._task.cancel()
+        return a.frage
+
     async def _lauf(self, a: Auftrag, wenn_fertig, roh: bool = False):
         try:
             # roh=True reicht die Anweisung unveraendert durch -- fuer den
             # Fall, dass jemand Hermes direkt ansprechen will.
             auftrag = a.frage if roh else a.frage + AUFTRAG_ZUSATZ
             a.ergebnis, a.hermes_sitzung = await self._hermes(auftrag)
+        except asyncio.CancelledError:
+            a.fehler = "abgebrochen"
         except asyncio.TimeoutError:
             a.fehler = f"Zeitüberschreitung nach {MAX_S} s"
         except Exception as e:                        # pragma: no cover
@@ -96,8 +123,7 @@ class Recherche:
             except Exception:
                 pass
 
-    @staticmethod
-    async def _hermes(frage: str) -> tuple[str, str]:
+    async def _hermes(self, frage: str) -> tuple[str, str]:
         # -m ausdruecklich: ohne den Schalter nimmt Hermes das Modell aus
         # ~/.hermes/config.yaml, und dort stand Ornith fest. Beim Umschalten
         # auf ein anderes Modell scheiterte die Recherche mit
@@ -115,11 +141,18 @@ class Recherche:
             "-m", konfig.LLM_MODEL, "-q", frage,
             cwd=str(ARBEIT),
             stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+        self._proz = p
         try:
             aus, fehler = await asyncio.wait_for(p.communicate(), timeout=MAX_S)
         except asyncio.TimeoutError:
             p.kill()
             raise
+        except asyncio.CancelledError:
+            # Abbruch von aussen: der Kindprozess muss trotzdem sterben.
+            p.kill()
+            raise
+        finally:
+            self._proz = None
         text = aus.decode(errors="replace").strip()
         if p.returncode != 0 and not text:
             raise RuntimeError(fehler.decode(errors="replace")[:200])

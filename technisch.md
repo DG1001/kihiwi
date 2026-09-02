@@ -549,6 +549,31 @@ gehört nicht neben die Quellen, aus denen es abgeleitet wurde.
 
 ### Rechercheaufträge (Stufe 2)
 
+**Ein leeres Thema startet keinen Auftrag.** Sagt jemand nur „Hermes Aufgabe:"
+ohne Auftrag, fragt der Assistent zurück. Vorher gab `_thema()` bei einer
+Äußerung, die nur aus dem Auslösewort besteht, den **ganzen Text** als Thema
+zurück (`return rest or text`) — der Agent bekam „Hermes Aufgabe" als
+Forschungsfrage, lief drei Minuten durch Dateien, blockierte die nächste
+Anfrage und war nicht abzubrechen. `_thema()` liefert jetzt `""`; wo der ganze
+Satz ein brauchbarer Suchbegriff ist (Dokumenten- und Websuche), setzt der
+Aufrufer ihn selbst ein.
+
+**„Recherche abbrechen" beendet einen laufenden Auftrag** — auch „Brich die
+Recherche ab", „Auftrag stoppen", „Hermesaufgabe abbrechen". Das Auslösewort
+wird **vor** `recherche` geprüft, sonst startete „Recherche abbrechen" eine
+neue. `Recherche.abbrechen()` bricht die Aufgabe ab **und killt den
+Kindprozess**: asyncio räumt keine Fremdprozesse auf, hermes liefe sonst
+weiter.
+
+Nach einem Abbruch wird **nicht** zusätzlich „hat nicht geklappt" gemeldet —
+wer abbricht, weiß es, und der Abbruch ist schon quittiert.
+
+*Warum es das braucht:* auf „kannst du die Recherche abbrechen?" antwortete das
+Modell vorher aus der Vorstellung — „da ich keine laufenden Prozesse habe",
+während einer lief. **Ohne Werkzeug erfindet es eines.**
+
+
+
 `wissen/recherche.py` — aufwendige Fragen gehen an den **Hermes-Agenten**, der
 Internet und Unterlagen durchsucht. Werkzeug `rechercheauftrag(frage)`.
 
