@@ -1687,3 +1687,38 @@ einen einzigen Modellaufruf zurueck**, obwohl die Zerlegung neu ist: die
 Aufbewahrung nach Inhalts-Hash trug zum ersten Mal ueber eine
 Strukturaenderung hinweg. Die restlichen 2240 in 28 Minuten
 (596 s Schlagwoerter, 186 s Kurzfassungen, 920 s Vektoren), null Fehlschlaege.
+
+### Dreimal derselbe Fehler, endlich die Klasse
+
+Nach dem CSV-Fund habe ich gefragt, ob die anderen Kommentarzeichen-Formate
+mitkommen sollen. Beim Nachsehen zeigte sich der eigentliche Fall:
+
+    Ueberschrift: 'Untergrenzen statt fester Ve'
+    Text:         '# Untergrenzen statt fester Versionen: Auf dem GX10 ...'
+    Ueberschrift: 'jede Version als aarch64-Whee'
+    Text:         '# jede Version als aarch64-Wheel verfuegbar. Die hier ...'
+
+Ein zusammenhaengender Absatz in `requirements.txt`, in Einzeilen zerschnitten.
+Keine Datentabelle, kein Quelltext -- **meine beiden Kategorien waren von der
+falschen Seite gedacht.**
+
+Ich hatte zweimal eine Liste gepflegt, WO "#" ein Kommentar ist: erst
+CODE_ENDUNGEN, dann DATEN_ENDUNGEN. Diese Liste ist naturgemaess nie
+vollstaendig. Jetzt sagt `MARKDOWN_ENDUNGEN = {".md", ".markdown"}`, wo "#"
+wirklich eine Ueberschrift ist -- alles andere faellt automatisch auf die
+sichere Seite, auch was noch niemand eingelesen hat.
+
+**Und ein Anzeigefehler, der schlimmer war als kosmetisch.** `wissen status`
+zaehlte die Zeilen in `kurzfassung`, ohne den Fingerabdruck zu pruefen: es
+meldete "351 von 351", waehrend 350 davon eine Fassung beschrieben, die es
+nach der Zerlegeraenderung nicht mehr gab. Eine Zahl, die etwas anderes misst
+als sie behauptet, wiegt in falscher Sicherheit. Gezaehlt wird jetzt nur, was
+zum aktuellen Fingerabdruck gehoert.
+
+**Zum zweiten Mal die falsche PID beobachtet.** `pgrep -f "wissen einlesen"`
+lieferte die Wrapper-Shell, nicht den Python-Prozess; der Waechter meldete
+"fertig", waehrend der Lauf noch bei den Kurzfassungen war. Ueber die PID zu
+warten reicht nicht -- man muss auch die richtige haben.
+
+Endstand: 351 Dokumente, 4931 Abschnitte, alle drei Ebenen vollstaendig. Von
+4931 Abschnitten waren 4756 ohne Modellaufruf wieder da.

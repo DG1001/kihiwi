@@ -73,7 +73,13 @@ def main(argv):
         print(f"Index: {s['dokumente']} Dokumente, {s['abschnitte']} Abschnitte")
         c = index.lesen()
         mit = c.execute("SELECT COUNT(*) FROM abschnitte WHERE schlagwoerter != ''").fetchone()[0]
-        kurz = c.execute("SELECT COUNT(*) FROM kurzfassung").fetchone()[0]
+        # Nur die AKTUELLEN zaehlen: eine Kurzfassung zu einem veralteten
+        # Fingerabdruck beschreibt eine Fassung, die es nicht mehr gibt.
+        # Vorher meldete status "351 von 351", waehrend 350 davon veraltet
+        # waren und gerade neu gebaut wurden.
+        kurz = c.execute("""SELECT COUNT(*) FROM dokumente d
+             JOIN kurzfassung k ON k.pfad = d.pfad
+             WHERE k.fingerab IS d.fingerab""").fetchone()[0]
         vek, _ = vektor.bestand(c)
         c.close()
         print(f"  erschlossen: {mit} von {s['abschnitte']} Abschnitten")

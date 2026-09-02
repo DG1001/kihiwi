@@ -335,6 +335,22 @@ Assistenten.
     ./dienste.sh wissen suchen ...      Volltextsuche
     ./dienste.sh wissen web ...         SearXNG
 
+**`#` ist NUR in Markdown ein Überschriftszeichen.** Überall sonst leitet es
+einen Kommentar ein — in Python, in CSV, in `requirements.txt`, in YAML, in
+INI-Dateien. Die Zerlegung machte daraus Überschriften und zerschnitt
+zusammenhängende Absätze in Einzeilen: „Untergrenzen statt fester Versionen:
+Auf dem GX10 …" wurde zu vier Abschnitten, jeder eine Zeile lang.
+
+Deshalb sagt `MARKDOWN_ENDUNGEN = {".md", ".markdown"}` jetzt, **wo `#`
+wirklich eine Überschrift ist** — alles andere fällt automatisch auf die
+sichere Seite, auch Dateitypen, die noch niemand eingelesen hat. Die
+Seitenmarken `[Seite N]` bleiben überall wirksam; die setzt `_pdf_text` selbst
+und sie können nicht aus dem Inhalt stammen.
+
+*Diesen Fehler habe ich dreimal behoben: für Python, für CSV, dann hier.
+Zweimal war es der Einzelfall statt der Klasse — eine Liste, wo `#` ein
+Kommentar ist, wird nie vollständig.*
+
 **Messdaten (`.csv`, `.tsv`) bekommen Kopf und Werte getrennt.** Auch dort
 leitet `#` einen Kommentar ein — die Markdown-Zerlegung machte aus jeder
 Kopfzeile einen eigenen Abschnitt (Überschrift „groesse: Radiales Strahlprofil

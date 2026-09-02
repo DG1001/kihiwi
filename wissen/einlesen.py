@@ -93,6 +93,21 @@ def text_aus(pfad: Path) -> str | None:
 
 
 _UEBERSCHRIFT = re.compile(r"^(#{1,6})\s+(.*)$|^\[Seite (\d+)\]$", re.M)
+# Nur die Seitenmarke, die _pdf_text setzt -- ohne die Markdown-Ueberschriften.
+_SEITE = re.compile(r"^\[Seite (\d+)\]$", re.M)
+
+# **"#" ist NUR in Markdown ein Ueberschriftszeichen.** Ueberall sonst leitet es
+# einen Kommentar ein: in Python, in CSV, in requirements.txt, in YAML, in
+# INI-Dateien, in Shell-Skripten. Die Markdown-Zerlegung machte daraus
+# Ueberschriften und zerschnitt zusammenhaengende Absaetze in Einzeilen --
+# "Untergrenzen statt fester Versionen: Auf dem GX10 ..." wurde zu vier
+# Abschnitten, jeder eine Zeile lang.
+#
+# Diesen Fehler habe ich dreimal behoben: erst fuer Python, dann fuer CSV, dann
+# hier. Zweimal war es der Einzelfall statt der Klasse. Die Liste sagt jetzt,
+# wo "#" WIRKLICH eine Ueberschrift ist -- alles andere faellt automatisch auf
+# die sichere Seite, auch Dateitypen, die noch niemand eingelesen hat.
+MARKDOWN_ENDUNGEN = {".md", ".markdown"}
 
 # Quelltext wird an Symbolen geschnitten, nicht an "#".
 #
@@ -105,7 +120,7 @@ _UEBERSCHRIFT = re.compile(r"^(#{1,6})\s+(.*)$|^\[Seite (\d+)\]$", re.M)
 # Kommentare standen, gar nicht -- daher der 178.602-Zeichen-Abschnitt.
 # Betroffen waren 879 von 2495 Abschnitten, gut ein Drittel des Index.
 # Hochzaehlen, sobald sich die Zerlegung aendert -- erzwingt neues Einlesen.
-ZERLEGER_FASSUNG = 4
+ZERLEGER_FASSUNG = 5
 CODE_ENDUNGEN = {".py", ".sh", ".c", ".h", ".cpp", ".java", ".js", ".ts", ".sql"}
 _SYMBOL = re.compile(
     r"^(?:async\s+)?(?:def|class)\s+([A-Za-z_]\w*)"          # Python
@@ -202,8 +217,14 @@ def zerlegen(text: str, titel: str, endung: str = "") -> list[tuple[str, str]]:
         bloecke = _zerlegen_daten(text, titel)
         marken = True
     else:
-        marken = [(m.start(), (m.group(2) or f"Seite {m.group(3)}").strip())
-                  for m in _UEBERSCHRIFT.finditer(text)]
+        # Markdown: "#" und Seitenmarken. Sonst NUR Seitenmarken -- die setzt
+        # _pdf_text selbst, sie koennen nicht aus dem Inhalt stammen.
+        if endung.lower() in MARKDOWN_ENDUNGEN:
+            marken = [(m.start(), (m.group(2) or f"Seite {m.group(3)}").strip())
+                      for m in _UEBERSCHRIFT.finditer(text)]
+        else:
+            marken = [(m.start(), f"Seite {m.group(1)}")
+                      for m in _SEITE.finditer(text)]
     if endung.lower() in CODE_ENDUNGEN | DATEN_ENDUNGEN:
         pass
     elif not marken:
