@@ -1722,3 +1722,45 @@ warten reicht nicht -- man muss auch die richtige haben.
 
 Endstand: 351 Dokumente, 4931 Abschnitte, alle drei Ebenen vollstaendig. Von
 4931 Abschnitten waren 4756 ohne Modellaufruf wieder da.
+
+### Der uebersprungene Teil wird jetzt ausgesprochen
+
+Fred wollte den naechsten Abgleich per Zuruf ausloesen und fragte, ob das geht.
+Es geht -- aber beim Nachsehen fiel auf, dass er dabei genau in dieselbe Falle
+laufen wuerde wie beim letzten Mal: das Nachziehen wird bei mehr als 300 offenen
+Abschnitten uebersprungen, und das stand **nur im Protokoll**.
+
+Gehoert haette er "Abgleich fertig, N neue Dokumente" -- und die Haelfte des
+Index waere nur ueber die reine Volltextsuche erreichbar gewesen, gemessen 23
+statt 40 % Trefferquote bei umschriebenen Fragen. **Niemand sieht ins
+Protokoll.** Genau so entsteht der Eindruck, das Modell sei schlechter
+geworden.
+
+Jetzt sagt der Assistent es: "Es sind N neue Abschnitte dazugekommen, zu viele,
+um sie nebenbei zu erschliessen ... starte dafuer bitte einmal von Hand den
+Wissensbefehl einlesen." Der ERFOLGREICHE Fall wird dagegen nur angezeigt, nicht
+gesprochen -- nach jedem Abgleich ein zweites Mal zu reden waere Laerm.
+Gesprochen wird, was Handeln verlangt.
+
+Geprueft mit einer kuenstlich auf -1 gesetzten Grenze, ohne Daten anzufassen.
+Dabei kam "0 neue Abschnitte, zu viele" heraus -- unmoeglich bei einer Grenze
+ab 0, aber ich habe einen Waechter eingebaut: lieber schweigen als eine
+unsinnige Zahl nennen.
+
+### "Der Teil mit dem Haupt-Repo fehlt"
+
+Fred nach einem Abgleich. Und er hatte recht: unveraenderte Quellen fielen aus
+dem gesprochenen Satz, weil "unveraendert" inhaltlich nichts beitraegt. Die
+Ueberlegung war richtig, die Folge falsch -- **die Quelle verschwand ganz**, und
+aus dem Gesagten liess sich nicht unterscheiden, ob sie geprueft und
+unveraendert war oder gar nicht drankam.
+
+Das ist dieselbe Verwechslung, die diese Woche schon mehrfach Zeit gekostet hat:
+beim Direktbefehl, der am Wortstamm scheiterte, bei der verschluckten Ausnahme,
+beim uebersprungenen Nachziehen. **Schweigen sieht aus wie Ausfall**, und der
+Nutzer kann es nicht auseinanderhalten.
+
+Jetzt wird jede Quelle genannt. Ab fuenf stillen nur noch gezaehlt -- eine
+Aufzaehlung vorzulesen dauert laenger, als sie anzusehen. Sechs Faelle geprueft,
+darunter der, in dem die einzige Quelle scheitert: dort faellt "Sonst war alles
+auf dem neuesten Stand" weg, weil es kein Sonst gibt.

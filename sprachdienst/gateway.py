@@ -56,30 +56,6 @@ BUEHNE_DATEI = konfig.WURZEL / "zustand" / "buehne.json"
 BUEHNE_MAX = 400_000
 
 
-async def nachziehen_lauf():
-    """Schlagwoerter, Kurzfassungen und Vektoren nach einem Abgleich.
-
-    Im Hintergrund und mit Obergrenze: Nachziehen und Antworten teilen sich die
-    GPU. Bleibt zu viel offen, wird es GEMELDET statt stillschweigend halb
-    getan -- ein halb erschlossener Index sieht aus wie ein schlechtes Modell.
-    """
-    try:
-        e = await wissen_erschliessen.nachziehen()
-    except Exception as exc:
-        log.warning("Nachziehen gescheitert: %r", exc)
-        return
-    if e.get("uebersprungen"):
-        log.warning("Nachziehen uebersprungen: %d Abschnitte ohne Schlagwoerter, "
-                    "%d ohne Vektor (Grenze %d) — './dienste.sh wissen einlesen' "
-                    "von Hand laufen lassen",
-                    e["offen_schlagwoerter"], e["offen_vektoren"], e["grenze"])
-        return
-    teile = [f"{n}: {(e.get(n) or {}).get('erledigt', 0)}"
-             for n in ("schlagwoerter", "kurzfassungen", "vektoren")
-             if (e.get(n) or {}).get("erledigt")]
-    if teile:
-        log.info("Nachgezogen — %s", ", ".join(teile))
-
 
 def wecker_melden():
     HALTER.setzen(wecker=WECKER.als_liste())
@@ -227,10 +203,40 @@ def _abgleich_satz(bericht: list[dict]) -> str:
     # Commits bringen, ohne dass sich ein indiziertes Dokument aendert. Das
     # als "alles auf dem neuesten Stand" zu melden, waere gelogen.
     uebrig = [t for t in teile if not any(k in t for k in kaputt)]
+
+    # Unveraenderte Quellen NAMENTLICH nennen. Sie trugen frueher keinen
+    # Eintrag, verschwanden damit ganz aus dem Satz -- und Fred fragte, warum
+    # "der Teil mit dem Haupt-Repo fehlt". Zu Recht: aus dem Gesagten liess
+    # sich nicht unterscheiden, ob eine Quelle geprueft und unveraendert war
+    # oder gar nicht drankam. Dieselbe Verwechslung wie ueberall in diesem
+    # Projekt -- Schweigen sieht aus wie Ausfall.
+    still = [q["name"] for q in bericht
+             if q["name"] not in kaputt and not any(
+                 t.startswith(q["name"] + ":") for t in teile)]
+
+    def liste(namen: list[str]) -> str:
+        # Ab fuenf Quellen nur noch zaehlen: eine Aufzaehlung vorzulesen dauert
+        # laenger, als sie auf dem Schirm anzusehen.
+        if len(namen) > 4:
+            return f"{len(namen)} weitere Quellen"
+        if len(namen) == 1:
+            return namen[0]
+        return ", ".join(namen[:-1]) + " und " + namen[-1]
+
     if not uebrig:
-        return kopf + ("Sonst war alles auf dem neuesten Stand." if kaputt
-                       else "Alles war schon auf dem neuesten Stand.")
-    return kopf + ". ".join(uebrig) + "."
+        wenn_still = (f"{liste(still)} " + ("war" if len(still) == 1 else "waren")
+                      + " schon auf dem neuesten Stand.") if still else \
+                     "Alles war schon auf dem neuesten Stand."
+        if kaputt:
+            # "Sonst war alles aktuell" nur sagen, wenn es ein Sonst GIBT.
+            return (kopf + ("Sonst war alles auf dem neuesten Stand."
+                            if still else "")).strip()
+        return kopf + wenn_still
+    satz = kopf + ". ".join(uebrig) + "."
+    if still:
+        satz += (f" {liste(still)} " + ("war" if len(still) == 1 else "waren")
+                 + " unverändert.")
+    return satz
 
 
 def _sprechbar(text: str) -> str:
@@ -484,6 +490,58 @@ class Sitzung:
             log.info("Endpoint: %s nach %.0f ms Aeusserung", ep.grund, ep.dauer_ms)
             HALTER.setzen(phase=Phase.DENKEN)
             self.antwort_task = asyncio.create_task(self.antworten(ep))
+
+    async def nachziehen_lauf(self):
+        """Schlagwoerter, Kurzfassungen und Vektoren nach einem Abgleich.
+
+        Im Hintergrund und mit Obergrenze: Nachziehen und Antworten teilen sich
+        die GPU.
+
+        **Wird uebersprungen, SAGT der Assistent es.** Vorher stand das nur im
+        Protokoll -- gemeldet wurde "Abgleich fertig, N neue Dokumente",
+        waehrend die Haelfte des Index nur noch ueber die reine Volltextsuche
+        erreichbar war (gemessen 23 statt 40 % bei umschriebenen Fragen).
+        Niemand sieht ins Protokoll, und ein halb erschlossener Index sieht
+        spaeter aus wie ein schlechtes Modell.
+
+        Der erfolgreiche Fall wird NICHT gesprochen, nur angezeigt: nach jedem
+        Abgleich ein zweites Mal zu reden waere Laerm.
+        """
+        try:
+            e = await wissen_erschliessen.nachziehen()
+        except Exception as exc:
+            log.warning("Nachziehen gescheitert: %r", exc)
+            await self.melden("Das Erschließen der neuen Unterlagen ist "
+                              "fehlgeschlagen, die Suche findet sie vorerst "
+                              "nur über den Volltext.")
+            return
+        if e.get("uebersprungen"):
+            offen = max(e["offen_schlagwoerter"], e["offen_vektoren"])
+            if offen <= 0:
+                # Kann nur bei negativer Grenze auftreten. Lieber schweigen
+                # als "0 neue Abschnitte, zu viele" sagen.
+                return
+            log.warning("Nachziehen uebersprungen: %d Abschnitte ohne "
+                        "Schlagwoerter, %d ohne Vektor (Grenze %d)",
+                        e["offen_schlagwoerter"], e["offen_vektoren"], e["grenze"])
+            await self.melden(
+                f"Es sind {offen} neue Abschnitte dazugekommen, zu viele, um sie "
+                f"nebenbei zu erschließen. Bis das nachgeholt ist, finde ich sie "
+                f"nur über die Volltextsuche. Starte dafür bitte einmal von Hand "
+                f"den Wissensbefehl einlesen.")
+            return
+        teile = [f"{n}: {(e.get(n) or {}).get('erledigt', 0)}"
+                 for n in ("schlagwoerter", "kurzfassungen", "vektoren")
+                 if (e.get(n) or {}).get("erledigt")]
+        if teile:
+            log.info("Nachgezogen — %s", ", ".join(teile))
+            # Nur anzeigen, nicht sprechen.
+            try:
+                await self.ws.send(json.dumps(
+                    {"typ": "text", "rolle": "assistent",
+                     "text": "Nachgezogen — " + ", ".join(teile)}))
+            except Exception:
+                pass
 
     async def recherche_melden(self, auftrag, text, kurz):
         """Ergebnis an DIESE Verbindung ausgeben.
@@ -1113,7 +1171,7 @@ class Sitzung:
             # auffindbar (gemessen 23,3 statt 40,0 % bei umschriebenen Fragen).
             # NICHT vor der Antwort: der Abgleich soll nicht dadurch minutenlang
             # dauern, dass danach noch eingebettet wird.
-            asyncio.create_task(nachziehen_lauf())
+            asyncio.create_task(self.nachziehen_lauf())
             return True
 
         if art == "hilfe":

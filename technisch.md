@@ -468,9 +468,17 @@ gewöhnlichen Abgleich Sekunden. `--nur-lesen` überspringt sie.
 
 **Im Sprachpfad im Hintergrund und mit Obergrenze** (`NACHZIEH_GRENZE = 300`).
 Der Wissensabgleich lässt sich per Zuruf auslösen, und Nachziehen und Antworten
-teilen sich die GPU. Bleibt mehr offen als die Grenze, wird es **gemeldet statt
-stillschweigend halb getan** — ein halb erschlossener Index sieht aus wie ein
-schlechtes Modell.
+teilen sich die GPU.
+
+**Wird übersprungen, SAGT der Assistent es** — gesprochen, nicht nur im
+Protokoll. Vorher hörte man „Abgleich fertig, N neue Dokumente", während die
+Hälfte des Index nur über die reine Volltextsuche erreichbar war (gemessen 23
+statt 40 % bei umschriebenen Fragen). Niemand sieht ins Protokoll, und ein halb
+erschlossener Index sieht später aus wie ein schlechtes Modell.
+
+Der **erfolgreiche** Fall wird nur angezeigt, nicht gesprochen („Nachgezogen —
+schlagwoerter: 7, kurzfassungen: 3, vektoren: 7"). Nach jedem Abgleich ein
+zweites Mal zu reden wäre Lärm; gesprochen wird, was Handeln verlangt.
 
 **Erledigt heißt versucht, nicht ergiebig.** Offen ist ein Abschnitt, dessen
 Hash nicht in `erschliessung` steht — nicht einer mit leerer Spalte. Ein
@@ -1132,6 +1140,20 @@ normale Form ("zweitausendsechsundzwanzig").
 Ziffern -- ausgeschriebene Zahlen waeren im Protokoll kaum lesbar.
 
 ### Wissensabgleich per Stimme
+
+**Jede Quelle wird genannt, auch die unveränderte.** „unverändert" trug
+inhaltlich nichts bei und fiel deshalb aus dem Satz — die Quelle verschwand
+damit ganz, und aus dem Gesagten ließ sich nicht unterscheiden, ob sie geprüft
+oder ausgelassen wurde. Jetzt:
+
+```
+Abgleich fertig. kihiwi: 2 Dokumente neu oder geändert.
+                 protokolle und haupt-repo waren unverändert.
+```
+
+Ab fünf stillen Quellen wird nur gezählt („6 weitere Quellen waren
+unverändert") — eine Aufzählung vorzulesen dauert länger, als sie anzusehen.
+„Sonst war alles auf dem neuesten Stand" fällt weg, wenn es kein Sonst gibt.
 
 „Wissensabgleich" (auch Unterlagenabgleich, Quellenabgleich, Wissensauffrischung)
 stoesst denselben Lauf an wie `./dienste.sh wissen einlesen`: `einlesen.git()`
