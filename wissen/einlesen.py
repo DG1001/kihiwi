@@ -105,7 +105,7 @@ _UEBERSCHRIFT = re.compile(r"^(#{1,6})\s+(.*)$|^\[Seite (\d+)\]$", re.M)
 # Kommentare standen, gar nicht -- daher der 178.602-Zeichen-Abschnitt.
 # Betroffen waren 879 von 2495 Abschnitten, gut ein Drittel des Index.
 # Hochzaehlen, sobald sich die Zerlegung aendert -- erzwingt neues Einlesen.
-ZERLEGER_FASSUNG = 3
+ZERLEGER_FASSUNG = 4
 CODE_ENDUNGEN = {".py", ".sh", ".c", ".h", ".cpp", ".java", ".js", ".ts", ".sql"}
 _SYMBOL = re.compile(
     r"^(?:async\s+)?(?:def|class)\s+([A-Za-z_]\w*)"          # Python
@@ -146,6 +146,37 @@ def _ist_datenblock(text: str) -> bool:
     return laengster > DATENLAUF_AB and laengster > len(text) * 0.5
 
 
+# Messdaten: CSV und TSV. Auch hier leitet "#" einen Kommentar ein, nicht eine
+# Ueberschrift -- die Markdown-Zerlegung machte aus jeder Kopfzeile einen
+# eigenen Abschnitt ("groesse: Radiales Strahlprofil an der Probenebene", Text
+# identisch zur Ueberschrift). Genau derselbe Fehler wie zuvor bei Python.
+#
+# Der Kopf ist bei diesen Dateien das Wertvolle: er sagt, WAS gemessen wurde,
+# in welcher Einheit, mit welcher Konfiguration. Er gehoert an einem Stueck
+# zusammen -- und mit den Spaltennamen, sonst steht die Beschreibung ohne die
+# Groessen da, auf die sie sich bezieht.
+DATEN_ENDUNGEN = {".csv", ".tsv"}
+
+
+def _zerlegen_daten(text: str, titel: str) -> list[tuple[str, str]]:
+    zeilen = text.splitlines()
+    i = 0
+    while i < len(zeilen) and (not zeilen[i].strip() or zeilen[i].lstrip().startswith("#")):
+        i += 1
+    kopf = "\n".join(zeilen[:i]).strip()
+    spalten = zeilen[i] if i < len(zeilen) else ""
+    rest = "\n".join(zeilen[i + 1:]).strip()
+    aus = []
+    if kopf or spalten:
+        aus.append((titel, (kopf + "\n" + spalten).strip()))
+    if rest:
+        # Die Zahlen bleiben drin: in diesem Labor steht die Auslegung in den
+        # Daten, und eine Suche nach einem Wert soll sie finden. Aber als
+        # eigener Abschnitt, damit sie die Beschreibung nicht verdraengen.
+        aus.append((f"{titel} — Messwerte", rest))
+    return aus
+
+
 def _nach_zeilen(ueb: str, block: str) -> list[tuple[str, str]]:
     """Letzte Instanz fuer Bloecke ohne jede Struktur -- Datenfelder, Tabellen.
     Stumpf nach Zeichenzahl an Zeilengrenzen, damit kein Abschnitt mehr
@@ -167,10 +198,13 @@ def zerlegen(text: str, titel: str, endung: str = "") -> list[tuple[str, str]]:
     if endung.lower() in CODE_ENDUNGEN:
         bloecke = _zerlegen_code(text, titel)
         marken = True          # nur fuer den Zweig unten
+    elif endung.lower() in DATEN_ENDUNGEN:
+        bloecke = _zerlegen_daten(text, titel)
+        marken = True
     else:
         marken = [(m.start(), (m.group(2) or f"Seite {m.group(3)}").strip())
                   for m in _UEBERSCHRIFT.finditer(text)]
-    if endung.lower() in CODE_ENDUNGEN:
+    if endung.lower() in CODE_ENDUNGEN | DATEN_ENDUNGEN:
         pass
     elif not marken:
         bloecke = [(titel, text)]

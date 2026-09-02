@@ -1653,3 +1653,37 @@ schon einmal Zeit verloren (der Direktbefehl, der am Wortstamm scheiterte).
 Und eine dritte Kleinigkeit, die beim Nachbessern entstand: die Warnung feuerte
 auch dort, wo der naechste Schritt den Fehler gerade behob. Eine Warnung, die
 etwas Falsches ankuendigt, ist schlimmer als keine.
+
+### Derselbe Fehler, neuer Dateityp
+
+Fred loeste den Wissensabgleich per Stimme aus und meldete, er sei schnell
+gewesen. War er -- **weil er den teuren Teil bewusst ausgelassen hat:**
+
+    WARNING Nachziehen uebersprungen: 2530 Abschnitte ohne Schlagwoerter,
+            2530 ohne Vektor (Grenze 300)
+
+Genau dafuer ist die Grenze da, und sie hat gehalten. Der Abgleich holte 179 auf
+351 Dokumente, darunter 143 neue CSV-Dateien.
+
+**Und die waren zerhackt.** In CSV leitet "#" einen Kommentar ein, nicht eine
+Ueberschrift -- die Markdown-Zerlegung machte aus jeder Kopfzeile einen eigenen
+Abschnitt, Text identisch zur Ueberschrift. Der Metadatenkopf, der sagt WAS
+gemessen wurde, wurde in Einzeilen zerrissen; die kurzen fielen durch den
+40-Zeichen-Filter ganz heraus.
+
+**Das ist derselbe Fehler wie bei Python, vier Tage spaeter.** Damals habe ich
+`CODE_ENDUNGEN` angelegt und dabei nicht zu Ende gedacht: `#` ist nicht nur in
+Python ein Kommentarzeichen, sondern auch in CSV, in Shell-Konfigurationen, in
+INI-Dateien. Ich habe den Einzelfall behoben statt der Klasse. Aufgefallen ist
+es erst, als der Dateityp haeufig genug wurde, um den Index zu dominieren --
+2209 von 5248 Abschnitten.
+
+Jetzt `DATEN_ENDUNGEN` mit eigener Zerlegung: Kopf und Spaltennamen an einem
+Stueck, Messwerte als eigener Abschnitt. Die Zahlen bleiben im Index -- in
+diesem Labor steht die Auslegung in den Daten.
+
+Nach dem Neueinlesen 4954 statt 5248 Abschnitte. Von denen kamen **2714 ohne
+einen einzigen Modellaufruf zurueck**, obwohl die Zerlegung neu ist: die
+Aufbewahrung nach Inhalts-Hash trug zum ersten Mal ueber eine
+Strukturaenderung hinweg. Die restlichen 2240 in 28 Minuten
+(596 s Schlagwoerter, 186 s Kurzfassungen, 920 s Vektoren), null Fehlschlaege.

@@ -335,6 +335,20 @@ Assistenten.
     ./dienste.sh wissen suchen ...      Volltextsuche
     ./dienste.sh wissen web ...         SearXNG
 
+**Messdaten (`.csv`, `.tsv`) bekommen Kopf und Werte getrennt.** Auch dort
+leitet `#` einen Kommentar ein — die Markdown-Zerlegung machte aus jeder
+Kopfzeile einen eigenen Abschnitt (Überschrift „groesse: Radiales Strahlprofil
+an der Probenebene", Text identisch dazu), und die kurzen fielen durch den
+40-Zeichen-Filter ganz heraus. **Derselbe Fehler wie zuvor bei Python**,
+aufgefallen erst, als ein Abgleich 143 CSV-Dateien brachte und sie mit 2209 von
+5248 Abschnitten den Index dominierten.
+
+Der Kopf ist bei diesen Dateien das Wertvolle — er sagt, *was* gemessen wurde,
+in welcher Einheit, mit welcher Konfiguration. Er bleibt an einem Stück, mitsamt
+den Spaltennamen; die Zahlen stehen als eigener Abschnitt daneben. Sie bleiben
+im Index: in diesem Labor steht die Auslegung in den Daten, und eine Suche nach
+einem Wert soll sie finden — nur soll sie die Beschreibung nicht verdrängen.
+
 **Quelltext wird an Symbolen geschnitten, nicht an `#`.** In Python leitet
 `#` einen Kommentar ein — die Markdown-Zerlegung machte daraus Überschriften.
 Im Index standen Einträge wie `----------------------------------------`, und
