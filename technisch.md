@@ -470,6 +470,16 @@ gewöhnlichen Abgleich Sekunden. `--nur-lesen` überspringt sie.
 Der Wissensabgleich lässt sich per Zuruf auslösen, und Nachziehen und Antworten
 teilen sich die GPU.
 
+**„Wissen nachziehen" holt es per Stimme nach** (auch „Nachziehen",
+„Unterlagen erschließen"). Ohne Obergrenze — wer es ausdrücklich verlangt,
+weiß, dass es dauert; die Grenze schützt den beiläufigen Fall. Ein Schloss
+(`NACHZIEHEN`) verhindert zwei parallele Läufe, und am Ende kommt **immer**
+eine Rückmeldung, auch wenn nichts zu tun war.
+
+*Vorher verwies die Meldung auf „von Hand den Wissensbefehl einlesen". Am
+Laborrechner gibt es kein Terminal, am Futro erst recht nicht — ein Assistent,
+der auf etwas verweist, das man per Stimme nicht ausführen kann, hilft nicht.*
+
 **Wird übersprungen, SAGT der Assistent es** — gesprochen, nicht nur im
 Protokoll. Vorher hörte man „Abgleich fertig, N neue Dokumente", während die
 Hälfte des Index nur über die reine Volltextsuche erreichbar war (gemessen 23

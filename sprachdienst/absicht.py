@@ -340,6 +340,16 @@ AUSLOESER = {
     # soll niemand nebenbei anstossen.
     "abgleich":  rf"wissens{_}abgleich|unterlagen{_}abgleich|quellen{_}abgleich|"
                  rf"wissens{_}auffrischung",
+    # Holt das Erschliessen nach, wenn der Abgleich es wegen der Menge
+    # ausgelassen hat. Braucht ein eigenes Wort, weil es Minuten dauert und
+    # die GPU belegt -- der Nutzer soll wissen, was er anstoesst.
+    #
+    # Vorher verwies die Meldung auf "von Hand den Wissensbefehl einlesen".
+    # Fred fragte, was das heisst -- zu Recht: am Laborrechner gibt es kein
+    # Terminal, und am Futro erst recht nicht. Ein Assistent, der auf etwas
+    # verweist, das man per Stimme nicht tun kann, hilft nicht.
+    "nachziehen": rf"wissen{_}nachziehen|nachziehen|erschliessen|"
+                  rf"unterlagen{_}erschliessen|wissen{_}erschliessen",
     # Bricht einen laufenden Rechercheauftrag ab. Muss VOR "recherche" geprueft
     # werden, sonst startet "Recherche abbrechen" eine neue.
     #
@@ -375,6 +385,7 @@ BESCHREIBUNG = {
     "hermes":    ("Hermesaufgabe", "Anweisung unverändert an den Rechercheagenten"),
     "abgleich":  ("Wissensabgleich", "neue Stände aus Repo und Cloud holen"),
     "abbruch":   ("Recherche abbrechen", "einen laufenden Auftrag beenden"),
+    "nachziehen": ("Wissen nachziehen", "Schlagwörter und Vektoren nachholen, dauert Minuten"),
     "hilfe":     ("Kiwihilfe", "diese Liste"),
 }
 
@@ -401,8 +412,8 @@ def ausloeser(text: str):
         return "hilfe", ""
 
     # abbruch vor recherche: "Recherche abbrechen" darf keine neue starten.
-    for art in ("hilfe", "abbruch", "abgleich", "hermes", "dokumente",
-                "websuche", "recherche"):
+    for art in ("hilfe", "abbruch", "nachziehen", "abgleich", "hermes",
+                "dokumente", "websuche", "recherche"):
         m = _AUSLOESER_RE[art].search(text)
         if not m:
             continue

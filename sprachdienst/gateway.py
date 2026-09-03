@@ -41,6 +41,10 @@ RECHERCHE = wissen_recherche.Recherche()
 # Ein Abgleich zur Zeit: zwei parallele Laeufe wuerden sich im Index
 # gegenseitig als "nicht mehr gesehen" aufraeumen.
 ABGLEICH = asyncio.Lock()
+# Eigenes Schloss, nicht ABGLEICH: der Abgleich dauert Sekunden, das
+# Nachziehen Minuten. Zwei parallele Laeufe wuerden dieselben Abschnitte
+# doppelt durch das Modell schicken.
+NACHZIEHEN = asyncio.Lock()
 # Timer und Erinnerungen. Im Dienst, nicht in der Sitzung: sie sollen auch
 # klingeln, wenn der Browser zwischendurch neu geladen wurde.
 WECKER = wecker_modul.Wecker()
@@ -491,7 +495,7 @@ class Sitzung:
             HALTER.setzen(phase=Phase.DENKEN)
             self.antwort_task = asyncio.create_task(self.antworten(ep))
 
-    async def nachziehen_lauf(self):
+    async def nachziehen_lauf(self, grenze: int | None = -1):
         """Schlagwoerter, Kurzfassungen und Vektoren nach einem Abgleich.
 
         Im Hintergrund und mit Obergrenze: Nachziehen und Antworten teilen sich
@@ -507,8 +511,13 @@ class Sitzung:
         Der erfolgreiche Fall wird NICHT gesprochen, nur angezeigt: nach jedem
         Abgleich ein zweites Mal zu reden waere Laerm.
         """
+        if NACHZIEHEN.locked():
+            log.info("Nachziehen laeuft schon, uebersprungen")
+            return
         try:
-            e = await wissen_erschliessen.nachziehen()
+            async with NACHZIEHEN:
+                e = await wissen_erschliessen.nachziehen(
+                    **({} if grenze == -1 else {"grenze": grenze}))
         except Exception as exc:
             log.warning("Nachziehen gescheitert: %r", exc)
             await self.melden("Das Erschließen der neuen Unterlagen ist "
@@ -527,12 +536,23 @@ class Sitzung:
             await self.melden(
                 f"Es sind {offen} neue Abschnitte dazugekommen, zu viele, um sie "
                 f"nebenbei zu erschließen. Bis das nachgeholt ist, finde ich sie "
-                f"nur über die Volltextsuche. Starte dafür bitte einmal von Hand "
-                f"den Wissensbefehl einlesen.")
+                f"nur über die Volltextsuche. Sag „Wissen nachziehen“, dann hole "
+                f"ich es nach — das dauert ein paar Minuten.")
             return
         teile = [f"{n}: {(e.get(n) or {}).get('erledigt', 0)}"
                  for n in ("schlagwoerter", "kurzfassungen", "vektoren")
                  if (e.get(n) or {}).get("erledigt")]
+        if grenze is None:
+            # Ausdruecklich angefordert: dann kommt IMMER eine Rueckmeldung,
+            # auch wenn nichts zu tun war. Sonst hoert der Nutzer "ich melde
+            # mich" und danach nichts -- und Schweigen ist von einem Ausfall
+            # nicht zu unterscheiden. Genau dieser Fehler ist im ersten Test
+            # dieses Befehls aufgetreten.
+            log.info("Nachgezogen — %s", ", ".join(teile) or "nichts offen")
+            await self.melden("Das Nachziehen ist fertig, " + ", ".join(teile) + "."
+                              if teile else
+                              "Es war schon alles erschlossen, nichts nachzuholen.")
+            return
         if teile:
             log.info("Nachgezogen — %s", ", ".join(teile))
             # Nur anzeigen, nicht sprechen.
@@ -1208,6 +1228,17 @@ class Sitzung:
                    "45 Sekunden Stille"])
             await self.zur_buehne({"typ": "hilfe", "text": langtext})
             await self.melden(gesagt)
+            return True
+
+        if art == "nachziehen":
+            if NACHZIEHEN.locked():
+                await self.melden("Das Nachziehen läuft schon.")
+                return True
+            await self.melden("Ich hole das Erschließen nach. Das dauert ein "
+                              "paar Minuten, ich melde mich.")
+            # OHNE Grenze: der Nutzer hat es ausdruecklich verlangt und weiss
+            # jetzt, dass es dauert. Die Grenze schuetzt den beilaeufigen Fall.
+            asyncio.create_task(self.nachziehen_lauf(grenze=None))
             return True
 
         if art == "abbruch":

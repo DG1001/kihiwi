@@ -1799,3 +1799,34 @@ nach dem Abbruch null hermes-Prozesse.
 `pgrep -f "hermes chat"` zaehlte drei Prozesse, und alle drei waren meine eigene
 Shell und `ps` -- die Zeichenkette steht in ihrer Kommandozeile. Das ist die
 dritte Wiederholung derselben Falle in dieser Woche.
+
+### "Was bedeutet von Hand starten?"
+
+Der Abgleich meldete 607 neue Abschnitte und verwies auf "starte bitte einmal
+von Hand den Wissensbefehl einlesen". Fred fragte, was das heisst.
+
+**Die Antwort war einfach, die Frage der eigentliche Befund.** Gemeint war
+`./dienste.sh wissen einlesen` im Terminal -- aber am Laborrechner gibt es
+keins, und am Futro erst recht nicht. Ein Assistent, der auf etwas verweist,
+das man per Stimme nicht tun kann, hilft nicht weiter. Dieselbe Luecke wie bei
+der Recherche, die sich nicht abbrechen liess: eine Handlung, die der Dienst
+beherrscht, aber nicht anbietet.
+
+Neues Ausloesewort `nachziehen` ("Wissen nachziehen", "Nachziehen",
+"Unterlagen erschliessen"), und die Meldung nennt es jetzt. Der Befehl laeuft
+OHNE die 300er-Grenze -- die schuetzt den beilaeufigen Fall nach einem
+Abgleich; wer ihn ausdruecklich ruft, weiss dass es dauert.
+
+**Der erste Test fand prompt den naechsten stummen Fall:** "Wissen nachziehen"
+bei vollstaendigem Index sagte "ich melde mich" -- und dann nichts, weil die
+Erfolgsmeldung an `if teile:` hing und nichts erledigt worden war. Bei einem
+ausdruecklich angeforderten Lauf kommt jetzt IMMER eine Rueckmeldung ("Es war
+schon alles erschlossen, nichts nachzuholen").
+
+Das ist in dieser Woche der vierte Fall derselben Art. **Schweigen ist von
+einem Ausfall nicht zu unterscheiden**, und ich baue ihn immer noch nach --
+diesmal in genau der Funktion, die ich gegen dieses Problem geschrieben hatte.
+
+Die 607 Abschnitte liefen nebenher durch: 180 s Schlagwoerter, 23 s
+Kurzfassungen, 259 s Vektoren, null Fehlschlaege. Index jetzt 385 Dokumente,
+5487 Abschnitte, alle drei Ebenen vollstaendig.
