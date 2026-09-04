@@ -2013,3 +2013,28 @@ Nicht behoben, weil es eine Entscheidung ist: man koennte dem Rechercheagenten
 `computer_use` abschalten. Der Browser braucht Genehmigungen, die per Stimme
 nie kommen -- aber ihm Faehigkeiten zu nehmen, ohne dass jemand danach gefragt
 hat, waere ein Eingriff zu viel.
+
+### computer_use abgeschaltet -- und der Auftrag lief durch
+
+Fred hat entschieden, dem Rechercheagenten die Browser-Automation zu nehmen.
+`-t` ist eine Positivliste, also stehen die uebrigen dreizehn Toolsets jetzt
+fest im Code.
+
+**Fest im Code und nicht aus ~/.hermes/config.yaml gelesen** -- eine
+Konfiguration ausserhalb des Repos, die still den Umfang aendert, ist genau die
+Fehlerklasse, die hier schon zweimal zugeschlagen hat (der Modellname bei
+Hermes, der Modellname beim Stapellauf). Kommt ein Toolset dazu, das die
+Recherche braucht, gehoert es hierher.
+
+Derselbe Auftrag, dreimal:
+
+| | Dauer | Ergebnis |
+|---|---|---|
+| erster Lauf | 282 s | vollstaendig, aber 1411 Zeichen vorgelesen |
+| zweiter Lauf | 333 s | Rueckfrage statt Antwort (Browser-Timeout) |
+| **dritter Lauf** | **196 s** | vollstaendige Aufstellung, drei Saetze gesprochen |
+
+Gesprochen wird jetzt: "Die Recherche ist fertig. Jetzt habe ich genug
+Material. Hier ist die Zusammenstellung: Offene Fragen und Punkte. Das
+Ausfuehrliche steht auf dem Monitor." -- und auf der Buehne steht die ganze
+Aufstellung, nach Sprachdienst und Hardware gegliedert.

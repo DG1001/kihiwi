@@ -38,6 +38,25 @@ ORDNER = konfig.WURZEL / "recherchen"
 ARBEIT = konfig.WURZEL / "zustand" / "hermes"
 MAX_S = 420          # danach gilt der Auftrag als gescheitert
 
+# Werkzeuge des Rechercheagenten. `-t` ist eine POSITIVLISTE, also stehen hier
+# alle ausser `computer_use`.
+#
+# **Warum computer_use raus muss.** Browser-Automation verlangt eine
+# Genehmigung, und im nicht-interaktiven Modus (-Q) kommt nie eine: der Agent
+# lief in einen Timeout ("Approval: computer_use: cua_browser_click -> timed
+# out"), war danach verwirrt und fragte zurueck, ob GitHub Issues oder
+# StackExchange gemeint seien -- obwohl acht passende Auszuege aus den eigenen
+# Unterlagen im Auftrag standen. Websuche und Dateizugriff bleiben, nur das
+# Klicken auf Webseiten faellt weg.
+#
+# Die Liste steht bewusst fest im Code und wird nicht aus ~/.hermes/config.yaml
+# gelesen: eine Konfiguration ausserhalb des Repos, die still den Umfang
+# aendert, ist genau die Fehlerklasse, die hier schon zweimal Zeit gekostet hat
+# (der Modellname bei Hermes, der Modellname beim Stapellauf). Kommt ein neues
+# Toolset dazu, das die Recherche braucht, gehoert es hierher.
+WERKZEUGE = ("browser,clarify,code_execution,cronjob,file,memory,"
+             "session_search,skills,terminal,todo,tts,vision,web")
+
 AUFTRAG_ZUSATZ = (
     " Antworte auf Deutsch, höchstens acht Sätze. Nenne zu jeder Zahl und jeder "
     "Sachaussage die Quelle. Was du nicht belegen kannst, lässt du weg oder "
@@ -197,7 +216,7 @@ class Recherche:
         p = await asyncio.create_subprocess_exec(
             str(HERMES), "chat", "-Q", "--no-restore-cwd",
             "--in", str(ARBEIT),
-            "-m", konfig.LLM_MODEL, "-q", frage,
+            "-m", konfig.LLM_MODEL, "-t", WERKZEUGE, "-q", frage,
             cwd=str(ARBEIT),
             stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
         self._proz = p

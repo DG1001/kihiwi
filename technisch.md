@@ -648,6 +648,21 @@ Wirksam ist erst das `cwd=` des Kindprozesses — das kann er nicht überschreib
 Gesetzt sind jetzt beide. `zustand/` ist ohnehin gitignoriert; man kann trotzdem
 nachsehen, was der Agent gebaut hat.
 
+**`computer_use` ist für Rechercheaufträge abgeschaltet.** Browser-Automation
+verlangt eine Genehmigung, und im nicht-interaktiven Modus kommt nie eine: der
+Agent lief in einen Timeout, war danach verwirrt und fragte zurück, ob GitHub
+Issues oder StackExchange gemeint seien — obwohl acht passende Auszüge aus den
+eigenen Unterlagen im Auftrag standen. **Websuche und Dateizugriff bleiben**,
+nur das Klicken auf Webseiten fällt weg.
+
+`-t` ist eine Positivliste, also stehen alle anderen dreizehn Toolsets in
+`WERKZEUGE` — **fest im Code, nicht aus `~/.hermes/config.yaml` gelesen**. Eine
+Konfiguration außerhalb des Repos, die still den Umfang ändert, ist genau die
+Fehlerklasse, die hier schon zweimal Zeit gekostet hat.
+
+Derselbe Auftrag vorher und nachher: 333 s mit einer Rückfrage statt eines
+Ergebnisses, danach **196 s mit einer vollständigen Aufstellung**.
+
 **Laufmeldungen des Agenten fallen aus dem Ergebnis.** Hermes schreibt
 Werkzeugbuchführung in seine Ausgabe — „⏱ Timeout — denying command",
 „🔧 Auto-repaired tool name", „⚠ Approval: computer_use … timed out". Das stand
