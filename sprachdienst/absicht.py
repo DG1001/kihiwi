@@ -196,10 +196,20 @@ _DARSTELLUNG = {
 }
 _ALLE = re.compile(r"\balle[sn]?\b|\bkomplett\w*|\bgesamt\w*|"
                    r"\bueberblick\b|\büberblick\b")
+# Wegnehmen statt hinzufuegen. "zumachen" und "schliessen" auch: die Tafel ist
+# fuer den Sprecher ein Fenster, das man wieder zumacht.
+_WEG = re.compile(r"\bleer\w*|\bloesch\w*|\blösch\w*|\bentfern\w*|\bweg\b|"
+                  r"\bzuruecksetz\w*|\bzurücksetz\w*|\bschliess\w*|\bschließ\w*|"
+                  r"\bzumachen\b|\braus\b|\bausblend\w*")
 
 
-def anzeige_wunsch(text: str) -> tuple[list[str], str]:
-    """(Groessen, Darstellung). Leere Liste heisst: nichts erkannt.
+def anzeige_wunsch(text: str) -> tuple[str, list[str], str]:
+    """(Aktion, Groessen, Darstellung).
+
+    Aktion ist "hinzu", "weg" oder "leeren". **Hinzufuegen ist die Vorgabe** --
+    wer nacheinander drei Werte nennt, will sie nebeneinander sehen und nicht
+    dreimal denselben Platz neu belegen. Weggenommen wird nur auf ausdrueckliche
+    Ansage.
 
     Ohne Angabe der Darstellung: Balken. Er zeigt Wert UND Bereich auf einen
     Blick und braucht am wenigsten Platz -- ein Zeigerinstrument sieht
@@ -208,7 +218,7 @@ def anzeige_wunsch(text: str) -> tuple[list[str], str]:
     t = _normal(text)
     art = next((a for a, m in _DARSTELLUNG.items() if re.search(m, t)), "balken")
     if _ALLE.search(t):
-        return list(_GROESSE), art
+        return ("leeren" if _WEG.search(t) else "hinzu"), list(_GROESSE), art
     # Reihenfolge wie im Satz, nicht wie im Woerterbuch: wer "CPU und GPU"
     # sagt, will sie in dieser Reihenfolge sehen.
     treffer = []
@@ -216,7 +226,11 @@ def anzeige_wunsch(text: str) -> tuple[list[str], str]:
         m = re.search(muster, t)
         if m:
             treffer.append((m.start(), g))
-    return [g for _, g in sorted(treffer)], art
+    groessen = [g for _, g in sorted(treffer)]
+    if _WEG.search(t):
+        # Ohne genannte Groesse: alles. Mit: nur die genannten.
+        return ("weg" if groessen else "leeren"), groessen, art
+    return "hinzu", groessen, art
 
 
 # --- Direktbefehle ohne Aktivierungswort -------------------------------------

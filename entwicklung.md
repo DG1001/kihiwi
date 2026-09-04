@@ -1902,3 +1902,30 @@ den Arbeitsspeicher mit an. Neun Testfaelle, alle richtig.
 wirksam, danach schlug der relative Pfad zum venv fehl. Nur der erste von drei
 Befehlen kam an -- die Screenshots zeigten dreimal denselben Stand, und ich
 haette daraus beinahe auf einen Fehler in der Wiederherstellung geschlossen.
+
+### Anzeigetafel sammelt an
+
+Fred: "prinzipiell waere es nett, wenn man immer hinzufuegt und dann einen
+leeren oder loeschen befehl hat". Vorher ersetzte jeder Befehl die ganze Tafel.
+
+Jetzt ist Hinzufuegen die Vorgabe, mit "leeren"/"loeschen"/"zumachen" fuer alles
+und "GPU entfernen" fuer einzelne Werte. **Je Groesse eine eigene
+Darstellung** -- wer "GPU als Zeiger" und dann "Platte als Diagramm" sagt, meint
+beides so. Eine schon vorhandene Groesse bekommt die neue Darstellung, wandert
+aber nicht ans Ende: eine Tafel, die bei jedem Befehl die Reihenfolge tauscht,
+ist nicht wiederzuerkennen.
+
+**Der Stand wanderte dabei aus dem Browser in den Dienst.** Anders geht
+Hinzufuegen nicht sinnvoll: der Dienst muss wissen, was schon dasteht. Nebenbei
+ueberlebt er damit ein Neuladen und gilt fuer alle Klienten.
+
+**Ein Fund beim Testen:** ein gespeicherter Buehnenstand im ALTEN Format
+(groessen + eine gemeinsame darstellung) liess den Klienten auflaufen --
+`d.tafel.length` auf undefined. Ein gespeicherter Stand ueberlebt
+Codeaenderungen und darf den Klienten nicht mitreissen; das alte Format wird
+jetzt umgewandelt. Dieselbe Ueberlegung wie bei `ZERLEGER_FASSUNG` im
+Wissensindex, nur eine Ebene weiter vorn.
+
+Und noch ein Testfehler von mir: das Skript las `d['tafel']` ohne Absicherung
+und starb genau an diesem alten Stand -- die Ausgabe blieb leer, und ich habe
+zuerst im Dienst gesucht statt in meinem eigenen Testskript.

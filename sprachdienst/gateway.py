@@ -46,6 +46,11 @@ ABGLEICH = asyncio.Lock()
 # Nachziehen Minuten. Zwei parallele Laeufe wuerden dieselben Abschnitte
 # doppelt durch das Modell schicken.
 NACHZIEHEN = asyncio.Lock()
+# Was gerade auf der Anzeigetafel steht: [(groesse, darstellung), ...].
+# Im Dienst und nicht im Browser, damit ein Neuladen sie nicht verliert und
+# zwei Klienten dasselbe sehen. Je Groesse eine EIGENE Darstellung -- wer
+# "GPU als Zeiger" und dann "Platte als Balken" sagt, meint beides so.
+TAFEL: list[tuple[str, str]] = []
 # Timer und Erinnerungen. Im Dienst, nicht in der Sitzung: sie sollen auch
 # klingeln, wenn der Browser zwischendurch neu geladen wurde.
 WECKER = wecker_modul.Wecker()
@@ -1232,23 +1237,62 @@ class Sitzung:
             return True
 
         if art == "anzeige":
-            groessen, darstellung = absicht_modul.anzeige_wunsch(ganzer_text)
+            aktion, groessen, darstellung = absicht_modul.anzeige_wunsch(ganzer_text)
+            werte = messwerte.alle()
+
+            if aktion == "leeren":
+                if not TAFEL:
+                    await self.melden("Die Anzeigetafel ist schon leer.")
+                    return True
+                TAFEL.clear()
+                await self.zur_buehne({"typ": "anzeige", "tafel": []})
+                await self.melden("Anzeigetafel geleert.")
+                return True
+
             if not groessen:
                 await self.melden("Was soll ich anzeigen? GPU, Prozessor, "
                                   "Speicher oder Platte.")
                 return True
-            werte = messwerte.alle()
+
+            if aktion == "weg":
+                vorher = len(TAFEL)
+                TAFEL[:] = [e for e in TAFEL if e[0] not in groessen]
+                if len(TAFEL) == vorher:
+                    await self.melden("Das steht gar nicht auf der Tafel.")
+                    return True
+                await self.zur_buehne({"typ": "anzeige",
+                                       "tafel": [{"groesse": g, "darstellung": d}
+                                                 for g, d in TAFEL]})
+                weg = [werte[g]["name"] for g in groessen if g in werte]
+                await self.melden(f"{', '.join(weg)} weggenommen.")
+                return True
+
             fehlt = [g for g in groessen if g not in werte]
             groessen = [g for g in groessen if g in werte]
             if not groessen:
                 await self.melden("Diese Werte kann ich auf dieser Maschine "
                                   "nicht lesen.")
                 return True
-            await self.zur_buehne({"typ": "anzeige", "groessen": groessen,
-                                   "darstellung": darstellung, "werte": werte})
+            # Hinzufuegen, nicht ersetzen. Eine schon vorhandene Groesse
+            # bekommt die neue Darstellung, wandert aber nicht ans Ende --
+            # eine Tafel, die bei jedem Befehl die Reihenfolge tauscht, ist
+            # nicht wiederzuerkennen.
+            neu_dazu = []
+            for g in groessen:
+                for i, (vg, _) in enumerate(TAFEL):
+                    if vg == g:
+                        TAFEL[i] = (g, darstellung)
+                        break
+                else:
+                    TAFEL.append((g, darstellung))
+                    neu_dazu.append(g)
+            await self.zur_buehne({"typ": "anzeige",
+                                   "tafel": [{"groesse": g, "darstellung": d}
+                                             for g, d in TAFEL]})
             namen = [werte[g]["name"] for g in groessen]
-            satz = ("Ich zeige " + ", ".join(namen[:-1]) + " und " + namen[-1]
-                    if len(namen) > 1 else "Ich zeige " + namen[0])
+            satz = (("Ich zeige " if neu_dazu else "Umgestellt: ")
+                    + (", ".join(namen[:-1]) + " und " + namen[-1]
+                       if len(namen) > 1 else namen[0]))
             if fehlt:
                 # Nicht verschweigen, was nicht geht.
                 satz += f". {len(fehlt)} davon kann ich hier nicht lesen"

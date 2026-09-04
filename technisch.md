@@ -1334,6 +1334,24 @@ die Bühne: **GPU, CPU, Speicher, Platte**, wahlweise als Balken, Zeiger, Zahl
 oder Verlaufsdiagramm. Ohne Angabe: Balken — er zeigt Wert *und* Bereich auf
 einen Blick und braucht am wenigsten Platz.
 
+**Hinzufügen ist die Vorgabe, nicht Ersetzen.** Wer nacheinander drei Werte
+nennt, will sie nebeneinander sehen. Weggenommen wird nur auf Ansage:
+
+```
+Anzeigetafel GPU als Zeiger      → kommt dazu
+Anzeigetafel Platte als Diagramm → kommt dazu, mit EIGENER Darstellung
+Anzeigetafel GPU entfernen       → nur die eine weg
+Anzeigetafel leeren              → alles weg (auch „löschen", „zumachen")
+```
+
+**Je Größe eine eigene Darstellung.** Eine schon vorhandene Größe bekommt die
+neue Darstellung, wandert aber nicht ans Ende — eine Tafel, die bei jedem
+Befehl die Reihenfolge tauscht, ist nicht wiederzuerkennen.
+
+**Der Stand liegt im Dienst (`TAFEL`), nicht im Browser**, damit ein Neuladen
+ihn nicht verliert und zwei Klienten dasselbe sehen. Er geht über `zur_buehne`
+und überlebt damit auch einen Dienstneustart.
+
 **Größe und Darstellung erkennt der Dienst, nicht das Modell.** Vier Größen mal
 vier Darstellungen sind sechzehn Fälle; dafür lohnt kein Modellaufruf, und ein
 Router, der rät, wäre langsamer und unzuverlässiger. *Die Wortgrenzen im Muster

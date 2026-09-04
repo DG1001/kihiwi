@@ -460,9 +460,9 @@ function zeile(wer, text) {
 
 /* Verweis im Verlauf auf etwas, das auf der Buehne liegt. Der Verlauf bleibt
    damit lesbar, und das Ausfuehrliche ist trotzdem einen Klick entfernt. */
-function merker(text, zeigen) {
+function merker(text, zeigen, zusatz) {
   const d = document.createElement("div");
-  d.className = "merker";
+  d.className = "merker" + (zusatz ? " " + zusatz : "");
   d.innerHTML = '<span class="pfeil">→</span>';
   const s = document.createElement("span");
   s.textContent = text;
@@ -546,7 +546,14 @@ function instrument(w, art) {
   return `<div class="instrument ${kl}"><div class="titel">${w.name}</div>${koerper}</div>`;
 }
 
-async function tafelZeichnen(groessen, art) {
+/* tafel = [{groesse, darstellung}, ...]. Je Eintrag eine eigene Darstellung:
+   der Dienst haelt den Stand, damit ein Neuladen ihn nicht verliert. */
+async function tafelZeichnen(tafel) {
+  if (!tafel.length) {
+    $("b-inhalt").innerHTML = '<div class="lauf"><div class="b-leer">'
+      + 'Anzeigetafel ist leer. Sag zum Beispiel „Anzeigetafel GPU“.</div></div>';
+    return;
+  }
   let werte;
   try {
     werte = await (await fetch("/api/messwerte")).json();
@@ -554,14 +561,15 @@ async function tafelZeichnen(groessen, art) {
     $("b-inhalt").innerHTML = '<div class="b-leer">Messwerte nicht erreichbar.</div>';
     return;
   }
-  for (const g of groessen) {
-    const w = werte[g];
+  for (const e of tafel) {
+    const w = werte[e.groesse];
     if (!w) continue;
     (verlauf[w.name] = verlauf[w.name] || []).push(w.zahl);
     if (verlauf[w.name].length > VERLAUF_MAX) verlauf[w.name].shift();
   }
   $("b-inhalt").innerHTML = '<div class="lauf"><div class="tafel">'
-    + groessen.filter(g => werte[g]).map(g => instrument(werte[g], art)).join("")
+    + tafel.filter(e => werte[e.groesse])
+           .map(e => instrument(werte[e.groesse], e.darstellung)).join("")
     + "</div></div>";
 }
 
@@ -663,13 +671,25 @@ function verbinden() {
       zeigen();
       if (!d.wieder) merker(`Rechercheergebnis: ${d.frage}`, zeigen);
     } else if (d.typ === "anzeige") {
+      // d.tafel kann fehlen, wenn ein alter Buehnenstand wiederhergestellt
+      // wird (frueher: groessen + eine gemeinsame darstellung). Ein
+      // gespeicherter Stand ueberlebt Codeaenderungen -- er darf den
+      // Klienten nicht mitreissen.
+      const tafel = d.tafel || (d.groessen || []).map(
+        g => ({groesse: g, darstellung: d.darstellung || "balken"}));
       const zeigen = () => {
         buehne("Anzeige", "Messwerte", "", wannZusatz(d));
-        tafelZeichnen(d.groessen, d.darstellung);
-        tafelUhr = setInterval(() => tafelZeichnen(d.groessen, d.darstellung), 1000);
+        tafelZeichnen(tafel);
+        if (tafel.length) {
+          tafelUhr = setInterval(() => tafelZeichnen(tafel), 1000);
+        }
       };
       zeigen();
-      if (!d.wieder) merker("Anzeigetafel", zeigen);
+      // Beim Hinzufuegen keinen neuen Merker: sonst sammeln sich im Verlauf
+      // fuenf Zeilen "Anzeigetafel", die alle dasselbe oeffnen.
+      if (!d.wieder && !$("verlauf").querySelector(".merker-tafel")) {
+        merker("Anzeigetafel", zeigen, "merker-tafel");
+      }
     } else if (d.typ === "ton") {
       tonRate = d.rate;
     }
