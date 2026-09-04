@@ -648,6 +648,12 @@ Wirksam ist erst das `cwd=` des Kindprozesses — das kann er nicht überschreib
 Gesetzt sind jetzt beide. `zustand/` ist ohnehin gitignoriert; man kann trotzdem
 nachsehen, was der Agent gebaut hat.
 
+**Laufmeldungen des Agenten fallen aus dem Ergebnis.** Hermes schreibt
+Werkzeugbuchführung in seine Ausgabe — „⏱ Timeout — denying command",
+„🔧 Auto-repaired tool name", „⚠ Approval: computer_use … timed out". Das stand
+im Ergebnis und wurde vorgelesen. `_ohne_statuszeilen()` entfernt sie; wer eine
+Recherche hört, will das Ergebnis, nicht das Protokoll.
+
 **Gesprochen wird nur der Anfang — und Tabellen gar nicht.** Eine
 Markdown-Tabelle hat keine Satzzeichen; die Kurzfassung nimmt „die ersten zwei
 Sätze", und ohne Punkt ist die ganze Tabelle ein Satz. Gesprochen wurde einmal

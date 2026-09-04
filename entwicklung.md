@@ -1983,3 +1983,33 @@ gegengeprueft.
 
 Dazu eine harte Obergrenze von 400 Zeichen. Sie ist nicht die Loesung, sondern
 das Netz darunter -- auch ein Fliesstext kann zwei sehr lange Saetze haben.
+
+### Zweiter Lauf: Kuerzung gut, Inhalt gescheitert
+
+Derselbe Auftrag nochmal, um die Kuerzung zu hoeren. **Sie funktioniert** -- aus
+1411 gesprochenen Zeichen wurden wenige Saetze. Der Lauf selbst ist aber
+gescheitert, und zwar an etwas anderem:
+
+    ⏱ Timeout — denying command
+    🔧 Auto-repaired tool name: 'computer-use' -> 'computer_use'
+    ⚠ Approval: computer_use: cua_browser_click → timed out (no response)
+    Ich brauche etwas mehr Klarheit: Welche "offenen Fragen" meinst du?
+
+Hermes versuchte einen Browser-Klick, der eine Genehmigung braucht. Im
+nicht-interaktiven Modus (-Q) kommt nie eine, also lief er in einen Timeout --
+danach war der Agent verwirrt und fragte zurueck, ob GitHub Issues oder
+StackExchange gemeint seien.
+
+**Die Unterlagen-Auszuege waren da.** Nachgeprueft: acht Stueck, 2811 Zeichen,
+thematisch richtig ("Offene Punkte" aus zwei Protokollen). Hermes hat sie
+ignoriert, weil er sich in der Werkzeugfrage verlor. Der erste Lauf mit
+demselben Auftrag hatte sauber funktioniert -- es ist kein systematischer
+Fehler, sondern ein Ausrutscher.
+
+Behoben habe ich, was eindeutig meins ist: **die Laufmeldungen gehoeren nicht
+ins Ergebnis.** Sie sind Protokoll, keine Antwort, und wurden vorgelesen.
+
+Nicht behoben, weil es eine Entscheidung ist: man koennte dem Rechercheagenten
+`computer_use` abschalten. Der Browser braucht Genehmigungen, die per Stimme
+nie kommen -- aber ihm Faehigkeiten zu nehmen, ohne dass jemand danach gefragt
+hat, waere ein Eingriff zu viel.

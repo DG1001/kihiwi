@@ -50,6 +50,20 @@ AUFTRAG_ZUSATZ = (
 VORLAGE_TREFFER = 8
 
 
+# Laufmeldungen des Agenten -- Protokoll, keine Antwort. Sie standen im
+# Ergebnis und wurden vorgelesen: "Timeout, denying command. Auto-repaired tool
+# name computer-use. Approval computer_use cua_browser_click, timed out."
+# Wer eine Recherche hoert, will das Ergebnis, nicht die Werkzeugbuchfuehrung.
+_STATUSZEILE = re.compile(
+    r"^\s*(?:[⏱🔧⚠✓✗ℹ️🔍📎🌐]|"
+    r"(?:Auto-repaired|Approval|Timeout|Warning|Denying)\b).*$", re.M)
+
+
+def _ohne_statuszeilen(text: str) -> str:
+    text = _STATUSZEILE.sub("", text)
+    return re.sub(r"\n{3,}", "\n\n", text).strip()
+
+
 def _unterlagen(frage: str) -> str:
     """Auszuege aus dem eigenen Index, die dem Auftrag vorangestellt werden.
 
@@ -201,7 +215,6 @@ class Recherche:
         text = aus.decode(errors="replace").strip()
         if p.returncode != 0 and not text:
             raise RuntimeError(fehler.decode(errors="replace")[:200])
-        # -Q stellt eine Zeile "session_id: ..." voran.
         # -Q stellt die Kennung voran, aber nicht immer als erste Zeile.
         sitzung = ""
         zeilen = text.splitlines()
@@ -212,7 +225,7 @@ class Recherche:
                 sitzung = m.group(1)
             else:
                 behalten.append(z)
-        return "\n".join(behalten).strip(), sitzung
+        return _ohne_statuszeilen("\n".join(behalten)), sitzung
 
     @staticmethod
     def _ablegen(a: Auftrag) -> Path:
