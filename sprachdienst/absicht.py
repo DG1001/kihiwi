@@ -173,6 +173,52 @@ def alle_loeschen(text: str) -> bool:
     return bool(_NUR_ALLE.match(t) or _WECK_ALLE.search(t))
 
 
+# --- Anzeigetafel ---------------------------------------------------------
+# Welche Groesse und welche Darstellung gemeint sind, entscheidet der DIENST
+# ueber Schluesselwoerter, nicht das Modell. Es gibt vier Groessen und vier
+# Darstellungen -- fuer sechzehn Kombinationen lohnt kein Modellaufruf, und
+# ein Router, der raet, waere langsamer und unzuverlaessiger.
+# Wortgrenzen sind hier nicht Kosmetik: ohne sie trifft "ram" mitten in
+# "DiagRAMm", und "CPU und GPU als Diagramm" zeigte den Arbeitsspeicher mit an.
+_GROESSE = {
+    "gpu":    r"\bgpu\b|\bgrafik\w*",
+    "cpu":    r"\bcpu\b|\bprozessor\w*|\brechenlast\b",
+    "ram":    r"\bram\b|\barbeits\s?speicher\w*|\bhaupt\s?speicher\w*|"
+              r"\bspeicher(?!platz)\w*",
+    "platte": r"\bplatte\w*|\bfestplatte\w*|\bspeicher\s?platz\w*|"
+              r"\bplatten\s?platz\w*|\bplattenbelegung\b|\bdisk\b",
+}
+_DARSTELLUNG = {
+    "zeiger":   r"zeiger\w*|rundinstrument|tacho\w*|analog",
+    "diagramm": r"diagramm\w*|verlauf|kurve|graph\w*|chart",
+    "zahl":     r"zahl\w*|ziffer\w*|display|digital|nummer",
+    "balken":   r"balken\w*|leiste|bar",
+}
+_ALLE = re.compile(r"\balle[sn]?\b|\bkomplett\w*|\bgesamt\w*|"
+                   r"\bueberblick\b|\büberblick\b")
+
+
+def anzeige_wunsch(text: str) -> tuple[list[str], str]:
+    """(Groessen, Darstellung). Leere Liste heisst: nichts erkannt.
+
+    Ohne Angabe der Darstellung: Balken. Er zeigt Wert UND Bereich auf einen
+    Blick und braucht am wenigsten Platz -- ein Zeigerinstrument sieht
+    huebscher aus, sagt aber dasselbe auf dreifacher Flaeche.
+    """
+    t = _normal(text)
+    art = next((a for a, m in _DARSTELLUNG.items() if re.search(m, t)), "balken")
+    if _ALLE.search(t):
+        return list(_GROESSE), art
+    # Reihenfolge wie im Satz, nicht wie im Woerterbuch: wer "CPU und GPU"
+    # sagt, will sie in dieser Reihenfolge sehen.
+    treffer = []
+    for g, muster in _GROESSE.items():
+        m = re.search(muster, t)
+        if m:
+            treffer.append((m.start(), g))
+    return [g for _, g in sorted(treffer)], art
+
+
 # --- Direktbefehle ohne Aktivierungswort -------------------------------------
 # "Sprachaufzeichnung starten/stoppen" wirkt OHNE vorheriges "Kiwi" und ohne
 # den Gespraechsmodus zu oeffnen. Zusammengesetztes Wort wie bei den anderen
@@ -340,6 +386,11 @@ AUSLOESER = {
     # soll niemand nebenbei anstossen.
     "abgleich":  rf"wissens{_}abgleich|unterlagen{_}abgleich|quellen{_}abgleich|"
                  rf"wissens{_}auffrischung",
+    # Blendet Messwerte auf der Buehne ein. "Anzeigetafel" als Kompositum wie
+    # die uebrigen Ausloeser: "Anzeige" allein faellt im Labor staendig
+    # ("die Anzeige spinnt"), "Anzeigeanpassung" ist schwer auszusprechen.
+    "anzeige":   rf"anzeige{_}tafel|mess{_}anzeige|instrumenten{_}tafel|"
+                 rf"anzeige{_}anpassung",
     # Holt das Erschliessen nach, wenn der Abgleich es wegen der Menge
     # ausgelassen hat. Braucht ein eigenes Wort, weil es Minuten dauert und
     # die GPU belegt -- der Nutzer soll wissen, was er anstoesst.
@@ -385,6 +436,7 @@ BESCHREIBUNG = {
     "hermes":    ("Hermesaufgabe", "Anweisung unverändert an den Rechercheagenten"),
     "abgleich":  ("Wissensabgleich", "neue Stände aus Repo und Cloud holen"),
     "abbruch":   ("Recherche abbrechen", "einen laufenden Auftrag beenden"),
+    "anzeige":   ("Anzeigetafel", "Messwerte einblenden: GPU, CPU, Speicher, Platte"),
     "nachziehen": ("Wissen nachziehen", "Schlagwörter und Vektoren nachholen, dauert Minuten"),
     "hilfe":     ("Kiwihilfe", "diese Liste"),
 }
@@ -412,8 +464,8 @@ def ausloeser(text: str):
         return "hilfe", ""
 
     # abbruch vor recherche: "Recherche abbrechen" darf keine neue starten.
-    for art in ("hilfe", "abbruch", "nachziehen", "abgleich", "hermes",
-                "dokumente", "websuche", "recherche"):
+    for art in ("hilfe", "abbruch", "anzeige", "nachziehen", "abgleich",
+                "hermes", "dokumente", "websuche", "recherche"):
         m = _AUSLOESER_RE[art].search(text)
         if not m:
             continue

@@ -29,7 +29,8 @@ from wissen import web as wissen_web
 from . import protokoll as protokoll_modul
 
 from . import absicht as absicht_modul
-from . import aktivierung, doku, konfig, llm, stt, tts, wecker as wecker_modul, zahlwort
+from . import (aktivierung, doku, konfig, llm, messwerte, stt, tts,
+               wecker as wecker_modul, zahlwort)
 from .turn import Endpoint, Turnerkenner
 from .zustand import Phase, Zustandshalter
 
@@ -1230,6 +1231,30 @@ class Sitzung:
             await self.melden(gesagt)
             return True
 
+        if art == "anzeige":
+            groessen, darstellung = absicht_modul.anzeige_wunsch(ganzer_text)
+            if not groessen:
+                await self.melden("Was soll ich anzeigen? GPU, Prozessor, "
+                                  "Speicher oder Platte.")
+                return True
+            werte = messwerte.alle()
+            fehlt = [g for g in groessen if g not in werte]
+            groessen = [g for g in groessen if g in werte]
+            if not groessen:
+                await self.melden("Diese Werte kann ich auf dieser Maschine "
+                                  "nicht lesen.")
+                return True
+            await self.zur_buehne({"typ": "anzeige", "groessen": groessen,
+                                   "darstellung": darstellung, "werte": werte})
+            namen = [werte[g]["name"] for g in groessen]
+            satz = ("Ich zeige " + ", ".join(namen[:-1]) + " und " + namen[-1]
+                    if len(namen) > 1 else "Ich zeige " + namen[0])
+            if fehlt:
+                # Nicht verschweigen, was nicht geht.
+                satz += f". {len(fehlt)} davon kann ich hier nicht lesen"
+            await self.melden(satz + ".")
+            return True
+
         if art == "nachziehen":
             if NACHZIEHEN.locked():
                 await self.melden("Das Nachziehen läuft schon.")
@@ -1598,6 +1623,17 @@ async def http_seite(verbindung, anfrage):
     if pfad_teil == "/api/liste":
         leib = json.dumps([{k: v for k, v in e.items() if k != "pfad"}
                            for e in _sammlung()], ensure_ascii=False)
+        antwort = verbindung.respond(http.HTTPStatus.OK, leib)
+        del antwort.headers["Content-Type"]
+        antwort.headers["Content-Type"] = "application/json; charset=utf-8"
+        return antwort
+
+    # Messwerte fuer die Anzeigetafel. Ueber HTTP und nicht ueber den
+    # WebSocket: die Anzeige lebt im Browser, und der Dienst muss nicht
+    # wissen, wer gerade was eingeblendet hat. Der Klient fragt im
+    # Sekundentakt -- messwerte.py haelt die Werte 0,9 s vor.
+    if pfad_teil == "/api/messwerte":
+        leib = json.dumps(messwerte.alle(), ensure_ascii=False)
         antwort = verbindung.respond(http.HTTPStatus.OK, leib)
         del antwort.headers["Content-Type"]
         antwort.headers["Content-Type"] = "application/json; charset=utf-8"

@@ -1315,6 +1315,47 @@ der Nutzer ohnehin unten steht. Vorher stand `prepend` darin, der Verlauf las
 sich rueckwaerts -- die Antwort ueber der Frage, der Auftrag unter dem
 Ergebnis.
 
+**Markdown-Tabellen, Trennlinien, mehrzeilige Zitate.** Der Rechercheagent
+antwortet auf Maßfragen mit Tabellen; ungerendert stand dort eine Wand aus
+Pipe-Zeichen. `tabellen()` arbeitet **zeilenweise** und ersetzt jeden Block
+durch einen Platzhalter — ein Regex über den ganzen Text verschluckt den Absatz
+dahinter, und die Zeilenumbrüche weiter unten würden die Tabelle zerreißen.
+Erkannt wird nur, was Kopfzeile *und* Trennzeile hat; eine Zeile mit einem
+zufälligen `|` bleibt Text.
+
+Dazu `---` als `<hr>` und aufeinanderfolgende Zitatzeilen zu **einem** Block —
+der Warnhinweis über jedem Rechercheergebnis stand vorher in drei Kästen
+untereinander.
+
+### Anzeigetafel
+
+„Anzeigetafel" (auch „Messanzeige", „Instrumententafel") blendet Messwerte auf
+die Bühne: **GPU, CPU, Speicher, Platte**, wahlweise als Balken, Zeiger, Zahl
+oder Verlaufsdiagramm. Ohne Angabe: Balken — er zeigt Wert *und* Bereich auf
+einen Blick und braucht am wenigsten Platz.
+
+**Größe und Darstellung erkennt der Dienst, nicht das Modell.** Vier Größen mal
+vier Darstellungen sind sechzehn Fälle; dafür lohnt kein Modellaufruf, und ein
+Router, der rät, wäre langsamer und unzuverlässiger. *Die Wortgrenzen im Muster
+sind nicht Kosmetik: ohne sie trifft `ram` mitten in „DiagRAMm", und „CPU und
+GPU als Diagramm" zeigte den Arbeitsspeicher mit an.*
+
+**Auf dem GB10 gibt es keinen getrennten GPU-Speicher** — `nvidia-smi` meldet
+für `memory.used` ein `[N/A]`, weil Prozessor und Grafikeinheit sich denselben
+Unified Memory teilen. Deshalb steht RAM für beides, und die GPU trägt nur ihre
+Auslastung bei.
+
+Die Werte kommen über **`/api/messwerte`**, nicht über den WebSocket: die
+Anzeige lebt im Browser, und der Dienst muss nicht wissen, wer gerade was
+eingeblendet hat. Der Klient fragt im Sekundentakt, `messwerte.py` hält 0,9 s
+vor. Ein Zeitgeber je Tafel, den `buehne()` beim Wechsel abräumt — sonst laufen
+nach drei Recherchen drei Abfragen weiter.
+
+**Erweiterbar gedacht:** jeder Wert ist ein `Wert` mit Name, Zahl, Einheit,
+Bereich und zwei Schwellen. Die Anzeige kennt nur diese Form. Werte von außen
+(MQTT) müssen später nur in dieselbe Form gebracht und in `alle()` eingehängt
+werden.
+
 **`alsHtml()`** entfernt die `<br>` unmittelbar vor und nach Ueberschriften und
 Zitaten. Die Blockelemente bringen eigenen Abstand mit, die `<br>` aus den
 Leerzeilen kamen obendrauf und rissen Loecher in den Text.

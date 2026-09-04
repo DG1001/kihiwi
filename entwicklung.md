@@ -1860,3 +1860,45 @@ Wandstaerke, Kernbohrung und Spaltabstaenden, jede Zeile mit Quellenangabe,
 Nebenbei bestaetigt: die Buehnen-Wiederherstellung funktioniert. Beim Verbinden
 kam Freds alte Recherche zurueck, sodass im Testprotokoll das Vorher und das
 Nachher direkt untereinander standen.
+
+### Tabellen und die Anzeigetafel
+
+Zwei Dinge auf einmal: die Buehne sollte Markdown-Tabellen rendern, und
+Messwerte sollten sich einblenden lassen.
+
+**Tabellen.** Der Rechercheagent antwortet auf Massfragen mit Tabellen, und der
+Renderer kannte sie nicht -- auf der Buehne stand eine Wand aus Pipe-Zeichen.
+Zeilenweise geloest statt mit einem Regex ueber den ganzen Text: Tabellen sind
+mehrzeilig, ein gieriger Ausdruck verschluckt den Absatz dahinter, und die
+Zeilenumbrueche weiter unten zerreissen den Block. Erkannt wird nur, was
+Kopfzeile UND Trennzeile hat. Dabei fielen zwei weitere Luecken auf: `---`
+stand als Zeichenfolge da, und ein mehrzeiliges Zitat wurde in ebenso viele
+Kaesten zerlegt.
+
+**Anzeigetafel.** Neues Ausloesewort, vier Groessen (GPU, CPU, Speicher,
+Platte) mal vier Darstellungen. Fred hatte "Anzeigeanpassung" vorgeschlagen und
+um Alternativen gebeten -- "Anzeigetafel" passt besser zu den uebrigen
+Komposita und spricht sich leichter; "Anzeige" allein faellt im Labor staendig.
+
+Erkannt wird im Dienst, nicht vom Modell: sechzehn Kombinationen sind kein Fall
+fuer einen Modellaufruf. **Und die Wortgrenzen im Muster sind kein Detail** --
+ohne sie traf `ram` mitten in "DiagRAMm", und "CPU und GPU als Diagramm" zeigte
+den Arbeitsspeicher mit an. Neun Testfaelle, alle richtig.
+
+**Drei Fehler beim Bauen**, alle im Screenshot sichtbar geworden:
+
+1. Ich hatte CSS-Variablen `--gruen/--gelb/--rot` benutzt, die es nicht gibt.
+   Das Blatt kennt `--an`. Zwei Warnfarben ergaenzt, Gruen wiederverwendet.
+2. Ein Wettlauf beim Seitenstart: `ablageLaden()` holt die Liste per fetch,
+   gleichzeitig schickt der Dienst den letzten Buehnenstand nach. Wessen
+   Antwort zuerst da ist, gewinnt -- im Screenshot stand der Kopf "Ablage"
+   ueber den Messinstrumenten. Die wiederhergestellte Buehne hat jetzt Vorrang.
+3. Das Diagramm streckte sechs Messpunkte auf eine feste 60-Sekunden-Achse und
+   sah aus wie ein Defekt. Jetzt werden die vorhandenen Punkte ueber die volle
+   Breite verteilt, mit Beschriftung "letzte N s" -- die Aufloesung waechst,
+   statt dass die Kurve von links kriecht.
+
+**Und ein Fehler in meinem eigenen Test:** ein `cd` in der Schleife blieb
+wirksam, danach schlug der relative Pfad zum venv fehl. Nur der erste von drei
+Befehlen kam an -- die Screenshots zeigten dreimal denselben Stand, und ich
+haette daraus beinahe auf einen Fehler in der Wiederherstellung geschlossen.

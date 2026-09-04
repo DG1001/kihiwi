@@ -2,7 +2,9 @@
 <meta charset="utf-8">
 <title>kihiwi — Sprachclient</title>
 <style>
-  :root { --bg:#101014; --fg:#e8e8ea; --matt:#8a8a95; --linie:#2a2a33; --an:#3d9a54; }
+  :root { --bg:#101014; --fg:#e8e8ea; --matt:#8a8a95; --linie:#2a2a33; --an:#3d9a54;
+          /* Warnstufen der Anzeigetafel. --an ist das vorhandene Gruen. */
+          --gelb:#c9a227; --rot:#c0453b; }
   * { box-sizing:border-box; margin:0; }
   html,body { height:100%; }
 
@@ -87,6 +89,40 @@
   .zeile.assistent .wer { color:#7aa2d8; }
   .zeile .text { white-space:pre-wrap; overflow-wrap:anywhere; }
   /* Zeigt an, dass etwas auf der Buehne gelandet ist, und holt es zurueck. */
+  #b-inhalt hr { border:none; border-top:1px solid var(--linie); margin:1rem 0; }
+  #b-inhalt table { border-collapse:collapse; margin:.8rem 0; font-size:.88rem;
+                    display:block; overflow-x:auto; max-width:100%; }
+  #b-inhalt th, #b-inhalt td { border:1px solid var(--linie); padding:.32rem .6rem;
+                               text-align:left; vertical-align:top; }
+  #b-inhalt th { background:#1a1a22; font-weight:600; color:var(--fg);
+                 white-space:nowrap; }
+  /* Zahlenspalten rechtsbuendig lesen sich besser -- aber nur, wenn die Zelle
+     wirklich eine Zahl ist. Per CSS nicht zu unterscheiden, also bleibt es
+     linksbuendig; eine falsche Ausrichtung waere schlimmer als eine
+     langweilige. */
+  #b-inhalt tbody tr:nth-child(even) { background:#15151c; }
+
+  /* Anzeigetafel. Ein Gitter, das sich nach der Breite richtet -- eine
+     einzelne Groesse darf die Flaeche fuellen, vier teilen sie sich. */
+  #b-inhalt .tafel { display:grid; gap:1rem; grid-template-columns:repeat(auto-fit,minmax(15rem,1fr)); }
+  .instrument { background:var(--karte); border:1px solid var(--linie);
+                border-radius:8px; padding:.9rem 1rem; }
+  .instrument .titel { font-size:.8rem; color:var(--matt); margin-bottom:.5rem; }
+  .instrument .zahl { font-size:2.1rem; font-weight:600; line-height:1.1;
+                      font-variant-numeric:tabular-nums; }
+  .instrument .einheit { font-size:.9rem; font-weight:400; color:var(--matt);
+                         margin-left:.25rem; }
+  .instrument .von { font-size:.78rem; color:var(--matt); margin-top:.2rem; }
+  .balken { height:.7rem; background:#15151c; border-radius:4px; overflow:hidden;
+            margin-top:.55rem; }
+  .balken i { display:block; height:100%; background:var(--an);
+              transition:width .4s ease, background .4s ease; }
+  .warn i, .warn .zahl { color:var(--gelb); }
+  .warn i { background:var(--gelb); }
+  .krit i, .krit .zahl { color:var(--rot); }
+  .krit i { background:var(--rot); }
+  .instrument svg { display:block; margin:.3rem auto 0; }
+
   .merker { display:flex; align-items:center; gap:.5rem; margin-bottom:.7rem;
             padding:.4rem .6rem; border-radius:.35rem; cursor:pointer;
             border:1px solid var(--linie); background:#15151c; font-size:.85rem;
@@ -135,6 +171,7 @@
   .art-hilfe     { background:#14351f; color:#7ddc9a; }
   .art-erinnerungen { background:#3a2a12; color:#e8b339; }
   .art-ablage    { background:#22222c; color:var(--matt); }
+  .art-anzeige   { background:#12301f; color:#7fd39b; }
 
   #b-inhalt { flex:1; min-height:0; overflow-y:auto; padding:1.4rem 1.6rem 3rem;
               font-size:.92rem; line-height:1.65; }
@@ -434,6 +471,100 @@ function merker(text, zeigen) {
   amEnde(d);
 }
 
+/* --- Anzeigetafel -----------------------------------------------------------
+   Die Werte kommen ueber /api/messwerte, nicht ueber den WebSocket: die
+   Anzeige lebt im Browser, und der Dienst muss nicht wissen, wer gerade was
+   eingeblendet hat. Ein Zeitgeber je Tafel, der beim naechsten buehne()
+   abgeraeumt wird -- sonst laufen nach drei Recherchen drei Abfragen weiter. */
+let tafelUhr = null;
+const verlauf = {};          // je Groesse die letzten Messwerte fuers Diagramm
+const VERLAUF_MAX = 60;
+
+function stufe(w) {
+  if (w.kritisch != null && w.zahl >= w.kritisch) return "krit";
+  if (w.warn != null && w.zahl >= w.warn) return "warn";
+  return "";
+}
+
+function zeigerSvg(anteil, farbe) {
+  // Halbrund von -90 bis +90 Grad. Kein <canvas>: SVG skaliert mit und
+  // braucht keine Neuzeichnung bei Groessenaenderung.
+  const r = 52, mx = 70, my = 62;
+  const bogen = (von, bis) => {
+    const p = a => [mx + r * Math.cos(a), my + r * Math.sin(a)];
+    const [x1, y1] = p(von), [x2, y2] = p(bis);
+    return `M ${x1.toFixed(1)} ${y1.toFixed(1)} A ${r} ${r} 0 0 1 ${x2.toFixed(1)} ${y2.toFixed(1)}`;
+  };
+  const a0 = Math.PI, a1 = Math.PI + Math.PI * Math.max(0, Math.min(1, anteil));
+  const zg = a1, zx = mx + (r - 9) * Math.cos(zg), zy = my + (r - 9) * Math.sin(zg);
+  return `<svg width="140" height="72" viewBox="0 0 140 72">
+    <path d="${bogen(a0, 2 * Math.PI)}" fill="none" stroke="#2a2a33" stroke-width="9"/>
+    ${anteil > 0.001 ? `<path d="${bogen(a0, a1)}" fill="none" stroke="${farbe}" stroke-width="9" stroke-linecap="round"/>` : ""}
+    <line x1="${mx}" y1="${my}" x2="${zx.toFixed(1)}" y2="${zy.toFixed(1)}"
+          stroke="${farbe}" stroke-width="2.5" stroke-linecap="round"/>
+    <circle cx="${mx}" cy="${my}" r="3.5" fill="${farbe}"/>
+  </svg>`;
+}
+
+function verlaufSvg(reihe, max, farbe) {
+  if (reihe.length < 2) return '<div class="von">sammelt Werte …</div>';
+  const b = 260, h = 64;
+  // Die vorhandenen Punkte ueber die volle Breite, nicht auf einer festen
+  // 60-Sekunden-Achse: sechs Messwerte in der linken Ecke sehen aus wie ein
+  // Defekt. Die Beschriftung sagt, welchen Zeitraum man sieht -- damit ist
+  // die gestauchte Achse kein Betrug, sondern eine wachsende Aufloesung.
+  const n = reihe.length;
+  const pkt = reihe.map((v, i) => {
+    const x = n > 1 ? (i / (n - 1)) * b : 0;
+    const y = h - (max ? Math.max(0, Math.min(1, v / max)) : 0) * (h - 4) - 2;
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(" ");
+  const hoch = Math.max(...reihe), tief = Math.min(...reihe);
+  return `<svg width="100%" height="${h}" viewBox="0 0 ${b} ${h}" preserveAspectRatio="none">
+    <polyline points="${pkt}" fill="none" stroke="${farbe}" stroke-width="2"
+              vector-effect="non-scaling-stroke"/>
+  </svg>
+  <div class="von">letzte ${n} s &middot; ${tief} bis ${hoch}</div>`;
+}
+
+function instrument(w, art) {
+  const kl = stufe(w);
+  const farbe = kl === "krit" ? "#c0453b" : kl === "warn" ? "#c9a227" : "#3d9a54";
+  const anteil = w.max ? w.zahl / w.max : 0;
+  const zahl = `<div class="zahl">${w.zahl}<span class="einheit">${w.einheit}</span></div>`;
+  let koerper;
+  if (art === "zeiger") {
+    koerper = zahl + zeigerSvg(anteil, farbe);
+  } else if (art === "diagramm") {
+    koerper = zahl + verlaufSvg(verlauf[w.name] || [], w.max, farbe);
+  } else if (art === "zahl") {
+    koerper = zahl + `<div class="von">von ${w.max} ${w.einheit}</div>`;
+  } else {
+    koerper = zahl + `<div class="balken"><i style="width:${(anteil * 100).toFixed(1)}%"></i></div>`
+            + `<div class="von">von ${w.max} ${w.einheit}</div>`;
+  }
+  return `<div class="instrument ${kl}"><div class="titel">${w.name}</div>${koerper}</div>`;
+}
+
+async function tafelZeichnen(groessen, art) {
+  let werte;
+  try {
+    werte = await (await fetch("/api/messwerte")).json();
+  } catch (e) {
+    $("b-inhalt").innerHTML = '<div class="b-leer">Messwerte nicht erreichbar.</div>';
+    return;
+  }
+  for (const g of groessen) {
+    const w = werte[g];
+    if (!w) continue;
+    (verlauf[w.name] = verlauf[w.name] || []).push(w.zahl);
+    if (verlauf[w.name].length > VERLAUF_MAX) verlauf[w.name].shift();
+  }
+  $("b-inhalt").innerHTML = '<div class="lauf"><div class="tafel">'
+    + groessen.filter(g => werte[g]).map(g => instrument(werte[g], art)).join("")
+    + "</div></div>";
+}
+
 /* Der Dienst schickt den letzten Buehnenstand beim Verbinden mit "wieder" nach.
    Ohne den Vermerk sieht ein Ergebnis von vorhin aus wie ein frisches -- und
    ohne die Wiederherstellung sah es aus, als haette es das Ergebnis nie
@@ -446,9 +577,21 @@ function wannZusatz(d, wann) {
 }
 
 // --- Buehne ------------------------------------------------------------------
+/* Steht schon etwas auf der Buehne? Beim Seitenstart laufen zwei Dinge
+   gleichzeitig: `ablageLaden()` holt die Liste per fetch, und der Dienst
+   schickt beim Verbinden den letzten Buehnenstand nach. Wessen Antwort zuerst
+   da ist, entscheidet -- im Test stand der Kopf "Ablage" ueber den
+   Messinstrumenten. Die wiederhergestellte Buehne hat Vorrang: sie ist das,
+   womit der Nutzer zuletzt gearbeitet hat. */
+let buehneBelegt = false;
+
 function buehne(art, titel, html, wann) {
+  // Laufende Tafel-Abfrage beenden: sonst fragt sie im Sekundentakt weiter,
+  // obwohl laengst ein Protokoll auf der Buehne steht.
+  if (tafelUhr) { clearInterval(tafelUhr); tafelUhr = null; }
+  if (art !== "Ablage") buehneBelegt = true;
   $("b-art").textContent = art;
-  $("b-art").className = "art-" + (["protokoll","recherche","hilfe","erinnerungen"]
+  $("b-art").className = "art-" + (["protokoll","recherche","hilfe","erinnerungen","anzeige"]
                                    .includes(art.toLowerCase()) ? art.toLowerCase()
                                                                 : "ablage");
   $("b-titel").textContent = titel;
@@ -519,6 +662,14 @@ function verbinden() {
                                   wannZusatz(d, `${d.dauer}s`));
       zeigen();
       if (!d.wieder) merker(`Rechercheergebnis: ${d.frage}`, zeigen);
+    } else if (d.typ === "anzeige") {
+      const zeigen = () => {
+        buehne("Anzeige", "Messwerte", "", wannZusatz(d));
+        tafelZeichnen(d.groessen, d.darstellung);
+        tafelUhr = setInterval(() => tafelZeichnen(d.groessen, d.darstellung), 1000);
+      };
+      zeigen();
+      if (!d.wieder) merker("Anzeigetafel", zeigen);
     } else if (d.typ === "ton") {
       tonRate = d.rate;
     }
@@ -605,13 +756,58 @@ function wannText(sek) {
 }
 
 /* Sehr kleiner Markdown-Umsetzer: nur was in unseren Dateien vorkommt. */
+/* Markdown-Tabellen. Der Rechercheagent antwortet auf Maßfragen mit Tabellen
+   ("| Maß | Wert | Quelle |"), und ungerendert stand da eine Wand aus
+   Pipe-Zeichen. Zeilenweise statt mit einem Regex ueber den ganzen Text:
+   Tabellen sind mehrzeilig, und ein gieriger Ausdruck verschluckt den Absatz
+   dahinter. Die Bloecke werden durch Platzhalter ersetzt, damit die
+   Zeilenumbrueche weiter unten sie nicht zerreissen. */
+function tabellen(text, ablage) {
+  const zeilen = text.split("\n");
+  const aus = [];
+  for (let i = 0; i < zeilen.length; i++) {
+    const kopf = zeilen[i], trenn = zeilen[i + 1] || "";
+    // Kopfzeile plus Trennzeile (|---|---|) -- sonst ist es keine Tabelle,
+    // sondern eine Zeile, die zufaellig ein Pipe-Zeichen enthaelt.
+    if (!/^\s*\|.*\|\s*$/.test(kopf) || !/^\s*\|[\s:|-]+\|\s*$/.test(trenn)) {
+      aus.push(kopf);
+      continue;
+    }
+    const zelle = z => z.replace(/^\s*\|/, "").replace(/\|\s*$/, "").split("|")
+                        .map(c => c.trim());
+    const kopfz = zelle(kopf);
+    const koerper = [];
+    let j = i + 2;
+    while (j < zeilen.length && /^\s*\|.*\|\s*$/.test(zeilen[j])) {
+      koerper.push(zelle(zeilen[j])); j++;
+    }
+    const inline = t => t.replace(/\*\*(.+?)\*\*/g, "<b>$1</b>")
+                         .replace(/`(.+?)`/g, "<code>$1</code>");
+    const html = "<table><thead><tr>"
+      + kopfz.map(c => `<th>${inline(c)}</th>`).join("")
+      + "</tr></thead><tbody>"
+      + koerper.map(r => "<tr>" + r.map(c => `<td>${inline(c)}</td>`).join("") + "</tr>").join("")
+      + "</tbody></table>";
+    aus.push(`\u0000T${ablage.push(html) - 1}\u0000`);
+    i = j - 1;
+  }
+  return aus.join("\n");
+}
+
 function alsHtml(md) {
   const esc = t => t.replace(/[&<>]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
-  return esc(md)
+  const ablage = [];
+  return tabellen(esc(md), ablage)
     .replace(/^### (.*)$/gm, "<h3>$1</h3>")
     .replace(/^## (.*)$/gm, "<h2>$1</h2>")
     .replace(/^# (.*)$/gm, "<h1>$1</h1>")
+    // Trennlinien: --- oder *** auf eigener Zeile. Standen vorher als
+    // Zeichenfolge im Text.
+    .replace(/^ {0,3}(?:-{3,}|\*{3,}|_{3,})\s*$/gm, "<hr>")
     .replace(/^&gt; ?(.*)$/gm, "<blockquote>$1</blockquote>")
+    // Aufeinanderfolgende Zitatzeilen zu EINEM Block: ein mehrzeiliges Zitat
+    // wurde sonst in ebenso viele Kaesten zerlegt, jeder mit eigenem Rand.
+    .replace(/<\/blockquote>\n<blockquote>/g, " ")
     .replace(/\*\*\[(.*?)\]\*\*/g, '<span class="zeit">[$1]</span>')
     .replace(/\*\*(.+?)\*\*/g, "<b>$1</b>")
     .replace(/`(.+?)`/g, "<code>$1</code>")
@@ -619,8 +815,11 @@ function alsHtml(md) {
     .replace(/\n/g, "<br>")
     // Ueberschriften und Zitate bringen eigenen Abstand mit. Die <br> aus den
     // Leerzeilen davor und danach kamen obendrauf und rissen Loecher.
-    .replace(/(<br>)*(<(?:h[123]|blockquote)>)/g, "$2")
-    .replace(/(<\/(?:h[123]|blockquote)>)(<br>)+/g, "$1");
+    .replace(/(<br>)*(<(?:h[123]|blockquote|hr)>)/g, "$2")
+    .replace(/(<\/(?:h[123]|blockquote)>|<hr>)(<br>)+/g, "$1")
+    // Platzhalter zurueck, samt der <br> davor und danach: die Tabelle
+    // bringt eigenen Abstand mit.
+    .replace(/(<br>)*\u0000T(\d+)\u0000(<br>)*/g, (_, a, n) => ablage[+n]);
 }
 
 let ablageEintraege = [];
@@ -629,7 +828,8 @@ async function ablageLaden(anzeigen = true) {
   try {
     const r = await fetch("/api/liste");
     ablageEintraege = await r.json();
-    if (anzeigen) ablageZeigen();
+    // Nicht ueberschreiben, was inzwischen wiederhergestellt wurde.
+    if (anzeigen && !buehneBelegt) ablageZeigen();
   } catch (e) {
     if (anzeigen) buehne("Ablage", "Protokolle und Recherchen",
                          '<div class="b-leer">Ablage nicht erreichbar.</div>');
