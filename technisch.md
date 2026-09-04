@@ -648,6 +648,25 @@ Wirksam ist erst das `cwd=` des Kindprozesses — das kann er nicht überschreib
 Gesetzt sind jetzt beide. `zustand/` ist ohnehin gitignoriert; man kann trotzdem
 nachsehen, was der Agent gebaut hat.
 
+**Gesprochen wird nur der Anfang — und Tabellen gar nicht.** Eine
+Markdown-Tabelle hat keine Satzzeichen; die Kurzfassung nimmt „die ersten zwei
+Sätze", und ohne Punkt ist die ganze Tabelle ein Satz. Gesprochen wurde einmal
+eine komplette Aufstellung offener Fragen samt Zuständigkeiten und Spaltenköpfen
+— 1411 Zeichen, minutenlang, unbrauchbar. `_ohne_struktur()` entfernt Tabellen,
+Codeblöcke und Trennlinien **vor** dem Kürzen; dieselbe Antwort ergibt jetzt 318
+Zeichen.
+
+Zwei weitere Griffe in `_sprechbar()`:
+
+- **Überschriften bekommen einen Punkt.** Ohne ihn verschmelzen sie mit dem
+  Folgetext zu einem Satz — und „die ersten zwei Sätze" waren eine halbe Seite.
+- **Dateipfade werden auf den Namen gekürzt.**
+  `ap1-…/docs/05_offene_entscheidungen.md` ist gesprochen unverständlich; der
+  volle Pfad steht auf der Bühne.
+
+Dazu `KURZ_MAX = 400` als zweites Netz: auch Fließtext kann zwei sehr lange
+Sätze haben.
+
 Was zurückkommt, ist **abgeleitet**: die Datei trägt einen Warnhinweis und die
 Quellenpflicht steckt im Auftragstext. Nie ungeprüft ins Protokoll.
 

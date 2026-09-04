@@ -46,6 +46,10 @@ ABGLEICH = asyncio.Lock()
 # Nachziehen Minuten. Zwei parallele Laeufe wuerden dieselben Abschnitte
 # doppelt durch das Modell schicken.
 NACHZIEHEN = asyncio.Lock()
+# Hoechstlaenge der gesprochenen Kurzfassung eines Rechercheergebnisses.
+# 400 Zeichen sind rund 25 Sekunden Piper -- laenger hoert niemand zu, und das
+# Ganze steht ohnehin auf der Buehne.
+KURZ_MAX = 400
 # Was gerade auf der Anzeigetafel steht: [(groesse, darstellung), ...].
 # Im Dienst und nicht im Browser, damit ein Neuladen sie nicht verliert und
 # zwei Klienten dasselbe sehen. Je Groesse eine EIGENE Darstellung -- wer
@@ -249,6 +253,27 @@ def _abgleich_satz(bericht: list[dict]) -> str:
     return satz
 
 
+# Tabellenzeile: beginnt und endet mit einem Pipe-Zeichen.
+_TABELLE = re.compile(r"^\s*\|.*\|\s*$", re.M)
+_TRENNLINIE = re.compile(r"^\s*(?:[-*_]\s*){3,}$", re.M)
+
+
+def _ohne_struktur(text: str) -> str:
+    """Tabellen, Codebloecke und Trennlinien raus -- fuer die SPRACHAUSGABE.
+
+    Eine Markdown-Tabelle hat keine Satzzeichen. Die Kurzfassung nimmt die
+    ersten Saetze, und ohne Punkt ist die ganze Tabelle ein Satz: gesprochen
+    wurde einmal "F1b An welchem Geraet finden die Fenstertests statt Krug
+    Ralph Frederik Beschaffung Fensterhalter Tor T2 ..." -- minutenlang und
+    unbrauchbar. Auf der Buehne steht die Tabelle richtig gesetzt; vorgelesen
+    gehoert sie nicht.
+    """
+    text = re.sub(r"```.*?```", " ", text, flags=re.S)
+    text = _TABELLE.sub("", text)
+    text = _TRENNLINIE.sub("", text)
+    return re.sub(r"\n{3,}", "\n\n", text)
+
+
 def _sprechbar(text: str) -> str:
     """Markdown fuer die Sprachausgabe abraeumen.
 
@@ -257,7 +282,18 @@ def _sprechbar(text: str) -> str:
     """
     text = re.sub(r"\*\*|__|`", "", text)
     text = re.sub(r"^\s*[-*•]\s*", "", text, flags=re.M)
-    text = re.sub(r"^#{1,6}\s*", "", text, flags=re.M)
+    # Ueberschrift wird zum Satz: das Doppelkreuz faellt weg, aber ein Punkt
+    # kommt dazu. Ohne ihn verschmelzen Ueberschriften mit dem Folgetext zu
+    # EINEM Satz -- und die Kurzfassung, die "die ersten zwei Saetze" nimmt,
+    # bekam damit eine halbe Seite.
+    text = re.sub(r"^#{1,6}\s*(.+?)\s*$",
+                  lambda m: m[1] if m[1].rstrip().endswith((".", "!", "?", ":"))
+                  else m[1] + ".", text, flags=re.M)
+    # Dateipfade auf den Namen kuerzen: "ap1-vorwaertsmodell/docs/05_offene_
+    # entscheidungen.md" ist gesprochen unverstaendlich, der Dateiname reicht
+    # zum Wiederfinden. Der volle Pfad steht auf der Buehne.
+    text = re.sub(r"\b[\w.-]+(?:/[\w.-]+)+\b",
+                  lambda m: m[0].rsplit("/", 1)[-1], text)
     text = re.sub(r"\((?:doi|https?)[^)]*\)", "", text)   # DOIs und URLs
     text = re.sub(r"https?://\S+", "", text)
     # Datums- und Zeitangaben ausschreiben: eSpeak liest "28.08.2026" Ziffer
@@ -1554,9 +1590,20 @@ async def recherche_verteilen(auftrag):
         kurz = "Die Recherche hat nicht geklappt."
     else:
         text = auftrag.ergebnis
-        saetze = re.split(r'(?<=[.!?])\s+', _sprechbar(text))
+        # Struktur raus, BEVOR gekuerzt wird -- sonst zaehlt eine ganze
+        # Tabelle als ein Satz und wird vollstaendig vorgelesen.
+        gesprochen = _sprechbar(_ohne_struktur(text))
+        saetze = [x for x in re.split(r'(?<=[.!?])\s+', gesprochen) if x.strip()]
         kurz = " ".join(saetze[:2])
-        if len(saetze) > 2:
+        # Harte Obergrenze als zweites Netz: auch ein Fliesstext kann zwei
+        # sehr lange Saetze haben, und vorgelesen dauert das Minuten.
+        if len(kurz) > KURZ_MAX:
+            kurz = kurz[:KURZ_MAX].rsplit(" ", 1)[0] + " …"
+        if not kurz.strip():
+            # Antwort besteht nur aus Tabellen: dann gibt es nichts zu sagen
+            # ausser dem Verweis.
+            kurz = "Das Ergebnis ist eine Aufstellung."
+        if len(saetze) > 2 or len(gesprochen) > len(kurz):
             kurz += " Das Ausführliche steht auf dem Monitor."
     HALTER.setzen(letzte_antwort=text)
     log.info("Recherche fertig nach %.0f s, %d Zuhörer", auftrag.dauer, len(SITZUNGEN))

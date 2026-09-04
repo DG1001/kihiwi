@@ -1959,3 +1959,27 @@ Leerlauf und 0,3 ms Antwortzeit.
 Das Modell nach jeder Suche zu entladen kostete 1,4 s je Frage. Bei 37 GiB frei
 ist das der schlechtere Tausch -- aber es ist ein Posten, den man kennen muss,
 wenn der Speicher knapp wird.
+
+### Die Tabelle wurde vorgelesen
+
+Fred liess sich die offenen Fragen zusammenstellen. Hermes lieferte gut -- und
+der Assistent las die komplette Markdown-Tabelle vor, samt Spaltenkoepfen,
+Zustaendigkeiten und Statuszeilen. 1411 Zeichen am Stueck.
+
+**Der Grund ist eine Annahme, die ich nie geprueft hatte:** die Kurzfassung
+nimmt "die ersten zwei Saetze". Eine Tabelle hat keine Satzzeichen, also ist
+sie EIN Satz -- und wurde vollstaendig gesprochen. Dieselbe Logik hatte bei
+Fliesstext immer funktioniert.
+
+`_ohne_struktur()` raeumt jetzt Tabellen, Codebloecke und Trennlinien ab, BEVOR
+gekuerzt wird. Zwei weitere Griffe kamen beim Nachmessen dazu:
+Ueberschriften bekommen einen Punkt (ohne ihn verschmelzen sie mit dem
+Folgetext, und "zwei Saetze" waren eine halbe Seite), und Dateipfade werden auf
+den Dateinamen gekuerzt -- "ap1-vorwaertsmodell/docs/05_offene_entscheidungen.md"
+ist gesprochen unverstaendlich.
+
+Dieselbe Antwort: **1411 Zeichen auf 318.** Der Fliesstextfall bleibt heil,
+gegengeprueft.
+
+Dazu eine harte Obergrenze von 400 Zeichen. Sie ist nicht die Loesung, sondern
+das Netz darunter -- auch ein Fliesstext kann zwei sehr lange Saetze haben.
