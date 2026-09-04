@@ -517,6 +517,22 @@ als beide Einzelverfahren.
 Der eingebaute Stand, gegen dieselbe Grundwahrheit geprüft: **86,7 %** bzw.
 **40,0 %**, Suche 80–116 ms, erster Aufruf nach dem Start 1,4 s (Modell laden).
 
+**onnxruntime-Threads sind auf vier begrenzt.** Ohne Begrenzung nimmt es
+einen Thread je Kern (hier 20) und lässt sie **busy-waiten**, auch wenn nichts
+zu rechnen ist. Nach einem Einbettungslauf im Sprachdienst: 103 Threads,
+**83 % CPU dauerhaft**, 5,6 GB RSS — der Eventloop kam so selten durch, dass
+eine HTTP-Anfrage 12,9 s brauchte und die Anzeigetafel stehenblieb. Der Dienst
+war nicht abgestürzt, er wurde ausgehungert.
+
+Vier Threads: die Suche bettet *eine* Frage ein (53 ms), da bringt mehr
+Nebenläufigkeit nichts. Der Stapellauf wird langsamer — der richtige Tausch,
+denn er läuft im Hintergrund, während der Assistent antworten können muss.
+Danach 0 % im Leerlauf, `/api/messwerte` in 0,3 ms.
+
+*Der Dienst belegt dauerhaft 1,8 GB, sobald einmal gesucht wurde. Das Modell
+nach jeder Suche zu entladen kostete 1,4 s je Frage — bei 37 GiB frei ist das
+der schlechtere Tausch.*
+
 **RRF statt Punktemischung.** BM25-Punkte und Kosinusähnlichkeit haben keine
 gemeinsame Skala; sie zu addieren verlangt einen Faktor, den man auf 60 Fragen
 überanpasst. Reciprocal Rank Fusion benutzt nur die Rangplätze.

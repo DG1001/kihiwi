@@ -36,8 +36,22 @@ MODELL = "intfloat/multilingual-e5-large"
 ZWISCHEN = "/tmp/kihiwi-embed"     # Modellablage; enthaelt nichts Eigenes
 DIM = 1024
 
-_modell = None
 _matrix: tuple[np.ndarray, np.ndarray] | None = None   # (V, rowids)
+
+
+# onnxruntime laesst seine Threadpools BUSY-WAITEN. Ohne Begrenzung nimmt es
+# einen Thread je Kern (hier 20) und haelt sie am Spinnen, auch wenn nichts zu
+# rechnen ist -- gemessen: nach einem Einbettungslauf im Sprachdienst 103
+# Threads, 83 % CPU dauerhaft, und der Eventloop kam so selten durch, dass
+# eine HTTP-Anfrage 12,9 s brauchte und die Anzeige stehenblieb.
+#
+# Vier Threads: die Suche bettet EINE Frage ein (53 ms), da bringt mehr
+# Nebenlaeufigkeit nichts. Der Stapellauf wird dadurch langsamer -- das ist
+# der richtige Tausch, denn er laeuft im Hintergrund, waehrend der Assistent
+# antworten koennen muss.
+THREADS = 4
+
+_modell = None
 
 
 def _laden():
@@ -46,7 +60,7 @@ def _laden():
     global _modell
     if _modell is None:
         from fastembed import TextEmbedding
-        _modell = TextEmbedding(MODELL, cache_dir=ZWISCHEN)
+        _modell = TextEmbedding(MODELL, cache_dir=ZWISCHEN, threads=THREADS)
     return _modell
 
 

@@ -1929,3 +1929,33 @@ Wissensindex, nur eine Ebene weiter vorn.
 Und noch ein Testfehler von mir: das Skript las `d['tafel']` ohne Absicherung
 und starb genau an diesem alten Stand -- die Ausgabe blieb leer, und ich habe
 zuerst im Dienst gesucht statt in meinem eigenen Testskript.
+
+### Die Anzeige stand still, weil der Dienst ausgehungert war
+
+Fred: "laeuft noch alles? meine anzeige steht gerade..."
+
+`dienste.sh status` zeigte den Sprachdienst als "startet" statt "bereit", und
+`/api/messwerte` brauchte **12,9 Sekunden** statt Millisekunden. Der Prozess:
+83,5 % CPU dauerhaft, **103 Threads**, 5,6 GB RSS, 37 Minuten Rechenzeit in 45
+Minuten Laufzeit.
+
+**Ursache war mein eigener Einbau von heute Morgen.** Freds "Wissen nachziehen"
+hatte 476 Abschnitte eingebettet -- IM SPRACHDIENSTPROZESS. Dabei lud er das
+Embedding-Modell, und onnxruntime laesst seine Threadpools busy-waiten: einen
+Thread je Kern, hier zwanzig, die weiterspinnen, auch wenn nichts zu rechnen
+ist. Der Eventloop kam kaum noch durch.
+
+**Der Dienst war nicht abgestuerzt, er wurde ausgehungert** -- und das sieht von
+aussen genauso aus. Erst die Messung von CPU, Threads und Antwortzeit hat es
+unterschieden; `nvidia-smi` als erster Verdaechtiger war mit 0,02 s
+freigesprochen.
+
+Threads auf vier begrenzt. Die Suche bettet eine einzige Frage ein, da bringt
+mehr nichts; der Stapellauf wird langsamer, was richtig ist -- er laeuft im
+Hintergrund, waehrend der Assistent antworten koennen muss. Danach 0 % im
+Leerlauf und 0,3 ms Antwortzeit.
+
+**Was bleibt:** der Dienst belegt 1,8 GB dauerhaft, sobald einmal gesucht wurde.
+Das Modell nach jeder Suche zu entladen kostete 1,4 s je Frage. Bei 37 GiB frei
+ist das der schlechtere Tausch -- aber es ist ein Posten, den man kennen muss,
+wenn der Speicher knapp wird.
