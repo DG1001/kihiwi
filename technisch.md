@@ -559,6 +559,26 @@ gehört nicht neben die Quellen, aus denen es abgeleitet wurde.
 
 ### Rechercheaufträge (Stufe 2)
 
+**Dem Auftrag gehen Auszüge aus den eigenen Unterlagen voran.** Hermes kennt
+sie sonst nicht: er läuft in `zustand/hermes/`, damit er nicht ins Repo
+schreibt, und sieht von dort aus `wissen/repos/` nicht. Auf „stelle die
+geometrischen Angaben für die Säule zusammen" durchsuchte er daraufhin seine
+**eigene Sitzungshistorie** und meldete, er finde nichts — während das Material
+im Index lag.
+
+Lesen *könnte* er (er hat Datei- und Terminalwerkzeuge), aber er weiß nicht wo,
+und `grep` über 5.635 Abschnitte wäre schlechter als die vorhandene Suche aus
+Volltext und Vektoren. Also sucht der Dienst und gibt acht Auszüge mit —
+dieselbe Zahl wie bei `dokumente_suchen`, rund 5 kB.
+
+Wirkung an genau diesem Auftrag: vorher „keine vorherige Unterhaltung über eine
+geometrische Säule gefunden", nachher eine Maßtabelle mit Außendurchmesser,
+Gesamthöhe, Wandstärke, Kernbohrung und Spaltabständen, jede Zeile mit
+Quellenangabe. 270 s.
+
+`roh=True` (Hermes direkt ansprechen) reicht weiter unverändert durch — ohne
+Auszüge und ohne den Auftragszusatz.
+
 **Ein leeres Thema startet keinen Auftrag.** Sagt jemand nur „Hermes Aufgabe:"
 ohne Auftrag, fragt der Assistent zurück. Vorher gab `_thema()` bei einer
 Äußerung, die nur aus dem Auslösewort besteht, den **ganzen Text** als Thema

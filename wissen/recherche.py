@@ -16,6 +16,7 @@ Zeitstempel und Quellenpflicht gespeichert, nie als Tatsache ins Protokoll.
 from __future__ import annotations
 
 import asyncio
+import logging
 import re
 import time
 from dataclasses import dataclass, field
@@ -23,6 +24,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from sprachdienst import konfig
+
+log = logging.getLogger("kihiwi.recherche")
 
 HERMES = Path.home() / ".local" / "bin" / "hermes"
 ORDNER = konfig.WURZEL / "recherchen"
@@ -40,6 +43,43 @@ AUFTRAG_ZUSATZ = (
     "Sachaussage die Quelle. Was du nicht belegen kannst, lässt du weg oder "
     "kennzeichnest es ausdrücklich als unsicher."
 )
+
+# Wie viele Auszuege aus den eigenen Unterlagen dem Auftrag vorangestellt
+# werden. Acht wie bei `dokumente_suchen`; bei ~600 Zeichen je Auszug sind das
+# rund 5 kB -- neben dem Kontext des Agenten unerheblich.
+VORLAGE_TREFFER = 8
+
+
+def _unterlagen(frage: str) -> str:
+    """Auszuege aus dem eigenen Index, die dem Auftrag vorangestellt werden.
+
+    **Hermes kennt die Unterlagen sonst nicht.** Er laeuft in einem eigenen
+    Arbeitsverzeichnis (damit er nicht ins Repo schreibt) und sieht von dort
+    aus `wissen/repos/` nicht. Auf "stelle die geometrischen Angaben fuer die
+    Saeule zusammen" durchsuchte er daraufhin seine eigene Sitzungshistorie und
+    meldete, er finde nichts -- waehrend das Material im Index lag.
+
+    Lesen KOENNTE er (er hat Datei- und Terminalwerkzeuge), aber er weiss
+    nicht wo, und selbst dann waere `grep` ueber 5.635 Abschnitte schlechter
+    als die vorhandene Suche aus Volltext und Vektoren. Also sucht der Dienst
+    und gibt das Ergebnis mit -- wo eine Handlung deterministisch ist,
+    entscheidet der Dienst.
+    """
+    try:
+        from . import index as _index
+        treffer = _index.suchen(frage, VORLAGE_TREFFER)
+    except Exception as e:                            # pragma: no cover
+        log.warning("Unterlagen fuer den Auftrag nicht lesbar: %r", e)
+        return ""
+    if not treffer:
+        return ""
+    teile = []
+    for t in treffer:
+        auszug = _index.auszug(t.text, _index.begriffe(_index.aufbrechen(frage)))
+        teile.append(f"[{t.quelle} — {t.titel}, Abschnitt: {t.ueberschrift}]\n{auszug}")
+    return ("Aus den Unterlagen des Labors (bereits durchsucht, du musst das "
+            "nicht wiederholen):\n\n" + "\n\n".join(teile)
+            + "\n\n---\n\nDein Auftrag: ")
 
 
 @dataclass
@@ -103,7 +143,12 @@ class Recherche:
         try:
             # roh=True reicht die Anweisung unveraendert durch -- fuer den
             # Fall, dass jemand Hermes direkt ansprechen will.
-            auftrag = a.frage if roh else a.frage + AUFTRAG_ZUSATZ
+            # roh: unveraendert durchreichen, ohne Unterlagen und ohne Zusatz.
+            if roh:
+                auftrag = a.frage
+            else:
+                vorlage = await asyncio.to_thread(_unterlagen, a.frage)
+                auftrag = vorlage + a.frage + AUFTRAG_ZUSATZ
             a.ergebnis, a.hermes_sitzung = await self._hermes(auftrag)
         except asyncio.CancelledError:
             a.fehler = "abgebrochen"

@@ -1830,3 +1830,33 @@ diesmal in genau der Funktion, die ich gegen dieses Problem geschrieben hatte.
 Die 607 Abschnitte liefen nebenher durch: 180 s Schlagwoerter, 23 s
 Kurzfassungen, 259 s Vektoren, null Fehlschlaege. Index jetzt 385 Dokumente,
 5487 Abschnitte, alle drei Ebenen vollstaendig.
+
+### Hermes kannte die Unterlagen nicht
+
+Fred gab einen Auftrag zu den geometrischen Angaben der Saeule. Hermes
+antwortete nach Minuten, er habe "sehr gruendlich in deiner gesamten
+Session-Historie und im Repo gesucht" und finde nichts -- und fragte zurueck,
+ob eine UI-Saeule oder eine 3D-Saeule gemeint sei.
+
+**Mein Konstruktionsfehler von letzter Woche.** Ich hatte Hermes ein eigenes
+Arbeitsverzeichnis gegeben, damit er nicht mehr ins Repo schreibt -- und ihm
+dabei den Weg zu den Unterlagen abgeschnitten. Er sah nur die drei HTML-Dateien
+seiner frueheren Auftraege. Was er durchsuchte, war seine eigene
+Sitzungshistorie.
+
+Lesen HAETTE er koennen: er hat Datei- und Terminalwerkzeuge und darf ueberall
+lesen. **Er wusste nur nicht wo**, und der Auftragstext sagte es ihm nicht.
+
+Geloest, indem der Dienst vorher sucht und acht Auszuege voranstellt -- mit der
+Mischung aus Volltext und Vektoren, die ohnehin gebaut ist. Das ist besser als
+ihm den Pfad zu nennen: `grep` ueber 5.635 Abschnitte findet weniger als eine
+Suche, die auf Umschreibungen ausgelegt ist. Und er bekommt keinen
+Schreibzugriff auf die Quellen.
+
+Derselbe Auftrag danach: eine Masstabelle mit Aussendurchmesser, Gesamthoehe,
+Wandstaerke, Kernbohrung und Spaltabstaenden, jede Zeile mit Quellenangabe,
+270 s. **Aus "ich finde nichts" wurde die Antwort, nach der gefragt war.**
+
+Nebenbei bestaetigt: die Buehnen-Wiederherstellung funktioniert. Beim Verbinden
+kam Freds alte Recherche zurueck, sodass im Testprotokoll das Vorher und das
+Nachher direkt untereinander standen.
