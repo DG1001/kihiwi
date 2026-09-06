@@ -87,6 +87,31 @@ nannte Speicher statt Kontext.
 **vLLM hängt sich reproduzierbar auf, und ein hängender Motor sieht aus wie ein
 langsames Modell.** Vor jeder Latenzmessung: `~/gx10-blog/bench/bereit.sh`.
 
+### Wächter
+
+`./dienste.sh waechter [start|stop|log]` prüft alle 120 s, ob der Motor
+antwortet, und startet ihn sonst über `KIHIWI_PROFIL` neu.
+
+**Er fordert eine echte Antwort ab**, nicht nur `/v1/models` — das antwortete
+beim Hänger weiter mit 200 und hätte nichts gemerkt. Zwei Ausfallarten sind
+belegt:
+
+| | Datum | Laufzeit | Bild |
+|---|---|---|---|
+| Hänger | 28.08. | — | `/v1/models` 200, `/chat/completions` nie |
+| Absturz | 03.09. | ~2 Tage | `CUDA error: illegal memory access`, dann 500 |
+| Absturz | 07.09. | ~3,5 Tage | dasselbe |
+
+Beide Abstürze mit `qwen3.6-35b-a3b-nvfp4`. Ob es an Modell, Quantisierung
+oder vLLM-Fassung liegt, ist offen — deshalb läuft seit dem 07.09.
+`ornith-voice` als Gegenprobe.
+
+Eine zweite Chance nach 15 s verhindert Fehlalarm unter Last; nach drei
+erfolglosen Neustarts in einer Stunde hört der Wächter auf und schreibt es ins
+Protokoll, statt die Maschine im Kreis neu zu starten. Geprüft mit einem
+angehaltenen Container: Ausfall erkannt nach 150 s, wieder betriebsbereit nach
+drei Minuten.
+
 ### Ein anderes Modell ausprobieren
 
 Nichts im Code ist an Ornith gebunden — `KIHIWI_LLM` und `KIHIWI_MODEL` reichen.

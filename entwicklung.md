@@ -2038,3 +2038,38 @@ Gesprochen wird jetzt: "Die Recherche ist fertig. Jetzt habe ich genug
 Material. Hier ist die Zusammenstellung: Offene Fragen und Punkte. Das
 Ausfuehrliche steht auf dem Monitor." -- und auf der Buehne steht die ganze
 Aufstellung, nach Sprachdienst und Hardware gegliedert.
+
+### Waechter fuer vLLM
+
+Zweiter Absturz derselben Art: `CUDA error: an illegal memory access was
+encountered`, danach 500 auf jede Anfrage, dann beendet sich der Container.
+Am 03.09. nach zwei Tagen, am 07.09. nach dreieinhalb -- beide Male blieb der
+Assistent stumm, bis Fred nachfragte.
+
+**Der Test muss eine echte Antwort abfordern.** Das vorhandene `bereit_vllm`
+prueft nur `/v1/models`, und genau das antwortete beim Haenger vom 28.08.
+weiter mit 200. Ein Waechter, der darauf baut, haette den haeufigeren Fall
+uebersehen.
+
+`./dienste.sh waechter` prueft alle 120 s mit einer echten
+`/chat/completions`-Anfrage. Zwei Vorsichtsmassnahmen: eine zweite Chance nach
+15 s (unter Last dauert eine Anfrage auch mal laenger, das soll keinen Neustart
+ausloesen) und hoechstens drei Neustarts je Stunde -- hilft der Neustart nicht,
+ist Weitermachen schlimmer als Aufhoeren.
+
+Geprueft mit einem angehaltenen Container, nicht nur im Trockenlauf:
+
+    00:47:03  Waechter gestartet, Intervall 120s
+    00:49:18  Motor antwortet nicht -- Neustart 1
+    00:52:24  wieder da
+
+**Und dann auf Ornith umgeschaltet**, als Gegenprobe zur Absturzfrage: beide
+Abstuerze traten mit qwen3.6-35b-a3b-nvfp4 auf. Ob es am Modell, an der
+Quantisierung oder an der vLLM-Fassung liegt, weiss ich nicht -- eine Woche
+Betrieb mit Ornith beantwortet es.
+
+Dabei ein Stolperstein: `./dienste.sh start` mit einem anderen KIHIWI_PROFIL
+schaltet NICHT um, wenn schon ein Modell laeuft. Das ist Absicht ("auf dieser
+Maschine wird auch gemessen"), sah aber im ersten Versuch nach einem Fehler
+aus -- der Statuszeile nach lief weiter Qwen. Wer wechseln will, braucht
+`stop --vllm` oder `model-switch` direkt.

@@ -7,6 +7,8 @@
 #   ./dienste.sh neustart        stop + start der beiden lokalen Dienste
 #   ./dienste.sh status          was laeuft, auf welchem Port
 #   ./dienste.sh log [name]      Protokoll folgen (sprach | whisper | vllm)
+#   ./dienste.sh waechter [...]  vLLM ueberwachen und bei Ausfall neu starten
+#                                (start | stop | log)
 #   ./dienste.sh protokoll [...] Aufnahmen transkribieren und Protokoll bauen
 #   ./dienste.sh wissen [...]    Unterlagen einlesen/durchsuchen
 #                                (einlesen | erschliessen | vektoren |
@@ -104,6 +106,88 @@ ok()   { printf '  \033[32m✓\033[0m %s\n' "$*"; }
 info() { printf '  \033[2m·\033[0m %s\n' "$*"; }
 warn() { printf '  \033[33m!\033[0m %s\n' "$*"; }
 fehl() { printf '  \033[31m✗\033[0m %s\n' "$*"; }
+
+# ------------------------------------------------------------------ Waechter
+# vLLM faellt im Dauerbetrieb aus, und zwar auf zwei Arten:
+#
+#   1. Es HAENGT: /v1/models antwortet weiter mit 200, /chat/completions nie.
+#   2. Es STIRBT: "CUDA error: an illegal memory access was encountered",
+#      danach 500 auf jede Anfrage, dann beendet sich der Container.
+#
+# Beobachtet am 03.09. nach zwei Tagen und am 07.09. nach dreieinhalb. Beide
+# Male blieb der Assistent stumm, bis jemand nachsah.
+#
+# **Der Test muss eine echte Antwort abfordern.** `bereit_vllm` prueft nur
+# /v1/models -- das antwortete beim Haenger weiter mit 200 und haette nichts
+# gemerkt.
+WAECHTER_INTERVALL=${KIHIWI_WAECHTER_S:-120}
+WAECHTER_PID="$LOGS/waechter.pid"
+# Mehr als drei Neustarts in einer Stunde heisst: der Neustart hilft nicht.
+# Dann lieber aufhoeren und es im Protokoll stehen lassen, als die Maschine
+# im Kreis neu zu starten.
+WAECHTER_MAX=3
+
+motor_antwortet() {
+    local modell
+    modell=$(curl -sf --max-time 5 "http://127.0.0.1:$P_VLLM/v1/models" | modellname)
+    [ -z "$modell" ] && return 1
+    curl -sf --max-time 30 "http://127.0.0.1:$P_VLLM/v1/chat/completions" \
+        -H 'Content-Type: application/json' \
+        -d "{\"model\":\"$modell\",\"messages\":[{\"role\":\"user\",\"content\":\"ok\"}],\"max_tokens\":2}" \
+        -o /dev/null
+}
+
+waechter_lauf() {
+    local neustarts=0 fenster
+    fenster=$(date +%s)
+    echo "$(date '+%F %T') Waechter gestartet, Intervall ${WAECHTER_INTERVALL}s" >> "$LOGS/waechter.log"
+    while :; do
+        sleep "$WAECHTER_INTERVALL"
+        motor_antwortet && continue
+        # Zweite Chance: unter Last kann eine Anfrage auch mal 30 s brauchen.
+        sleep 15
+        motor_antwortet && continue
+
+        # Stundenfenster zuruecksetzen
+        [ $(( $(date +%s) - fenster )) -gt 3600 ] && { neustarts=0; fenster=$(date +%s); }
+        if [ "$neustarts" -ge "$WAECHTER_MAX" ]; then
+            echo "$(date '+%F %T') Motor tot, aber schon $neustarts Neustarts in dieser Stunde — ich lasse es" >> "$LOGS/waechter.log"
+            sleep 1800
+            continue
+        fi
+        neustarts=$((neustarts + 1))
+        echo "$(date '+%F %T') Motor antwortet nicht — Neustart $neustarts ($PROFIL)" >> "$LOGS/waechter.log"
+        "$HOME/.local/bin/model-switch" "$PROFIL" >> "$LOGS/waechter.log" 2>&1
+        if motor_antwortet; then
+            echo "$(date '+%F %T') wieder da" >> "$LOGS/waechter.log"
+        else
+            echo "$(date '+%F %T') Neustart hat nicht geholfen" >> "$LOGS/waechter.log"
+        fi
+    done
+}
+
+waechter_start() {
+    if [ -f "$WAECHTER_PID" ] && kill -0 "$(cat "$WAECHTER_PID")" 2>/dev/null; then
+        ok "Waechter laeuft bereits (PID $(cat "$WAECHTER_PID"))"; return 0
+    fi
+    setsid --fork nohup "$0" waechter-lauf </dev/null >>"$LOGS/waechter.log" 2>&1
+    sleep 1
+    # Ueber das Muster suchen ist hier sicher: der Waechter ist der einzige
+    # Prozess mit genau diesem Argument, und die eigene Shell traegt es nicht.
+    pgrep -f "$0 waechter-lauf" | head -1 > "$WAECHTER_PID"
+    if [ -s "$WAECHTER_PID" ]; then
+        ok "Waechter gestartet (PID $(cat "$WAECHTER_PID"), alle ${WAECHTER_INTERVALL}s)"
+    else
+        rm -f "$WAECHTER_PID"; fehl "Waechter kam nicht hoch"; return 1
+    fi
+}
+
+waechter_stopp() {
+    if [ ! -f "$WAECHTER_PID" ]; then info "Waechter laeuft nicht"; return 0; fi
+    kill "$(cat "$WAECHTER_PID")" 2>/dev/null
+    rm -f "$WAECHTER_PID"
+    ok "Waechter beendet"
+}
 
 # ------------------------------------------------------------------ Starten
 # Der Name, unter dem der Server das Modell anbietet, muss zu KIHIWI_MODEL
@@ -237,6 +321,15 @@ status() {
 case "${1:-status}" in
     start)
         start_vllm; start_whisper; start_sprach; echo; status ;;
+    waechter)
+        case "${2:-start}" in
+            start) waechter_start ;;
+            stop)  waechter_stopp ;;
+            log)   tail -n 30 "$LOGS/waechter.log" 2>/dev/null || info "noch kein Protokoll" ;;
+            *)     echo "  ./dienste.sh waechter [start|stop|log]" ;;
+        esac ;;
+    waechter-lauf)
+        waechter_lauf ;;
     stop)
         stopp_port $P_SPRACH  "Sprachdienst"
         stopp_port $P_WHISPER "whisper-server"
