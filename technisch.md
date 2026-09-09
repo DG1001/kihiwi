@@ -106,6 +106,17 @@ Beide Abstürze mit `qwen3.6-35b-a3b-nvfp4`. Ob es an Modell, Quantisierung
 oder vLLM-Fassung liegt, ist offen — deshalb läuft seit dem 07.09.
 `ornith-voice` als Gegenprobe.
 
+**Der Wächter fragt vor jedem Neustart die Belegungsstelle**
+(`github.com/DG1001/modellbelegung`, `127.0.0.1:8930`) und hält still, wenn
+jemand *exklusiv* angemeldet ist. Am 08.09.2026 hat er zweimal mitten in einen
+laufenden Gutachtenlauf hineingeschaltet, weil er von ihm nichts wusste — und
+der Motor antwortete nicht, weil dort gerade ein anderes Modell geladen wurde.
+
+Ist die Stelle nicht erreichbar, wird neu gestartet wie zuvor: eine
+ausgefallene Buchführung darf den Assistenten nicht dauerhaft stumm lassen.
+kihiwi meldet sich als `mit` an, nicht `exklusiv` — es nimmt, was da ist, und
+blockiert damit niemanden.
+
 Eine zweite Chance nach 15 s verhindert Fehlalarm unter Last; nach drei
 erfolglosen Neustarts in einer Stunde hört der Wächter auf und schreibt es ins
 Protokoll, statt die Maschine im Kreis neu zu starten. Geprüft mit einem

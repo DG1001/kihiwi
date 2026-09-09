@@ -2073,3 +2073,31 @@ schaltet NICHT um, wenn schon ein Modell laeuft. Das ist Absicht ("auf dieser
 Maschine wird auch gemessen"), sah aber im ersten Versuch nach einem Fehler
 aus -- der Statuszeile nach lief weiter Qwen. Wer wechseln will, braucht
 `stop --vllm` oder `model-switch` direkt.
+
+### Der Waechter fragt jetzt
+
+Am 08.09. hat der Waechter zweimal in einen laufenden Gutachtenlauf
+hineingeschaltet. Fred musste ihn aus einer anderen Sitzung abschalten.
+
+Der Fehler war nicht, dass er aufwachte -- der Motor antwortete tatsaechlich
+nicht, weil die Gutachten-App gerade ihr eigenes Modell lud. Der Fehler war,
+dass er **von niemandem sonst wusste**. Ein Waechter, der bei jedem
+Nichtantworten umschaltet, ist auf einer geteilten Maschine kein Schutz,
+sondern eine Gefahr.
+
+Jetzt fragt er `belegung-klient.sh belegen` und haelt still, wenn jemand
+exklusiv angemeldet ist. Drei Wege geprueft, alle drei mit laufender
+Belegungsstelle:
+
+- Gutachten exklusiv angemeldet -> Waechter wartet
+- Gutachten geben frei          -> Waechter darf umschalten
+- Belegungsstelle aus           -> Waechter macht weiter wie bisher
+
+**Der dritte Fall ist der wichtigste.** Eine ausgefallene Buchfuehrung darf
+den Assistenten nicht stumm lassen -- sonst tauscht man einen seltenen Fehler
+gegen einen haeufigeren. Rueckgabe 30 heisst "nicht erreichbar", nicht
+"verboten".
+
+`model-switch` meldet nach jedem Wechsel, fragt aber NICHT. Wer es von Hand
+aufruft, hat sich entschieden; ein Werkzeug, das sich weigert, haette kein
+Vorbild. Fragen muessen die automatischen Anrufer.

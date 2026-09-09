@@ -155,6 +155,23 @@ waechter_lauf() {
             sleep 1800
             continue
         fi
+        # Vorher bei der Belegungsstelle fragen. Am 08.09.2026 hat dieser
+        # Waechter zweimal mitten in einen laufenden Gutachtenlauf
+        # hineingeschaltet, weil er von ihm nichts wusste -- und der Motor
+        # antwortete nicht, weil dort gerade ein ANDERES Modell geladen wurde.
+        #
+        # Ist die Stelle nicht erreichbar (Rueckgabe 30), wird neu gestartet
+        # wie bisher: eine ausgefallene Buchfuehrung darf den Assistenten
+        # nicht dauerhaft stumm lassen.
+        local k="$HOME/Developer/github.com/modellbelegung/belegung-klient.sh"
+        if [ -x "$k" ]; then
+            "$k" belegen kihiwi-waechter "$PROFIL" mit 900 "Sprachassistent" >/dev/null 2>&1
+            case $? in
+                20) echo "$(date '+%F %T') Motor tot, aber jemand anderes hat das Modell belegt — ich warte" >> "$LOGS/waechter.log"
+                    continue ;;
+                30) echo "$(date '+%F %T') Belegungsstelle nicht erreichbar — starte trotzdem neu" >> "$LOGS/waechter.log" ;;
+            esac
+        fi
         neustarts=$((neustarts + 1))
         echo "$(date '+%F %T') Motor antwortet nicht — Neustart $neustarts ($PROFIL)" >> "$LOGS/waechter.log"
         "$HOME/.local/bin/model-switch" "$PROFIL" >> "$LOGS/waechter.log" 2>&1
