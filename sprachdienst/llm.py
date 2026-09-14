@@ -123,6 +123,170 @@ def _strom(nachrichten, max_tokens, temperatur, schieb, werkzeuge=None):
         schieb(None)
 
 
+async def antwort_text(system: str, frage: str, max_tokens: int = 400,
+                        temperatur: float = 0.2) -> str:
+    """Gibt die vollstaendige Antwort UNVERAENDERT zurueck.
+
+    Fuer erzeugte Dokumente. antwort_saetze* zerlegt in Saetze -- das ist im
+    Sprachpfad genau richtig und in Markdown falsch: beim Wiederzusammensetzen
+    gehen Zeilenumbrueche verloren und Aufzaehlungen laufen auf eine Zeile.
+    """
+    teile = []
+    async for stueck in _roh([{"role": "system", "content": system},
+                              {"role": "user", "content": frage}],
+                             max_tokens, temperatur):
+        teile.append(stueck)
+    return "".join(teile).strip()
+
+
+async def _roh(nachrichten, max_tokens, temperatur):
+    """Liefert die Token-Stuecke, wie sie kommen."""
+    schleife = asyncio.get_running_loop()
+    q: asyncio.Queue = asyncio.Queue()
+    schieb = lambda x: schleife.call_soon_threadsafe(q.put_nowait, x)
+    threading.Thread(target=_strom, args=(nachrichten, max_tokens, temperatur, schieb),
+                     daemon=True).start()
+    while True:
+        stueck = await q.get()
+        if stueck is None:
+            return
+        if stueck[0] == "text":
+            yield stueck[1]
+
+
+async def antwort_saetze_roh(system: str, frage: str, max_tokens: int = 400,
+                             temperatur: float = 0.2):
+    """Wie antwort_saetze, aber mit eigenem System-Prompt und ohne Verlauf.
+
+    Gebraucht vom Dokumentationspfad: dessen Aufgaben (Korrektur,
+    Zusammenfassung) haben nichts mit dem Sprachassistenten zu tun, und
+    konfig.SYSTEM_PROMPT ist auf gesprochene Kurzantworten getrimmt --
+    "hoechstens zwei Saetze" waere fuer ein Protokoll fatal.
+    """
+    async for satz in _saetze([{"role": "system", "content": system},
+                               {"role": "user", "content": frage}],
+                              max_tokens, temperatur):
+        yield satz
+
+
+async def antwort_saetze(frage: str, verlauf=None, max_tokens: int = 160):
+    """Liefert die Antwort SATZWEISE, sobald ein Satz vollstaendig ist.
+
+    Das ist der Grund, warum die gefuehlte Latenz nur bis zum ERSTEN Satz
+    zaehlt: waehrend das Modell weiterschreibt, spricht Piper schon.
+    """
+    nachrichten = [{"role": "system", "content": konfig.SYSTEM_PROMPT}]
+    nachrichten += list(verlauf or [])
+    nachrichten.append({"role": "user", "content": frage})
+    async for satz in _saetze(nachrichten, max_tokens, 0.3):
+        yield satz
+
+
+async def _saetze(nachrichten, max_tokens, temperatur):
+    # Der Thread SCHIEBT, die Schleife fragt nicht ab -- sonst haengt er auf
+    # einer leeren Queue, wenn die Antwort abgebrochen wird, und blockiert das
+    # Beenden des Dienstes um 120 Sekunden.
+    schleife = asyncio.get_running_loop()
+    q: asyncio.Queue = asyncio.Queue()
+    schieb = lambda x: schleife.call_soon_threadsafe(q.put_nowait, x)
+    threading.Thread(target=_strom, args=(nachrichten, max_tokens, temperatur, schieb),
+                     daemon=True).start()
+
+    puffer = ""
+    erster = True
+    while True:
+        posten = await q.get()
+        if posten is None:
+            break
+        if posten[0] != "text":
+            continue
+        stueck = posten[1]
+        puffer += stueck
+
+        if erster and len(puffer) >= ERSTER_MIN:
+            teile = _TEILSATZ.split(puffer, maxsplit=1)
+            if len(teile) == 2 and ERSTER_MIN <= len(teile[0]) <= ERSTER_MAX:
+                kopf, puffer = teile[0].strip(), teile[1]
+                erster = False
+                if kopf:
+                    yield kopf
+                    continue
+
+        while True:
+            teile = _SATZENDE.split(puffer, maxsplit=1)
+            if len(teile) < 2:
+                break
+            satz, puffer = teile[0].strip(), teile[1]
+            if satz:
+                erster = False
+                yield satz
+    if puffer.strip():
+        yield puffer.strip()
+
+
+# Absagen des Modells. Stehen sie im Verlauf, wiederholt es sie -- eine
+# einzelne falsche Antwort wird zur Vorlage fuer alle folgenden. Fuer die
+# Werkzeugrunde werden sie deshalb ausgeblendet; in der Schlussantwort duerfen
+# sie bleiben, dort richten sie keinen Schaden an.
+_ABSAGE = re.compile(
+    r"kann (ich|das)?\s*(leider\s*)?nicht|kann keine|nicht möglich|"
+    r"ausserhalb meiner|außerhalb meiner|habe keinen zugriff|"
+    r"bin (nur|lediglich) ein", re.I)
+
+
+def ist_absage(text: str) -> bool:
+    """Weist die Antwort eine Faehigkeit zurueck, die der Assistent hat?"""
+    return bool(_ABSAGE.search(text or ""))
+
+
+def ohne_absagen(verlauf):
+    """Verlauf ohne die Absagen des Modells (und die Fragen davor)."""
+    aus = []
+    for n in (verlauf or []):
+        if n.get("role") == "assistant" and _ABSAGE.search(n.get("content") or ""):
+            if aus and aus[-1].get("role") == "user":
+                aus.pop()          # die Frage dazu ebenfalls, sonst wirkt sie unbeantwortet
+            continue
+        aus.append(n)
+    return aus
+
+
+class _Teiler:
+    """Zerlegt einen Token-Strom satzweise, ersten Brocken frueher.
+
+    Ausgelagert, weil Dialog und Werkzeugschleife dieselbe Logik brauchen:
+    der erste Brocken bestimmt die gefuehlte Latenz und wird schon am Komma
+    getrennt, die folgenden erst am Satzende.
+    """
+
+    def __init__(self):
+        self.puffer = ""
+        self.erster = True
+
+    def dazu(self, stueck: str):
+        self.puffer += stueck
+        if self.erster and len(self.puffer) >= ERSTER_MIN:
+            teile = _TEILSATZ.split(self.puffer, maxsplit=1)
+            if len(teile) == 2 and ERSTER_MIN <= len(teile[0]) <= ERSTER_MAX:
+                kopf, self.puffer = teile[0].strip(), teile[1]
+                self.erster = False
+                if kopf:
+                    yield kopf
+                    return
+        while True:
+            teile = _SATZENDE.split(self.puffer, maxsplit=1)
+            if len(teile) < 2:
+                break
+            satz, self.puffer = teile[0].strip(), teile[1]
+            if satz:
+                self.erster = False
+                yield satz
+
+    def rest(self):
+        r, self.puffer = self.puffer.strip(), ""
+        return r
+
+
 def _einmal(nachrichten, max_tokens, temperatur, werkzeuge, timeout=60):
     """Eine Runde OHNE Streaming. Gibt (text, rufe) zurueck.
 
@@ -131,8 +295,7 @@ def _einmal(nachrichten, max_tokens, temperatur, werkzeuge, timeout=60):
     Fehler und ohne dass die Anfrage im vLLM-Protokoll auftauchte. Halbierung
     am 27.08.2026 belegt. Der ungestreamte Pfad ist davon nicht betroffen.
     """
-    rumpf = {**konfig.LLM_ZUSATZ,
-             "model": _modellname(), "max_tokens": max_tokens,
+    rumpf = {**konfig.LLM_ZUSATZ, "max_tokens": max_tokens,
              "temperature": temperatur, "messages": nachrichten}
     if werkzeuge:
         rumpf["tools"] = werkzeuge

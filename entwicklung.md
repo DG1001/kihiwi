@@ -2182,3 +2182,33 @@ Jetzt stehen solche Sitzungen als eigene Art `mitschnitt` in der Ablage, mit
 Zahl und Größe im Titel, warnfarben. Anklicken erklärt, warum es nichts zu
 lesen gibt. Der Knopf heißt „Alle Aufzeichnungen löschen" und nimmt beide
 Arten mit.
+
+## Der Umbau riss acht Funktionen mit
+
+Nach dem Modellwechsel-Fix vom Vormittag antwortete der Assistent auf jede
+Wissensfrage nicht mehr. Im Protokoll stand `NameError: name 'ohne_absagen'
+is not defined`, danach `_saetze`, und dahinter fehlten noch sechs weitere:
+`_ABSAGE`, `ist_absage`, `class _Teiler`, `antwort_text`, `_roh`,
+`antwort_saetze_roh`, `antwort_saetze`.
+
+**Wie das passierte.** Beim Umbau habe ich den Bereich zwischen dem
+HTTP-Fehlerzweig und `def _einmal(` als einen Block ersetzt, um die
+Wiederholungsfunktion loszuwerden. In diesem Bereich lag aber weit mehr als
+sie. Ein Textschnitt über Zeilenbereiche kennt keine Funktionsgrenzen.
+
+**Warum es niemand merkte.** `py_compile` findet keinen `NameError` — der
+entsteht erst beim Aufruf. Getestet hatte ich `_strom` und `_einmal` einzeln
+und eine Zeitfrage über den Dienst; die kommt ohne Modell aus. Der Weg, der
+brach, war der einzige, den ich nicht gegangen bin: eine echte Wissensfrage
+end-to-end. Vier Stunden lang war das kein Zufall, sondern Systematik — ich
+hatte den Pfad geprüft, den ich gebaut hatte, nicht den, den Fred benutzt.
+
+**Reparatur:** `llm.py` auf den Stand vor dem Umbau zurückgesetzt und die
+Änderung neu angewandt, diesmal als vier eng umrissene Ersetzungen der
+Anfragestellen. Ein AST-Vergleich der Definitionen gegen den alten Stand
+belegt: nichts fehlt, dazugekommen sind genau `_modellname`,
+`_modell_nachschlagen` und `_anfragen`.
+
+Der AST-Vergleich ist die eigentliche Lehre. `grep '^def '` hätte hier nicht
+gereicht — `class _Teiler` und `async def _saetze` fangen anders an, und genau
+die fehlten am längsten.
