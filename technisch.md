@@ -992,6 +992,16 @@ Die Suche zeichnet **nur die Liste** neu, nicht die Seite. Würde das Suchfeld
 mitgezeichnet, wäre es nach dem ersten Zeichen ein anderes Element und der
 Fokus läge im Nichts.
 
+**`buehneBelegt` gilt nur für den Seitenstart.** Das Flag verhindert, dass die
+per fetch geholte Ablage die vom Dienst wiederhergestellte Bühne überschreibt —
+ein Wettlauf, den es nur in der ersten Sekunde gibt. Die Prüfung stand jedoch
+*in* `ablageLaden()` und galt damit für jeden Aufrufer, und das Flag wird
+gesetzt, sobald einmal etwas anderes als die Ablage dastand, ohne je
+zurückgenommen zu werden. Wer eine Recherche geöffnet und dann zurückgegangen
+war, dem tat danach weder „neu laden" noch das Löschen sichtbar etwas:
+gestrichene Einträge blieben stehen, bis der Browser die Seite neu holte.
+Seither trägt nur der Startaufruf `nurWennFrei`.
+
 **Löschen** läuft über den WebSocket-Befehl `loeschen` — einzeln mit `art` und
 `kennung`, alle Protokolle auf einmal mit `alles: true`. Der Client nennt nie
 einen Pfad, nur Art und Kennung; `_loeschen()` sucht den Eintrag in der

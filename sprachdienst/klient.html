@@ -683,7 +683,7 @@ function verbinden() {
       $("m-transkript").classList.toggle("an", !!d.transkription);
       /* Nach dem Ende einer Nachbereitung oder Recherche gibt es Neues. */
       const beschaeftigt = !!d.transkription || !!d.recherche;
-      if (warBeschaeftigt && !beschaeftigt) ablageLaden(false);
+      if (warBeschaeftigt && !beschaeftigt) ablageLaden(ablageSichtbar());
       warBeschaeftigt = beschaeftigt;
       $("m-rfrage").textContent = d.recherche || "";
       rSeit = d.recherche_seit || 0;
@@ -696,9 +696,10 @@ function verbinden() {
       weckliste = d.wecker || [];
       weckZeichnen();
     } else if (d.typ === "geloescht") {
-      // Immer die Liste neu holen: sagt der Server "nicht gefunden", ist die
-      // Anzeige veraltet, und genau dann ist Nachladen richtig.
-      ablageLaden(false).then(() => { if (!buehneBelegt) ablageZeigen(); });
+      // Immer neu holen UND zeichnen: geloescht wird nur aus der Liste
+      // heraus, sie steht also da. Sagt der Dienst "nicht gefunden", ist die
+      // Anzeige veraltet -- und genau dann ist Neuzeichnen erst recht richtig.
+      ablageLaden(true);
       zeile("system", d.fehler
             ? `Nicht gelöscht: ${d.fehler}`
             : (d.anzahl === 1 ? "Gelöscht." : `${d.anzahl} Protokolle gelöscht.`));
@@ -902,12 +903,22 @@ function alsHtml(md) {
 
 let ablageEintraege = [];
 
-async function ablageLaden(anzeigen = true) {
+/* Steht die Ablage gerade da? Entscheidet, ob ein Nachladen auch neu zeichnen
+   darf, ohne dem Nutzer wegzunehmen, was er gerade liest. */
+const ablageSichtbar = () => $("b-art").textContent === "Ablage";
+
+/* `nurWennFrei` gilt allein fuer den Aufruf beim Seitenstart, der gegen die
+   wiederhergestellte Buehne antritt. Er stand frueher IN dieser Funktion und
+   galt damit fuer jeden Aufrufer -- `buehneBelegt` wird gesetzt, sobald einmal
+   etwas anderes als die Ablage dastand, und nie zurueckgenommen. Wer eine
+   Recherche geoeffnet und dann zurueckgegangen war, dem tat danach weder
+   "neu laden" noch das Loeschen sichtbar etwas: gestrichene Eintraege blieben
+   stehen, bis der Browser die Seite neu holte. */
+async function ablageLaden(anzeigen = true, nurWennFrei = false) {
   try {
     const r = await fetch("/api/liste");
     ablageEintraege = await r.json();
-    // Nicht ueberschreiben, was inzwischen wiederhergestellt wurde.
-    if (anzeigen && !buehneBelegt) ablageZeigen();
+    if (anzeigen && !(nurWennFrei && buehneBelegt)) ablageZeigen();
   } catch (e) {
     if (anzeigen) buehne("Ablage", "Protokolle und Recherchen",
                          '<div class="b-leer">Ablage nicht erreichbar.</div>');
@@ -1092,7 +1103,7 @@ async function oeffnen(e) {
 
 $("b-zurueck").onclick = ablageZeigen;
 $("b-neuladen").onclick = () => ablageLaden(true);
-ablageLaden(true);
+ablageLaden(true, true);
 
 verbinden();
 </script>
