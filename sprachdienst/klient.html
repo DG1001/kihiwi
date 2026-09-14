@@ -197,6 +197,8 @@
                   padding:.15rem .5rem; border-radius:1rem; flex:none; }
   .art.protokoll { background:#12283a; color:#7ab8e8; }
   .art.recherche { background:#3a2a12; color:#e8b339; }
+  /* Rohe Aufnahme ohne Protokoll -- warnfarben, denn sie liegt ungelesen da. */
+  .art.mitschnitt { background:#3a1a1a; color:#e89a9a; }
   .eintrag .wann { color:var(--matt); font-size:.8rem; flex:none; }
   .eintrag .titel { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .b-leer { color:var(--matt); font-size:.9rem; }
@@ -907,10 +909,10 @@ function ablageZeigen() {
       + "beim Stoppen automatisch protokolliert.</div>";
     return;
   }
-  if (ablageEintraege.some(e => e.art === "protokoll")) {
+  if (ablageEintraege.some(e => e.art === "protokoll" || e.art === "mitschnitt")) {
     const kopf = document.createElement("div");
     kopf.className = "ablage-kopf";
-    const alle = loeschknopf("Alle Protokolle löschen",
+    const alle = loeschknopf("Alle Aufzeichnungen löschen",
                              "Wirklich alle? Nochmal klicken.",
                              () => senden({befehl: "loeschen", alles: true}));
     alle.classList.add("weg-alle");
@@ -933,6 +935,13 @@ function ablageZeigen() {
 }
 
 async function oeffnen(e) {
+  if (e.art === "mitschnitt") {
+    buehne("Aufzeichnung", e.titel,
+           '<div class="b-leer">Zu dieser Sitzung gibt es kein Protokoll — sie '
+           + "wurde abgebrochen oder nie nachbereitet. Es liegen nur die rohen "
+           + "Audiodateien im Sitzungsordner.</div>", wannText(e.geaendert));
+    return;
+  }
   const r = await fetch("/api/datei?k=" + encodeURIComponent(e.kennung));
   buehne(e.art === "protokoll" ? "Protokoll" : "Recherche", e.titel,
          alsHtml(await r.text()), wannText(e.geaendert));

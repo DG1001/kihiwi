@@ -431,9 +431,9 @@ class Sitzung:
             if b.get("alles"):
                 fehler, weg = [], 0
                 for e in _sammlung():
-                    if e["art"] != "protokoll":
+                    if e["art"] not in ("protokoll", "mitschnitt"):
                         continue
-                    grund = _loeschen("protokoll", e["kennung"], laeuft)
+                    grund = _loeschen(e["art"], e["kennung"], laeuft)
                     weg += not grund
                     if grund:
                         fehler.append(f'{e["kennung"]}: {grund}')
@@ -1715,8 +1715,35 @@ def _titel_aus(pfad):
     return pfad.stem
 
 
+def _mitschnitte():
+    """Sitzungen OHNE protokoll.md -- abgebrochen oder nie nachbereitet.
+
+    Sie standen bisher in keiner Liste, weil die ueber `*/protokoll.md` geht.
+    Damit waren sie auch nicht zu loeschen: am 14.09.2026 blieben nach
+    "alle Protokolle loeschen" 15 rohe Mitschnitte liegen, 11 MB, und von
+    aussen sah es aus, als waere alles weg. Ausgerechnet die Aufnahme ist die
+    Haelfte, auf die es ankommt (§ 201 StGB).
+    """
+    aus = []
+    for verz in konfig.AUFNAHMEN.glob("*/"):
+        if not verz.is_dir() or (verz / "protokoll.md").exists():
+            continue
+        stuecke = [d for d in verz.iterdir() if d.suffix in (".wav", ".opus")]
+        try:
+            st = verz.stat()
+        except OSError:
+            continue
+        gross = sum(d.stat().st_size for d in stuecke) / 1e6
+        aus.append({"art": "mitschnitt", "kennung": verz.name, "pfad": str(verz),
+                    "geaendert": st.st_mtime, "groesse": int(gross * 1e6),
+                    "titel": f"Aufzeichnung ohne Protokoll — "
+                             f"{len(stuecke)} Stück, {gross:.1f} MB"})
+    return sorted(aus, key=lambda e: e["geaendert"], reverse=True)
+
+
 def _sammlung():
     return (_liste(konfig.AUFNAHMEN, "*/protokoll.md", "protokoll")
+            + _mitschnitte()
             + _liste(wissen_recherche.ORDNER, "*.md", "recherche"))
 
 
@@ -1736,7 +1763,8 @@ def _loeschen(art: str, kennung: str, tabu: Path | None = None) -> str:
         pfad = Path(e["pfad"])
         ziel = pfad.parent if art == "protokoll" else pfad
         # Der Elternteil muss die erwartete Wurzel sein -- sonst nichts tun.
-        wurzel = konfig.AUFNAHMEN if art == "protokoll" else wissen_recherche.ORDNER
+        wurzel = (wissen_recherche.ORDNER if art == "recherche"
+                  else konfig.AUFNAHMEN)
         if ziel.parent.resolve() != Path(wurzel).resolve():
             log.error("Loeschen abgelehnt, liegt nicht in %s: %s", wurzel, ziel)
             return "liegt nicht in der Ablage"

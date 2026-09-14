@@ -986,6 +986,14 @@ ist die heiklere Hälfte (§ 201 StGB). Die laufende Aufzeichnung ist geschützt
 eine noch nicht nachbereitete Sitzung steht ohnehin nicht in der Liste, weil
 die über `*/protokoll.md` geht.
 
+Sitzungen **ohne** `protokoll.md` — abgebrochen oder nie nachbereitet — stehen
+als eigene Art `mitschnitt` in der Liste. Sie fehlten dort zuerst, weil die
+Auflistung über `*/protokoll.md` geht; nach dem ersten „alle löschen" blieben
+deshalb 15 rohe Aufnahmen liegen (11 MB), und von außen sah es aus, als wäre
+alles weg. **Unsichtbar heißt hier unlöschbar**, und ausgerechnet die Aufnahme
+ist die Hälfte, auf die es ankommt. Der Knopf heißt seither „Alle
+Aufzeichnungen löschen" und nimmt beide Arten mit.
+
 Im Client ist der Knopf **zweistufig** und fällt nach fünf Sekunden ohne
 Antwort zurück — ein Fehlklick wäre nicht rückgängig zu machen, eine
 stehengebliebene Rückfrage die nächste Falle. Aus demselben Grund gibt es zum

@@ -2160,3 +2160,25 @@ Der Client nennt beim Löschen nie einen Pfad, nur Art und Kennung; gesucht
 wird in der Sammlung, und der Elternordner muss die erwartete Wurzel sein.
 Geprüft mit `../../etc`, mit einer unbekannten Kennung, gegen die laufende
 Aufzeichnung und zuletzt an einer Wegwerfsitzung, die samt Audio verschwand.
+
+## „Alles löschen" löschte nicht alles
+
+Direkt nach dem Einbau hat Fred den Knopf benutzt: 24 Protokolle weg. Beim
+anschließenden Datenabgleich fiel auf, dass `aufnahmen/` trotzdem noch 15
+Verzeichnisse enthielt — 11 MB rohe Mitschnitte vom 27.08. und einer vom
+07.09., alle ohne `protokoll.md`.
+
+Der Grund ist die Auflistung: sie geht über `*/protokoll.md`. Eine Sitzung,
+die abgebrochen wurde oder nie nachbereitet, hat keines und stand damit in
+keiner Liste — **und was in keiner Liste steht, lässt sich auch nicht
+löschen.** Der Knopf hat getan, was er versprach, nur hieß „alle Protokolle"
+eben nicht „alle Aufnahmen". Von außen war der Unterschied nicht zu sehen.
+
+Das ist dieselbe Sorte Fehler wie der Modellwechsel von heute früh: nicht
+falsch gerechnet, sondern etwas nicht gezeigt. Wer aufräumt und „39 Sitzungen"
+auf „0 Einträge" gehen sieht, hält die Platte für leer.
+
+Jetzt stehen solche Sitzungen als eigene Art `mitschnitt` in der Ablage, mit
+Zahl und Größe im Titel, warnfarben. Anklicken erklärt, warum es nichts zu
+lesen gibt. Der Knopf heißt „Alle Aufzeichnungen löschen" und nimmt beide
+Arten mit.
