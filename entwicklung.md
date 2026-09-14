@@ -2135,3 +2135,28 @@ der Antwort verworfen.
 den Füßen wegzieht, heilt der Dienst jetzt, verhindert es aber nicht. Dafür
 gibt es die Belegungsstelle — die Gutachten-App ist dort noch nicht
 angemeldet.
+
+## Transkripte loeschen — auf dem Bildschirm, nicht im Mikrofon
+
+Bisher wuchs `aufnahmen/` nur. Es gab keinen Weg, eine Sitzung wieder
+loszuwerden — die 39 Verzeichnisse waren durchweg Testmitschnitte.
+
+Die eine Entscheidung dabei: **kein Sprachbefehl.** Es hätte nahegelegen, denn
+für Wecker gibt es „lösch das" längst. Aber ein Wecker, der fälschlich
+gelöscht wird, ist in zehn Sekunden neu gestellt; ein Mitschnitt ist weg. Die
+Ablage folgt derselben Linie wie das Blättern, das schon lange auf dem
+Bildschirm liegt: eine anklickbare Liste kann nicht missverstanden werden.
+
+Der Knopf fragt einmal zurück und fällt nach fünf Sekunden von selbst in den
+Ruhezustand. Eine stehengebliebene Rückfrage wäre sonst die nächste Falle —
+der zweite Klick käme dann Minuten später und aus einem anderen Vorsatz.
+
+**Was mitfällt:** bei einem Protokoll die ganze Sitzung, samt Opus und
+Segmenten. Das Protokoll allein zu löschen ließe die Aufnahme liegen, und die
+ist die heiklere Hälfte — genau die, wegen der `aufnahmen/` nicht ins Repo
+darf.
+
+Der Client nennt beim Löschen nie einen Pfad, nur Art und Kennung; gesucht
+wird in der Sammlung, und der Elternordner muss die erwartete Wurzel sein.
+Geprüft mit `../../etc`, mit einer unbekannten Kennung, gegen die laufende
+Aufzeichnung und zuletzt an einer Wegwerfsitzung, die samt Audio verschwand.

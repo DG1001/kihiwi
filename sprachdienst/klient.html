@@ -200,6 +200,21 @@
   .eintrag .wann { color:var(--matt); font-size:.8rem; flex:none; }
   .eintrag .titel { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .b-leer { color:var(--matt); font-size:.9rem; }
+  /* Meldung des Dienstes, nicht des Assistenten -- gesprochen wird sie nicht. */
+  .zeile.system .text { color:var(--matt); font-style:italic; }
+
+  /* Loeschen: nur beim Ueberfahren sichtbar, damit die Liste ruhig bleibt --
+     und zweistufig, denn ein Fehlklick waere nicht rueckgaengig zu machen. */
+  .eintrag .weg { flex:none; margin-left:auto; border:1px solid transparent;
+                  background:none; color:var(--matt); cursor:pointer;
+                  font:inherit; font-size:.8rem; padding:.1rem .5rem;
+                  border-radius:.3rem; opacity:0; }
+  .eintrag:hover .weg, .eintrag .weg.fragt { opacity:1; }
+  .eintrag .weg:hover, .eintrag .weg.fragt { border-color:#7a2a2a; color:#e88; }
+  .eintrag .weg.fragt { background:#2a1414; }
+  .ablage-kopf { display:flex; align-items:center; gap:.6rem; max-width:52rem;
+                 margin-bottom:.5rem; }
+  .ablage-kopf .weg-alle { margin-left:auto; }
 </style>
 
 <div id="seite">
@@ -450,7 +465,8 @@ function amEnde(el) {
 function zeile(wer, text) {
   const d = document.createElement("div");
   d.className = "zeile " + wer;
-  d.innerHTML = `<div class="wer">${wer === "nutzer" ? "Du" : "Assistent"}</div>`;
+  d.innerHTML = `<div class="wer">${{nutzer: "Du", system: "Kihiwi"}[wer]
+                                     || "Assistent"}</div>`;
   const p = document.createElement("div");
   p.className = "text";
   p.textContent = text;
@@ -644,6 +660,13 @@ function verbinden() {
       $("led-llm").classList.toggle("da", d.llm_da);
       weckliste = d.wecker || [];
       weckZeichnen();
+    } else if (d.typ === "geloescht") {
+      // Immer die Liste neu holen: sagt der Server "nicht gefunden", ist die
+      // Anzeige veraltet, und genau dann ist Nachladen richtig.
+      ablageLaden(false).then(() => { if (!buehneBelegt) ablageZeigen(); });
+      zeile("system", d.fehler
+            ? `Nicht gelöscht: ${d.fehler}`
+            : (d.anzahl === 1 ? "Gelöscht." : `${d.anzahl} Protokolle gelöscht.`));
     } else if (d.typ === "wecker_gong") {
       gong();
     } else if (d.typ === "wecker_liste") {
@@ -856,6 +879,25 @@ async function ablageLaden(anzeigen = true) {
   }
 }
 
+// Zweistufig: der erste Klick fragt nur, der zweite loescht. Nach ein paar
+// Sekunden ohne Antwort faellt der Knopf in den Ruhezustand zurueck -- eine
+// stehengebliebene Rueckfrage waere die naechste Falle.
+function loeschknopf(beschriftung, frage, tun) {
+  const k = document.createElement("button");
+  k.className = "weg";
+  k.textContent = beschriftung;
+  let uhr = null;
+  const zurueck = () => { clearTimeout(uhr); uhr = null;
+                          k.classList.remove("fragt"); k.textContent = beschriftung; };
+  k.onclick = ev => {
+    ev.stopPropagation();
+    if (uhr) { zurueck(); tun(); return; }
+    k.classList.add("fragt"); k.textContent = frage;
+    uhr = setTimeout(zurueck, 5000);
+  };
+  return k;
+}
+
 function ablageZeigen() {
   buehne("Ablage", "Protokolle und Recherchen", "",
          ablageEintraege.length ? `${ablageEintraege.length} Einträge` : "");
@@ -865,6 +907,16 @@ function ablageZeigen() {
       + "beim Stoppen automatisch protokolliert.</div>";
     return;
   }
+  if (ablageEintraege.some(e => e.art === "protokoll")) {
+    const kopf = document.createElement("div");
+    kopf.className = "ablage-kopf";
+    const alle = loeschknopf("Alle Protokolle löschen",
+                             "Wirklich alle? Nochmal klicken.",
+                             () => senden({befehl: "loeschen", alles: true}));
+    alle.classList.add("weg-alle");
+    kopf.appendChild(alle);
+    lauf.appendChild(kopf);
+  }
   for (const e of ablageEintraege) {
     const d = document.createElement("div");
     d.className = "eintrag";
@@ -872,6 +924,9 @@ function ablageZeigen() {
       + `<span class="wann">${wannText(e.geaendert)}</span>`
       + `<span class="titel"></span>`;
     d.querySelector(".titel").textContent = e.titel;
+    d.appendChild(loeschknopf("löschen", "wirklich?",
+                              () => senden({befehl: "loeschen", art: e.art,
+                                            kennung: e.kennung})));
     d.onclick = () => oeffnen(e);
     lauf.appendChild(d);
   }

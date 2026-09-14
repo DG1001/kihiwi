@@ -12,7 +12,7 @@ Protokoll auf /audio
                                     der vorangehenden "ton"-Nachricht)
 Auf /monitor liegt nur der Zustand -- fuer den Bildschirm im Labor.
 """
-import asyncio, http, json, logging, re, signal, time
+import asyncio, http, json, logging, re, shutil, signal, time
 from datetime import datetime
 from pathlib import Path
 import numpy as np
@@ -423,6 +423,29 @@ class Sitzung:
             log.info("Vorlesen %s", "an" if self.vorlesen else "aus")
         elif art == "text":
             await self.getippt(str(b.get("text") or ""))
+        elif art == "loeschen":
+            # Loeschen gehoert auf den Bildschirm, nicht ins Mikrofon -- eine
+            # Fehlerkennung waere hier nicht rueckgaengig zu machen. Derselbe
+            # Grund, aus dem schon das Blaettern eine anklickbare Liste ist.
+            laeuft = self.rek.verzeichnis if self.rek.laeuft else None
+            if b.get("alles"):
+                fehler, weg = [], 0
+                for e in _sammlung():
+                    if e["art"] != "protokoll":
+                        continue
+                    grund = _loeschen("protokoll", e["kennung"], laeuft)
+                    weg += not grund
+                    if grund:
+                        fehler.append(f'{e["kennung"]}: {grund}')
+                await self.ws.send(json.dumps(
+                    {"typ": "geloescht", "anzahl": weg,
+                     "fehler": "; ".join(fehler)}))
+            else:
+                grund = _loeschen(str(b.get("art") or ""),
+                                  str(b.get("kennung") or ""), laeuft)
+                await self.ws.send(json.dumps(
+                    {"typ": "geloescht", "anzahl": 0 if grund else 1,
+                     "fehler": grund}))
         elif art == "abbrechen":
             if self.antwort_task and not self.antwort_task.done():
                 self.antwort_task.cancel()
@@ -1695,6 +1718,38 @@ def _titel_aus(pfad):
 def _sammlung():
     return (_liste(konfig.AUFNAHMEN, "*/protokoll.md", "protokoll")
             + _liste(wissen_recherche.ORDNER, "*.md", "recherche"))
+
+
+def _loeschen(art: str, kennung: str, tabu: Path | None = None) -> str:
+    """Einen Eintrag der Ablage entfernen. Gibt "" zurueck oder den Grund.
+
+    Nur ueber die Sammlung: der Klient nennt Art und Kennung, nie einen Pfad.
+    Ein Pfad aus dem Browser waere ein Weg aus `aufnahmen/` heraus.
+
+    Bei einem Protokoll faellt die **ganze Sitzung**: Mitschnitt, Segmente,
+    Transkript. Das Protokoll allein zu loeschen liesse die Aufnahme liegen --
+    und die ist die heiklere Haelfte (§ 201 StGB).
+    """
+    for e in _sammlung():
+        if e["art"] != art or e["kennung"] != kennung:
+            continue
+        pfad = Path(e["pfad"])
+        ziel = pfad.parent if art == "protokoll" else pfad
+        # Der Elternteil muss die erwartete Wurzel sein -- sonst nichts tun.
+        wurzel = konfig.AUFNAHMEN if art == "protokoll" else wissen_recherche.ORDNER
+        if ziel.parent.resolve() != Path(wurzel).resolve():
+            log.error("Loeschen abgelehnt, liegt nicht in %s: %s", wurzel, ziel)
+            return "liegt nicht in der Ablage"
+        if tabu and ziel.resolve() == Path(tabu).resolve():
+            return "wird gerade aufgezeichnet"
+        try:
+            shutil.rmtree(ziel) if ziel.is_dir() else ziel.unlink()
+        except OSError as ex:
+            log.error("Loeschen gescheitert: %r", ex)
+            return "Dateifehler"
+        log.info("Geloescht: %s %s", art, kennung)
+        return ""
+    return "nicht gefunden"
 
 
 async def http_seite(verbindung, anfrage):

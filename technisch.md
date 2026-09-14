@@ -974,6 +974,24 @@ Nachbereitung oder Recherche lädt er sie selbst neu.
 mir das Protokoll" über das Modell zu lösen kostete einen Abend Prompt-Arbeit
 und blieb wackelig; eine Liste kann nicht missverstanden werden.
 
+**Löschen** läuft über den WebSocket-Befehl `loeschen` — einzeln mit `art` und
+`kennung`, alle Protokolle auf einmal mit `alles: true`. Der Client nennt nie
+einen Pfad, nur Art und Kennung; `_loeschen()` sucht den Eintrag in der
+Sammlung und prüft zusätzlich, dass der Elternordner die erwartete Wurzel ist.
+Ein Pfad aus dem Browser wäre ein Weg aus `aufnahmen/` heraus.
+
+Bei einem Protokoll fällt die **ganze Sitzung** — Mitschnitt, Segmente,
+Transkript. Nur das Protokoll zu löschen ließe die Aufnahme liegen, und die
+ist die heiklere Hälfte (§ 201 StGB). Die laufende Aufzeichnung ist geschützt;
+eine noch nicht nachbereitete Sitzung steht ohnehin nicht in der Liste, weil
+die über `*/protokoll.md` geht.
+
+Im Client ist der Knopf **zweistufig** und fällt nach fünf Sekunden ohne
+Antwort zurück — ein Fehlklick wäre nicht rückgängig zu machen, eine
+stehengebliebene Rückfrage die nächste Falle. Aus demselben Grund gibt es zum
+Löschen **keinen Sprachbefehl**: was eine Fehlerkennung unwiderruflich macht,
+gehört auf den Bildschirm.
+
 ### Datum und Uhrzeit stehen im Prompt
 
 `_jetzt()` setzt Wochentag, Datum und Uhrzeit in **jeden** Prompt, neu je
