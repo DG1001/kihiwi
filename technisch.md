@@ -1242,6 +1242,16 @@ Transkript weiterverwendet und das STT im Antwortpfad übersprungen** (0 ms stat
 - **`pkill -f` erwischt die eigene Shell**, wenn das Muster in deren
   Kommandozeile steht. Über den Port gehen:
   `ss -tlnpH "sport = :8920" | grep -oP 'pid=\K[0-9]+'`.
+- **Ein Modellwechsel unter dem laufenden Dienst blieb unbemerkt.** Wer per
+  `model-switch` umschaltet, ändert den `served-model-name`; der Sprachdienst
+  fragte weiter nach dem Namen von seinem Start und bekam auf **jede** Anfrage
+  einen 404. Am 14.09.2026 stand er so **sechs Tage** — aufgefallen ist es
+  erst, als jemand mit ihm sprach. Die Prüfung in `dienste.sh` greift nur beim
+  Start; der Wechsel passiert im Betrieb. Seither heilt `_anfragen()` in
+  `sprachdienst/llm.py` das selbst: bei 404 einmal `/v1/models` fragen, den
+  angebotenen Namen übernehmen, Anfrage wiederholen. **Alle** Chat-Anfragen
+  laufen durch diese eine Stelle, damit es nicht wieder einen Pfad gibt, der
+  es nicht kann.
 
 ## Hermes
 

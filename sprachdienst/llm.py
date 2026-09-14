@@ -10,6 +10,62 @@ from . import konfig
 
 log = logging.getLogger("kihiwi.llm")
 
+# Der Name, unter dem der Server das Modell gerade anbietet. Wird bei einem
+# 404 einmal nachgeschlagen.
+#
+# **Warum das noetig ist.** Auf dieser Maschine teilen sich mehrere
+# Anwendungen ein Modell, und wer umschaltet, aendert damit den
+# `served-model-name`. Der Sprachdienst laeuft dabei durch -- er merkte den
+# Wechsel bisher NICHT und lief in einen 404 auf jede Anfrage, bis jemand ihn
+# neu startete. Am 14.09.2026 stand er so sechs Tage lang, ohne dass es
+# auffiel; gemeldet wurde es erst, als jemand mit ihm sprach.
+#
+# Die Pruefung beim Start (dienste.sh) reicht nicht: der Wechsel passiert
+# waehrend des Betriebs.
+_MODELL_JETZT: str | None = None
+
+
+def _modellname() -> str:
+    return _MODELL_JETZT or konfig.LLM_MODEL
+
+
+def _modell_nachschlagen() -> str | None:
+    """Den angebotenen Namen holen. None, wenn nichts zu holen ist."""
+    global _MODELL_JETZT
+    try:
+        with urllib.request.urlopen(f"{konfig.LLM_URL}/models", timeout=5) as a:
+            neu = json.load(a)["data"][0]["id"]
+    except (urllib.error.URLError, OSError, ValueError, KeyError, IndexError) as e:
+        log.warning("Modellname nicht abrufbar: %r", e)
+        return None
+    if neu != _modellname():
+        log.warning("Modell hat gewechselt: %r -> %r", _modellname(), neu)
+        _MODELL_JETZT = neu
+        return neu
+    return None
+
+
+def _anfragen(rumpf: dict, timeout: int):
+    """Eine Anfrage an den Motor. Bei 404 einmal mit frisch geholtem Namen.
+
+    Der Modellwechsel ist der einzige Fehler, der sich von hier aus heilen
+    laesst -- und der einzige, der sonst tagelang unbemerkt bleibt. Alle
+    Anfragen laufen durch diese Stelle, damit es nur eine gibt, die heilt.
+    """
+    for letzter in (False, True):
+        rumpf["model"] = _modellname()
+        req = urllib.request.Request(
+            f"{konfig.LLM_URL}/chat/completions",
+            data=json.dumps(rumpf).encode(),
+            headers={"Content-Type": "application/json"})
+        try:
+            return urllib.request.urlopen(req, timeout=timeout)
+        except urllib.error.HTTPError as e:
+            if letzter or e.code != 404 or not _modell_nachschlagen():
+                raise
+            log.info("Modellname aktualisiert, wiederhole die Anfrage")
+
+
 # Satzende: Punkt/Frage/Ausruf gefolgt von Leerraum oder Textende. Die
 # Abkuerzungen davor abzufangen lohnt nicht -- ein zu frueh geschnittener Satz
 # klingt in der Sprachausgabe nur nach einer Atempause.
@@ -35,18 +91,13 @@ def _strom(nachrichten, max_tokens, temperatur, schieb, werkzeuge=None):
     Argumente als JSON-Fragmente ueber mehrere Deltas.
     """
     try:
-        rumpf = {**konfig.LLM_ZUSATZ,
-                 "model": konfig.LLM_MODEL, "stream": True,
+        rumpf = {**konfig.LLM_ZUSATZ, "stream": True,
                  "max_tokens": max_tokens, "temperature": temperatur,
                  "messages": nachrichten}
         if werkzeuge:
             rumpf["tools"] = werkzeuge
             rumpf["tool_choice"] = "auto"
-        req = urllib.request.Request(
-            f"{konfig.LLM_URL}/chat/completions",
-            data=json.dumps(rumpf).encode(),
-            headers={"Content-Type": "application/json"})
-        for roh in urllib.request.urlopen(req, timeout=60):
+        for roh in _anfragen(rumpf, 60):
             zeile = roh.decode().strip()
             if not zeile.startswith("data: ") or zeile.endswith("[DONE]"):
                 continue
@@ -72,170 +123,6 @@ def _strom(nachrichten, max_tokens, temperatur, schieb, werkzeuge=None):
         schieb(None)
 
 
-async def antwort_text(system: str, frage: str, max_tokens: int = 400,
-                        temperatur: float = 0.2) -> str:
-    """Gibt die vollstaendige Antwort UNVERAENDERT zurueck.
-
-    Fuer erzeugte Dokumente. antwort_saetze* zerlegt in Saetze -- das ist im
-    Sprachpfad genau richtig und in Markdown falsch: beim Wiederzusammensetzen
-    gehen Zeilenumbrueche verloren und Aufzaehlungen laufen auf eine Zeile.
-    """
-    teile = []
-    async for stueck in _roh([{"role": "system", "content": system},
-                              {"role": "user", "content": frage}],
-                             max_tokens, temperatur):
-        teile.append(stueck)
-    return "".join(teile).strip()
-
-
-async def _roh(nachrichten, max_tokens, temperatur):
-    """Liefert die Token-Stuecke, wie sie kommen."""
-    schleife = asyncio.get_running_loop()
-    q: asyncio.Queue = asyncio.Queue()
-    schieb = lambda x: schleife.call_soon_threadsafe(q.put_nowait, x)
-    threading.Thread(target=_strom, args=(nachrichten, max_tokens, temperatur, schieb),
-                     daemon=True).start()
-    while True:
-        stueck = await q.get()
-        if stueck is None:
-            return
-        if stueck[0] == "text":
-            yield stueck[1]
-
-
-async def antwort_saetze_roh(system: str, frage: str, max_tokens: int = 400,
-                             temperatur: float = 0.2):
-    """Wie antwort_saetze, aber mit eigenem System-Prompt und ohne Verlauf.
-
-    Gebraucht vom Dokumentationspfad: dessen Aufgaben (Korrektur,
-    Zusammenfassung) haben nichts mit dem Sprachassistenten zu tun, und
-    konfig.SYSTEM_PROMPT ist auf gesprochene Kurzantworten getrimmt --
-    "hoechstens zwei Saetze" waere fuer ein Protokoll fatal.
-    """
-    async for satz in _saetze([{"role": "system", "content": system},
-                               {"role": "user", "content": frage}],
-                              max_tokens, temperatur):
-        yield satz
-
-
-async def antwort_saetze(frage: str, verlauf=None, max_tokens: int = 160):
-    """Liefert die Antwort SATZWEISE, sobald ein Satz vollstaendig ist.
-
-    Das ist der Grund, warum die gefuehlte Latenz nur bis zum ERSTEN Satz
-    zaehlt: waehrend das Modell weiterschreibt, spricht Piper schon.
-    """
-    nachrichten = [{"role": "system", "content": konfig.SYSTEM_PROMPT}]
-    nachrichten += list(verlauf or [])
-    nachrichten.append({"role": "user", "content": frage})
-    async for satz in _saetze(nachrichten, max_tokens, 0.3):
-        yield satz
-
-
-async def _saetze(nachrichten, max_tokens, temperatur):
-    # Der Thread SCHIEBT, die Schleife fragt nicht ab -- sonst haengt er auf
-    # einer leeren Queue, wenn die Antwort abgebrochen wird, und blockiert das
-    # Beenden des Dienstes um 120 Sekunden.
-    schleife = asyncio.get_running_loop()
-    q: asyncio.Queue = asyncio.Queue()
-    schieb = lambda x: schleife.call_soon_threadsafe(q.put_nowait, x)
-    threading.Thread(target=_strom, args=(nachrichten, max_tokens, temperatur, schieb),
-                     daemon=True).start()
-
-    puffer = ""
-    erster = True
-    while True:
-        posten = await q.get()
-        if posten is None:
-            break
-        if posten[0] != "text":
-            continue
-        stueck = posten[1]
-        puffer += stueck
-
-        if erster and len(puffer) >= ERSTER_MIN:
-            teile = _TEILSATZ.split(puffer, maxsplit=1)
-            if len(teile) == 2 and ERSTER_MIN <= len(teile[0]) <= ERSTER_MAX:
-                kopf, puffer = teile[0].strip(), teile[1]
-                erster = False
-                if kopf:
-                    yield kopf
-                    continue
-
-        while True:
-            teile = _SATZENDE.split(puffer, maxsplit=1)
-            if len(teile) < 2:
-                break
-            satz, puffer = teile[0].strip(), teile[1]
-            if satz:
-                erster = False
-                yield satz
-    if puffer.strip():
-        yield puffer.strip()
-
-
-# Absagen des Modells. Stehen sie im Verlauf, wiederholt es sie -- eine
-# einzelne falsche Antwort wird zur Vorlage fuer alle folgenden. Fuer die
-# Werkzeugrunde werden sie deshalb ausgeblendet; in der Schlussantwort duerfen
-# sie bleiben, dort richten sie keinen Schaden an.
-_ABSAGE = re.compile(
-    r"kann (ich|das)?\s*(leider\s*)?nicht|kann keine|nicht möglich|"
-    r"ausserhalb meiner|außerhalb meiner|habe keinen zugriff|"
-    r"bin (nur|lediglich) ein", re.I)
-
-
-def ist_absage(text: str) -> bool:
-    """Weist die Antwort eine Faehigkeit zurueck, die der Assistent hat?"""
-    return bool(_ABSAGE.search(text or ""))
-
-
-def ohne_absagen(verlauf):
-    """Verlauf ohne die Absagen des Modells (und die Fragen davor)."""
-    aus = []
-    for n in (verlauf or []):
-        if n.get("role") == "assistant" and _ABSAGE.search(n.get("content") or ""):
-            if aus and aus[-1].get("role") == "user":
-                aus.pop()          # die Frage dazu ebenfalls, sonst wirkt sie unbeantwortet
-            continue
-        aus.append(n)
-    return aus
-
-
-class _Teiler:
-    """Zerlegt einen Token-Strom satzweise, ersten Brocken frueher.
-
-    Ausgelagert, weil Dialog und Werkzeugschleife dieselbe Logik brauchen:
-    der erste Brocken bestimmt die gefuehlte Latenz und wird schon am Komma
-    getrennt, die folgenden erst am Satzende.
-    """
-
-    def __init__(self):
-        self.puffer = ""
-        self.erster = True
-
-    def dazu(self, stueck: str):
-        self.puffer += stueck
-        if self.erster and len(self.puffer) >= ERSTER_MIN:
-            teile = _TEILSATZ.split(self.puffer, maxsplit=1)
-            if len(teile) == 2 and ERSTER_MIN <= len(teile[0]) <= ERSTER_MAX:
-                kopf, self.puffer = teile[0].strip(), teile[1]
-                self.erster = False
-                if kopf:
-                    yield kopf
-                    return
-        while True:
-            teile = _SATZENDE.split(self.puffer, maxsplit=1)
-            if len(teile) < 2:
-                break
-            satz, self.puffer = teile[0].strip(), teile[1]
-            if satz:
-                self.erster = False
-                yield satz
-
-    def rest(self):
-        r, self.puffer = self.puffer.strip(), ""
-        return r
-
-
 def _einmal(nachrichten, max_tokens, temperatur, werkzeuge, timeout=60):
     """Eine Runde OHNE Streaming. Gibt (text, rufe) zurueck.
 
@@ -245,15 +132,12 @@ def _einmal(nachrichten, max_tokens, temperatur, werkzeuge, timeout=60):
     am 27.08.2026 belegt. Der ungestreamte Pfad ist davon nicht betroffen.
     """
     rumpf = {**konfig.LLM_ZUSATZ,
-             "model": konfig.LLM_MODEL, "max_tokens": max_tokens,
+             "model": _modellname(), "max_tokens": max_tokens,
              "temperature": temperatur, "messages": nachrichten}
     if werkzeuge:
         rumpf["tools"] = werkzeuge
         rumpf["tool_choice"] = "auto"
-    req = urllib.request.Request(
-        f"{konfig.LLM_URL}/chat/completions", data=json.dumps(rumpf).encode(),
-        headers={"Content-Type": "application/json"})
-    a = json.load(urllib.request.urlopen(req, timeout=timeout))
+    a = json.load(_anfragen(rumpf, timeout))
     m = a["choices"][0]["message"]
     text = m.get("content") or ""
     rufe = m.get("tool_calls") or []
@@ -377,16 +261,11 @@ async def erzwinge_werkzeug(frage: str, verlauf, werkzeuge, name: str,
     nachrichten.append({"role": "user", "content": frage})
 
     def _p():
-        req = urllib.request.Request(
-            f"{konfig.LLM_URL}/chat/completions",
-            data=json.dumps({
-                **konfig.LLM_ZUSATZ,
-                "model": konfig.LLM_MODEL, "max_tokens": 80, "temperature": 0,
-                "messages": nachrichten, "tools": werkzeuge,
-                "tool_choice": {"type": "function", "function": {"name": name}},
-            }).encode(),
-            headers={"Content-Type": "application/json"})
-        a = json.load(urllib.request.urlopen(req, timeout=timeout))
+        a = json.load(_anfragen({
+            **konfig.LLM_ZUSATZ, "max_tokens": 80, "temperature": 0,
+            "messages": nachrichten, "tools": werkzeuge,
+            "tool_choice": {"type": "function", "function": {"name": name}},
+        }, timeout))
         rufe = a["choices"][0]["message"].get("tool_calls") or []
         for r in rufe:
             if r["function"]["name"] == name:
@@ -426,15 +305,11 @@ async def p_fertig(text: str, timeout: float = 5.0) -> float:
              "Antworte ausschliesslich mit FERTIG oder WEITER.")
 
     def _p():
-        req = urllib.request.Request(
-            f"{konfig.LLM_URL}/chat/completions",
-            data=json.dumps({**konfig.LLM_ZUSATZ,
-                             "model": konfig.LLM_MODEL, "max_tokens": 1,
-                             "temperature": 0, "logprobs": True, "top_logprobs": 20,
-                             "messages": [{"role": "system", "content": sys_p},
-                                          {"role": "user", "content": text}]}).encode(),
-            headers={"Content-Type": "application/json"})
-        a = json.load(urllib.request.urlopen(req, timeout=timeout))
+        a = json.load(_anfragen(
+            {**konfig.LLM_ZUSATZ, "max_tokens": 1,
+             "temperature": 0, "logprobs": True, "top_logprobs": 20,
+             "messages": [{"role": "system", "content": sys_p},
+                          {"role": "user", "content": text}]}, timeout))
         top = a["choices"][0]["logprobs"]["content"][0]["top_logprobs"]
         pf = pw = 0.0
         for t in top:

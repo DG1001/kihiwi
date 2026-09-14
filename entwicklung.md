@@ -2101,3 +2101,37 @@ gegen einen haeufigeren. Rueckgabe 30 heisst "nicht erreichbar", nicht
 `model-switch` meldet nach jedem Wechsel, fragt aber NICHT. Wer es von Hand
 aufruft, hat sich entschieden; ein Werkzeug, das sich weigert, haette kein
 Vorbild. Fragen muessen die automatischen Anrufer.
+
+## Sechs Tage stumm, ohne dass es auffiel
+
+Der Sprachdienst konnte das Modell nicht mehr erreichen. Ursache war kein
+Absturz, sondern ein Namenswechsel: er war am 07.09. mit
+`KIHIWI_MODEL=ornith-1.5-35b-a3b` gestartet, die Gutachten-App hat danach auf
+`qwen38` umgeschaltet, und seither ging jede Anfrage in einen 404. Sechs Tage
+lang. Gemeldet hat es niemand — es hat ja auch niemand mit ihm gesprochen.
+
+Das ist wieder derselbe Fehler wie schon dreimal zuvor: **Schweigen sieht aus
+wie Ausfall.** Ein 404 auf jede Anfrage ist von "hat mich nicht gehört" nicht
+zu unterscheiden, solange nichts davon nach draußen dringt.
+
+Die Prüfung beim Start in `dienste.sh` reicht dagegen nicht, denn der Wechsel
+passiert im Betrieb. Also heilt der Dienst es jetzt selbst: bei einem 404
+einmal `/v1/models` fragen, den angebotenen Namen übernehmen, die Anfrage
+wiederholen. Beim nächsten Mal steht der neue Name schon.
+
+**Erst falsch gebaut.** Der erste Versuch hängte den zweiten Anlauf an
+`_strom` an und ließ `_einmal` — den Weg der Werkzeugrunden und damit von
+Hermes — außen vor. Zwei Wiederholungsapparate, von denen einer fehlte. Die
+zweite Fassung dreht es um: `_anfragen()` stellt **jede** Chat-Anfrage und ist
+die einzige Stelle, die heilt. Vier Aufrufer, ein Weg.
+
+Geprüft mit absichtlich falschem Namen: Strompfad heilt, `_einmal` heilt, und
+ein echtes HTTP 400 wird weiterhin als Fehler gemeldet statt als Wechsel
+missdeutet. Das Endezeichen des Stroms wird dabei **genau einmal** geschoben —
+der rekursive Entwurf hätte es zweimal geschickt, und der Leser hätte den Rest
+der Antwort verworfen.
+
+**Was noch offen ist:** dass eine Anwendung dem Assistenten das Modell unter
+den Füßen wegzieht, heilt der Dienst jetzt, verhindert es aber nicht. Dafür
+gibt es die Belegungsstelle — die Gutachten-App ist dort noch nicht
+angemeldet.
