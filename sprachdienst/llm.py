@@ -45,6 +45,32 @@ def _modell_nachschlagen() -> str | None:
     return None
 
 
+# Modelle, die ihr Denken nach `reasoning_content` schreiben, statt gleich zu
+# antworten. Sie brauchen den Denkschalter, sonst verbrauchen sie `max_tokens`
+# im Nachdenken und liefern HTTP 200 mit LEEREM `content` -- kein Fehler, nur
+# nichts. Gemessen am 14.09.2026:
+#
+#   Qwen3.8-Flash-Next  ohne Schalter: keine Antwort auf Wissensfragen
+#                       mit  Schalter: 5,2 s bis zum ersten Satz
+#   GLM-5.3-Flash       ohne Schalter: 15,1 s, Antwort abgeschnitten
+#                       mit  Schalter: 5,7 s
+#
+# Nach dem Namen und nicht nach einer Probe: eine Probe kostet einen Aufruf
+# bei jedem Start, und der Name steht ohnehin fest. Wer ein Modell findet,
+# das hier fehlt, traegt es ein -- oder setzt KIHIWI_LLM_ZUSATZ von Hand,
+# das hat Vorrang.
+_DENKER = ("glm-", "qwen3.8-flash")
+
+
+def _denkschalter(rumpf: dict) -> None:
+    """Bei einem Reasoning-Modell das Nachdenken abschalten."""
+    if konfig.LLM_ZUSATZ:          # Vorgabe von Hand schlaegt die Automatik
+        return
+    name = _modellname().lower()
+    if any(teil in name for teil in _DENKER):
+        rumpf["chat_template_kwargs"] = {"enable_thinking": False}
+
+
 def _anfragen(rumpf: dict, timeout: int):
     """Eine Anfrage an den Motor. Bei 404 einmal mit frisch geholtem Namen.
 
@@ -54,6 +80,7 @@ def _anfragen(rumpf: dict, timeout: int):
     """
     for letzter in (False, True):
         rumpf["model"] = _modellname()
+        _denkschalter(rumpf)
         req = urllib.request.Request(
             f"{konfig.LLM_URL}/chat/completions",
             data=json.dumps(rumpf).encode(),

@@ -1341,10 +1341,36 @@ Gemessen am 14.09.2026 mit GLM-5.3-Flash (2 bit, llama.cpp), warm:
 
 `KIHIWI_LLM_ZUSATZ='{"chat_template_kwargs":{"enable_thinking":false}}'`
 drückt die Zeit am Motor auf ein Drittel und verhindert vor allem die leeren
-Antworten. **Im Sprachdienst ändert es die Latenz kaum** (15,5 s gegen
+Antworten. Bei GLM ändert das die Latenz im Sprachdienst kaum (15,5 s gegen
 15,3 s): dort überwiegt die Prompt-Verarbeitung der vorangestellten
 Fundstellen. Der Schutz gegen erfundene Antworten kostet bei langsamen
 Modellen also Zeit, die er bei den MoE-Modellen nicht kostete.
+
+**Der Schalter wird nicht mehr von Hand gesetzt.** `_denkschalter()` in
+`llm.py` ergänzt ihn selbst, sobald der angebotene Modellname in `_DENKER`
+steht (`glm-`, `qwen3.8-flash`) — auch wenn das Modell im Betrieb gewechselt
+wird. `KIHIWI_LLM_ZUSATZ` von Hand hat Vorrang. Nach dem Namen und nicht nach
+einer Probe: eine Probe kostete einen Aufruf bei jedem Start.
+
+#### Qwen3.8-Flash-Next (125B gesamt / 6B aktiv, Q3\_K\_XL, llama.cpp)
+
+Gemessen am 14.09.2026, warm, gegen dieselben Fragen:
+
+| | ohne Denkschalter | mit Denkschalter |
+|---|---|---|
+| erster Satz, Wissensfrage | **gar keine Antwort** | **5,2–6,2 s** |
+| Antwort am Motor (1827 Token Prompt) | 10,1 s, `finish_reason: length` | 7,7 s, `stop` |
+| Nachdenken | 664 Zeichen | **0** |
+| Antwortlänge | 259 Zeichen (abgeschnitten) | 704 Zeichen |
+
+Ohne den Schalter kam bei Wissensfragen **nichts** — das Nachdenken
+verbrauchte `max_tokens`, und `content` blieb leer. Der Riegel in
+`_antworten()` meldete das hörbar, aber eine Antwort war es nicht.
+
+Damit ist Qwen3.8-Flash-Next am Sprachdienst **dreimal schneller als
+GLM-5.3-Flash** (5,2 s gegen 15,5 s) bei gleicher Quellentreue: Antworten mit
+Abschnittsangabe, und auf „Was ist die Hauptstadt von Frankreich?" kommt
+„steht in den vorliegenden Unterlagen nicht".
 
 ## Fallen, die schon Zeit gekostet haben
 

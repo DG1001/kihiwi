@@ -2274,3 +2274,36 @@ der jede Antwort vorbeikommt.
 Geprüft mit zwei Testmotoren auf einem eigenen Port: einer liefert 500, einer
 liefert 200 mit leerem Inhalt. Der echte Dienst und Freds Messaufbau blieben
 dabei unberührt.
+
+## Der Denkschalter gehört nicht in die Hand des Startenden
+
+Qwen3.8-Flash-Next am Sprachdienst: ohne `enable_thinking: false` kam auf
+Wissensfragen **gar nichts**. Das Nachdenken verbrauchte `max_tokens`, die
+Anfrage endete mit `finish_reason: length`, und `content` blieb leer — HTTP
+200, kein Fehler, nur nichts. Mit dem Schalter: 5,2 s bis zum ersten Satz,
+704 statt 259 Zeichen Antwort, `finish_reason: stop`.
+
+Das ist derselbe Befund wie bei GLM-5.3-Flash am selben Tag, nur schärfer:
+dort wurde es langsam, hier blieb es stumm.
+
+Den Schalter beim Start von Hand mitzugeben wäre eine Falle mit Ansage. Auf
+dieser Maschine wechselt das Modell **unter dem laufenden Dienst** — genau
+dafür gibt es seit heute früh `_anfragen()`. Ein Schalter, der beim Start
+festgelegt wird, passt nach dem nächsten Wechsel nicht mehr. Also entscheidet
+ihn dieselbe Stelle, die den Modellnamen kennt: `_denkschalter()` sieht beim
+Bauen jeder Anfrage nach, ob der aktuelle Name in `_DENKER` steht.
+
+Nach dem Namen und nicht nach einer Probe. Eine Probe wäre ehrlicher, kostete
+aber einen Aufruf bei jedem Start, und der Name steht ohnehin fest. Wer ein
+Modell findet, das fehlt, trägt es ein — oder setzt `KIHIWI_LLM_ZUSATZ`, das
+hat weiter Vorrang.
+
+**Stand der Modelle am Sprachdienst** (warm, erster Satz auf eine
+Wissensfrage): Qwen3.8-Flash-Next 5,2 s, GLM-5.3-Flash 15,5 s. Beide belegen
+ihre Antworten aus den Unterlagen und lehnen Fragen ab, die nicht darin
+stehen.
+
+Nebenbei: die seit heute vorab laufende Dokumentensuche stand in keinem
+Protokoll, weil nur die Suchen des *Modells* mitgeschrieben werden. Ihr Fehlen
+sah bei der Fehlersuche so aus, als wäre gar nicht gesucht worden — eine
+Viertelstunde in die falsche Richtung. Jetzt schreibt sie sich mit.

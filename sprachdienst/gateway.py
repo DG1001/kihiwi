@@ -867,6 +867,10 @@ class Sitzung:
                     if vorige:
                         suchtext = f"{vorige} {text}"
                 treffer = await self.werkzeug("dokumente_suchen", {"frage": suchtext})
+                # Mitschreiben: die Suchen des MODELLS stehen im Protokoll,
+                # diese hier stand nicht drin -- und ihr Fehlen sah aus, als
+                # waere gar nicht gesucht worden.
+                log.info("  Suche (vorab) %r -> %d Zeichen", suchtext[:60], len(treffer))
                 await self.ws.send(json.dumps({"typ": "werkzeug",
                                                "name": "dokumente_suchen",
                                                "args": {"frage": suchtext},
