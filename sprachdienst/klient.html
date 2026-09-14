@@ -189,34 +189,67 @@
      die Flaeche darf trotzdem breit sein. */
   #b-inhalt .lauf { max-width:52rem; }
 
-  .eintrag { display:flex; align-items:center; gap:.7rem; padding:.55rem .6rem;
+  .eintrag { display:flex; align-items:flex-start; gap:.7rem; padding:.5rem .6rem;
              border-radius:.35rem; cursor:pointer; border:1px solid transparent;
              max-width:52rem; }
   .eintrag:hover { background:#1a1a22; border-color:var(--linie); }
   .eintrag .art { font-size:.7rem; text-transform:uppercase; letter-spacing:.06em;
-                  padding:.15rem .5rem; border-radius:1rem; flex:none; }
+                  padding:.15rem .5rem; border-radius:1rem; flex:none;
+                  margin-top:.08rem; }
   .art.protokoll { background:#12283a; color:#7ab8e8; }
   .art.recherche { background:#3a2a12; color:#e8b339; }
   /* Rohe Aufnahme ohne Protokoll -- warnfarben, denn sie liegt ungelesen da. */
   .art.mitschnitt { background:#3a1a1a; color:#e89a9a; }
-  .eintrag .wann { color:var(--matt); font-size:.8rem; flex:none; }
-  .eintrag .titel { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .eintrag .wann { color:var(--matt); font-size:.8rem; flex:none; margin-left:auto;
+                   order:3; }
+  /* Zwei Zeilen statt Auslassungspunkte: Recherchetitel sind bis zu 294
+     Zeichen lang, und in einer Zeile stand davon nichts Brauchbares. */
+  .eintrag .titel { flex:1 1 auto; min-width:0; display:-webkit-box;
+                    -webkit-line-clamp:2; -webkit-box-orient:vertical;
+                    overflow:hidden; line-height:1.35; }
+  .eintrag .weg { order:4; }
   .b-leer { color:var(--matt); font-size:.9rem; }
   /* Meldung des Dienstes, nicht des Assistenten -- gesprochen wird sie nicht. */
   .zeile.system .text { color:var(--matt); font-style:italic; }
 
   /* Loeschen: nur beim Ueberfahren sichtbar, damit die Liste ruhig bleibt --
      und zweistufig, denn ein Fehlklick waere nicht rueckgaengig zu machen. */
-  .eintrag .weg { flex:none; margin-left:auto; border:1px solid transparent;
-                  background:none; color:var(--matt); cursor:pointer;
-                  font:inherit; font-size:.8rem; padding:.1rem .5rem;
-                  border-radius:.3rem; opacity:0; }
+  /* Grundform fuer JEDEN Loeschknopf -- auch den im Kopf. Stand das hier
+     zuerst nur als `.eintrag .weg`, blieb der Knopf in der Werkzeugleiste
+     unformatiert und war damit der hellste auf der Seite. Ein Loeschknopf
+     soll das Letzte sein, was ins Auge faellt. */
+  .weg { flex:none; border:1px solid transparent; background:none;
+         color:var(--matt); cursor:pointer; font:inherit; font-size:.8rem;
+         padding:.1rem .5rem; border-radius:.3rem; }
+  .weg:hover, .weg.fragt { border-color:#7a2a2a; color:#e88; }
+  .weg.fragt { background:#2a1414; }
+  /* In der Zeile erst beim Ueberfahren, damit die Liste ruhig bleibt. */
+  .eintrag .weg { margin-left:auto; opacity:0; }
   .eintrag:hover .weg, .eintrag .weg.fragt { opacity:1; }
-  .eintrag .weg:hover, .eintrag .weg.fragt { border-color:#7a2a2a; color:#e88; }
-  .eintrag .weg.fragt { background:#2a1414; }
-  .ablage-kopf { display:flex; align-items:center; gap:.6rem; max-width:52rem;
-                 margin-bottom:.5rem; }
-  .ablage-kopf .weg-alle { margin-left:auto; }
+  /* Werkzeugleiste der Ablage. Klebt oben fest: bei vierzig Eintraegen ist
+     das Suchfeld sonst weggescrollt, sobald man es braucht. */
+  .ablage-kopf { display:flex; align-items:center; gap:.5rem; max-width:52rem;
+                 flex-wrap:wrap; position:sticky; top:0; z-index:2;
+                 background:var(--bg); padding:.1rem 0 .6rem;
+                 border-bottom:1px solid var(--linie); margin-bottom:.9rem; }
+  .ablage-kopf .weg-alle { margin-left:auto; opacity:1; }
+  .ablage-suche { flex:1 1 12rem; min-width:9rem; background:#15151c;
+                  border:1px solid var(--linie); border-radius:.35rem;
+                  color:var(--fg); font:inherit; font-size:.85rem;
+                  padding:.35rem .6rem; }
+  .ablage-suche:focus { outline:none; border-color:#3a3a4a; background:#1a1a22; }
+  .ablage-suche::placeholder { color:var(--matt); }
+  .ablage-chip { background:none; border:1px solid var(--linie); color:var(--matt);
+                 font:inherit; font-size:.75rem; padding:.25rem .6rem;
+                 border-radius:1rem; cursor:pointer; }
+  .ablage-chip:hover { color:var(--fg); }
+  .ablage-chip.an { background:#1f1f29; color:var(--fg); border-color:#3a3a4a; }
+  .ablage-gruppe { font-size:.75rem; text-transform:uppercase;
+                   letter-spacing:.07em; color:var(--matt); font-weight:600;
+                   margin:1.3rem 0 .4rem; max-width:52rem; }
+  .ablage-gruppe:first-child { margin-top:0; }
+  .ablage-gruppe .zahl { font-weight:400; text-transform:none;
+                         letter-spacing:0; opacity:.6; }
 </style>
 
 <div id="seite">
@@ -900,8 +933,45 @@ function loeschknopf(beschriftung, frage, tun) {
   return k;
 }
 
+// Filter und Suchtext ueberleben das Neuzeichnen: nach einem Loeschen wird
+// die Liste neu geholt, und wer dabei seinen Filter verliert, sucht von vorn.
+let ablageFilter = "alle";
+let ablageSuche = "";
+
+/* Grobe Zeitraeume statt eines Datums je Zeile. Bei vierzig Eintraegen ueber
+   drei Wochen ist "wann ungefaehr" die Frage, nicht "welche Minute". */
+function ablageGruppe(sek) {
+  const d = new Date(sek * 1000), jetzt = new Date();
+  const tag = x => new Date(x.getFullYear(), x.getMonth(), x.getDate());
+  const tage = Math.round((tag(jetzt) - tag(d)) / 86400000);
+  if (tage <= 0) return "Heute";
+  if (tage === 1) return "Gestern";
+  if (tage < 7)  return "Diese Woche";
+  // Danach nach Monat. "Vorige Woche" stand hier zuerst und nahm alles bis
+  // vierzehn Tage auf -- dadurch fiel der 03.09. unter "vorige Woche", und
+  // einen Block "September" gab es gar nicht, obwohl Eintraege aus dem Monat
+  // dastanden. Monate sind grob, aber sie luegen nicht.
+  return d.toLocaleDateString("de-DE", {month: "long", year: "numeric"});
+}
+
+/* Das Praefix "Recherche:" steht schon im Chip daneben. Bei einundvierzig
+   Eintraegen untereinander kostet es die erste Zeile jedes Titels. */
+function ablageTitel(e) {
+  return e.titel.replace(/^Recherche:\s*/i, "").trim() || e.kennung;
+}
+
+const ABLAGE_WORT = {protokoll: "Protokolle", mitschnitt: "Aufzeichnungen",
+                     recherche: "Recherchen"};
+
+/* Kopf und Geruest. Die Eintraege selbst zeichnet ablageListe(). */
 function ablageZeigen() {
-  buehne("Ablage", "Protokolle und Recherchen", "",
+  const arten = [...new Set(ablageEintraege.map(e => e.art))];
+  if (!arten.includes(ablageFilter)) ablageFilter = "alle";
+
+  // Untertitel aus dem, was wirklich dasteht.
+  const was = arten.length ? arten.map(a => ABLAGE_WORT[a] || a).join(", ")
+                           : "Protokolle und Recherchen";
+  buehne("Ablage", was, "",
          ablageEintraege.length ? `${ablageEintraege.length} Einträge` : "");
   const lauf = $("b-inhalt").firstChild;
   if (!ablageEintraege.length) {
@@ -909,23 +979,96 @@ function ablageZeigen() {
       + "beim Stoppen automatisch protokolliert.</div>";
     return;
   }
-  if (ablageEintraege.some(e => e.art === "protokoll" || e.art === "mitschnitt")) {
-    const kopf = document.createElement("div");
-    kopf.className = "ablage-kopf";
+
+  // --- Werkzeugleiste
+  const kopf = document.createElement("div");
+  kopf.className = "ablage-kopf";
+  const feld = document.createElement("input");
+  feld.className = "ablage-suche";
+  feld.type = "search";
+  feld.placeholder = "Titel durchsuchen …";
+  feld.value = ablageSuche;
+  // Nur die Liste neu zeichnen, nicht die ganze Seite: bliebe das Feld nicht
+  // stehen, waere es nach dem ersten Zeichen ein anderes Element, und der
+  // Fokus laege im Nichts. Fokus hinterher zurueckzusetzen hiesse, sich auf
+  // die Schreibmarke zu verlassen -- billiger ist, das Feld gar nicht erst
+  // anzufassen.
+  feld.oninput = () => { ablageSuche = feld.value; ablageListe(); };
+  kopf.appendChild(feld);
+  if (arten.length > 1) {
+    for (const a of ["alle", ...arten]) {
+      const c = document.createElement("button");
+      c.className = "ablage-chip" + (a === ablageFilter ? " an" : "");
+      c.dataset.art = a;
+      c.textContent = a === "alle"
+        ? `alle ${ablageEintraege.length}`
+        : `${a} ${ablageEintraege.filter(e => e.art === a).length}`;
+      c.onclick = () => { ablageFilter = a; ablageListe(); };
+      kopf.appendChild(c);
+    }
+  }
+  if (arten.includes("protokoll") || arten.includes("mitschnitt")) {
     const alle = loeschknopf("Alle Aufzeichnungen löschen",
                              "Wirklich alle? Nochmal klicken.",
                              () => senden({befehl: "loeschen", alles: true}));
     alle.classList.add("weg-alle");
     kopf.appendChild(alle);
-    lauf.appendChild(kopf);
   }
-  for (const e of ablageEintraege) {
+  lauf.appendChild(kopf);
+
+  const behaelter = document.createElement("div");
+  behaelter.id = "ablage-liste";
+  lauf.appendChild(behaelter);
+  ablageListe();
+}
+
+/* Nur die Eintraege. Kopf und Suchfeld bleiben stehen. */
+function ablageListe() {
+  const behaelter = $("ablage-liste");
+  if (!behaelter) return;
+  behaelter.textContent = "";
+  const arten = [...new Set(ablageEintraege.map(e => e.art))];
+  // Bei nur einer Art sagt der Chip an jeder Zeile dasselbe. Einundvierzigmal
+  // "RECHERCHE" untereinander kostet Platz und unterscheidet nichts.
+  const zeigArt = arten.length > 1;
+  const sucher = ablageSuche.trim().toLowerCase();
+  const sichtbar = ablageEintraege.filter(e =>
+    (ablageFilter === "alle" || e.art === ablageFilter) &&
+    (!sucher || ablageTitel(e).toLowerCase().includes(sucher)
+             || e.kennung.toLowerCase().includes(sucher)));
+
+  $("b-wann").textContent = sichtbar.length === ablageEintraege.length
+    ? `${ablageEintraege.length} Einträge`
+    : `${sichtbar.length} von ${ablageEintraege.length}`;
+  for (const c of document.querySelectorAll(".ablage-chip"))
+    c.classList.toggle("an", c.dataset.art === ablageFilter);
+
+  if (!sichtbar.length) {
+    const leer = document.createElement("div");
+    leer.className = "b-leer";
+    leer.textContent = "Nichts gefunden.";
+    behaelter.appendChild(leer);
+    return;
+  }
+
+  const lauf = behaelter;
+  let letzte = null;
+  for (const e of sichtbar) {
+    const g = ablageGruppe(e.geaendert);
+    if (g !== letzte) {
+      letzte = g;
+      const anzahl = sichtbar.filter(x => ablageGruppe(x.geaendert) === g).length;
+      const kopfz = document.createElement("div");
+      kopfz.className = "ablage-gruppe";
+      kopfz.innerHTML = `${g} <span class="zahl">${anzahl}</span>`;
+      lauf.appendChild(kopfz);
+    }
     const d = document.createElement("div");
     d.className = "eintrag";
-    d.innerHTML = `<span class="art ${e.art}">${e.art}</span>`
-      + `<span class="wann">${wannText(e.geaendert)}</span>`
-      + `<span class="titel"></span>`;
-    d.querySelector(".titel").textContent = e.titel;
+    d.innerHTML = (zeigArt ? `<span class="art ${e.art}">${e.art}</span>` : "")
+      + `<span class="titel"></span>`
+      + `<span class="wann">${wannText(e.geaendert)}</span>`;
+    d.querySelector(".titel").textContent = ablageTitel(e);
     d.appendChild(loeschknopf("löschen", "wirklich?",
                               () => senden({befehl: "loeschen", art: e.art,
                                             kennung: e.kennung})));
@@ -943,7 +1086,7 @@ async function oeffnen(e) {
     return;
   }
   const r = await fetch("/api/datei?k=" + encodeURIComponent(e.kennung));
-  buehne(e.art === "protokoll" ? "Protokoll" : "Recherche", e.titel,
+  buehne(e.art === "protokoll" ? "Protokoll" : "Recherche", ablageTitel(e),
          alsHtml(await r.text()), wannText(e.geaendert));
 }
 

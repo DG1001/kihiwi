@@ -974,6 +974,24 @@ Nachbereitung oder Recherche lädt er sie selbst neu.
 mir das Protokoll" über das Modell zu lösen kostete einen Abend Prompt-Arbeit
 und blieb wackelig; eine Liste kann nicht missverstanden werden.
 
+**Aufbau der Liste.** Einträge sind nach Zeitraum gebündelt (Heute, Gestern,
+Diese Woche, danach nach Monat), mit Zähler je Block. Darüber eine
+Werkzeugleiste, die oben klebt: Suchfeld über Titel und Kennung, Filter-Chips
+je Art mit Anzahl, rechts das Löschen aller Aufzeichnungen.
+
+Drei Details, die aus dem Bestand von 41 Einträgen kamen:
+
+- Das Präfix „Recherche:" fällt aus dem Titel — es steht schon im Chip daneben
+  und kostete sonst den Anfang jeder Zeile.
+- Der Art-Chip erscheint **nur, wenn mehr als eine Art dasteht**. Einundvierzig
+  Mal „RECHERCHE" untereinander unterscheidet nichts.
+- Titel laufen über zwei Zeilen statt in Auslassungspunkte. Die längsten sind
+  fast 300 Zeichen; in einer Zeile stand davon nichts Brauchbares.
+
+Die Suche zeichnet **nur die Liste** neu, nicht die Seite. Würde das Suchfeld
+mitgezeichnet, wäre es nach dem ersten Zeichen ein anderes Element und der
+Fokus läge im Nichts.
+
 **Löschen** läuft über den WebSocket-Befehl `loeschen` — einzeln mit `art` und
 `kennung`, alle Protokolle auf einmal mit `alles: true`. Der Client nennt nie
 einen Pfad, nur Art und Kennung; `_loeschen()` sucht den Eintrag in der
