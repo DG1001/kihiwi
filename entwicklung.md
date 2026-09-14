@@ -2246,3 +2246,31 @@ kontextlos gesucht und landete bei der Absuchzeit von Bakterien — belegt,
 sauber zitiert, zur falschen Frage. Kurze Rückfragen bekommen deshalb die
 vorige Äußerung vorangestellt. Danach korrigierte sich der Assistent im Test
 von selbst: „Ich habe mich geirrt, das steht so nicht in den Unterlagen."
+
+## „Teilweise kommt gar keine Antwort"
+
+Mit GLM-5.3-Flash am Sprachdienst blieb der Assistent bei manchen Fragen
+stumm. Im Protokoll stand der Grund — `HTTPError 500` aus der Werkzeugrunde —,
+im Raum stand nichts.
+
+Es sind zwei Ursachen, und beide endeten in derselben Stille. Der Motor bricht
+ab; `antwort_mit_werkzeugen()` loggte das und kehrte stumm zurück. Und: ein
+Reasoning-Modell schreibt sein Denken nach `reasoning_content`, und reicht das
+Token-Budget nicht bis zur Antwort, kommt HTTP 200 mit leerem `content` —
+**kein Fehler, nur nichts**. GLM lieferte bei `max_tokens: 60` null Zeichen
+Text bei 288 erzeugten Token.
+
+Der Riegel sitzt deshalb nicht an den Fehlerstellen, sondern am Ende von
+`_antworten()`: wurde nichts gesagt, sagt der Dienst das. Eine Fehlerstelle
+kann man übersehen, das Ende nicht.
+
+**Das ist derselbe Fehler wie heute früh beim Modellwechsel** und wie
+mindestens dreimal davor. Schweigen sieht aus wie Ausfall, und in einem
+Sprachassistenten ist es von „hat mich nicht gehört" schlicht nicht zu
+unterscheiden. Jedes Mal war die Lehre dieselbe, und jedes Mal habe ich sie an
+einer neuen Stelle neu lernen müssen — deshalb jetzt an der einen Stelle, an
+der jede Antwort vorbeikommt.
+
+Geprüft mit zwei Testmotoren auf einem eigenen Port: einer liefert 500, einer
+liefert 200 mit leerem Inhalt. Der echte Dienst und Freds Messaufbau blieben
+dabei unberührt.

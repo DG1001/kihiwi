@@ -1305,6 +1305,47 @@ Der Assistent nahm danach vier Stunden lang jede Wissensfrage entgegen und
 antwortete nicht. Gegen den kaputten Stand gehalten meldet die Prüfung genau
 die zwei Namen, an denen es brach.
 
+### Es kommt immer eine Antwort, notfalls eine Absage
+
+Am Ende von `_antworten()` steht ein Riegel: wurde **nichts** gesagt, sagt der
+Dienst „Darauf habe ich keine Antwort bekommen." Er sitzt dort und nicht an
+den einzelnen Fehlerstellen, weil er so jede Ursache abdeckt.
+
+Zwei davon sind belegt:
+
+- **Der Motor bricht ab.** `antwort_mit_werkzeugen()` kehrte bei einem Fehler
+  stumm zurück; im Protokoll stand `HTTPError 500`, im Raum nichts. Jetzt
+  liefert sie ein `("fehler", …)`-Ereignis mit dem HTTP-Code, und der Code
+  wird ausgesprochen.
+- **Eine leere Antwort ohne Fehler.** Reasoning-Modelle schreiben ihr Denken
+  nach `reasoning_content`; reicht `max_tokens` nicht bis zur Antwort, kommt
+  HTTP 200 mit leerem `content`. GLM-5.3-Flash lieferte bei `max_tokens: 60`
+  null Zeichen Text und 288 Token Nachdenken.
+
+Geprüft gegen zwei Testmotoren: einer, der 500 liefert, und einer, der 200
+mit leerem Inhalt liefert. **Schweigen ist von „hat mich nicht gehört" nicht
+zu unterscheiden** — dieselbe Verwechslung hat in diesem Projekt schon
+mehrfach Zeit gekostet.
+
+### Reasoning-Modelle am Sprachdienst
+
+Gemessen am 14.09.2026 mit GLM-5.3-Flash (2 bit, llama.cpp), warm:
+
+| | |
+|---|---|
+| erster Satz auf eine Wissensfrage | **15,5 s** |
+| Werkzeugrunde mit 1778 Token Prompt | 10,7 s |
+| derselbe Aufruf mit 27 Token Prompt | 5,4 s |
+| Antwort direkt am Motor, mit Denken | 15,1 s (1623 Zeichen Denken) |
+| dasselbe mit `enable_thinking: false` | 5,7 s |
+
+`KIHIWI_LLM_ZUSATZ='{"chat_template_kwargs":{"enable_thinking":false}}'`
+drückt die Zeit am Motor auf ein Drittel und verhindert vor allem die leeren
+Antworten. **Im Sprachdienst ändert es die Latenz kaum** (15,5 s gegen
+15,3 s): dort überwiegt die Prompt-Verarbeitung der vorangestellten
+Fundstellen. Der Schutz gegen erfundene Antworten kostet bei langsamen
+Modellen also Zeit, die er bei den MoE-Modellen nicht kostete.
+
 ## Fallen, die schon Zeit gekostet haben
 
 - **Silero v5 will 64 Samples Kontext vor dem 512er-Block**, Eingang also 576.

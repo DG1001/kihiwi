@@ -880,6 +880,12 @@ class Sitzung:
                     frage, self.verlauf, werkzeuge, self.werkzeug,
                     system=self.system_prompt(wofuer),
                     system_antwort=self.antwort_prompt()):
+                if e[0] == "fehler":
+                    await self.ws.send(json.dumps({"typ": "text",
+                                                   "rolle": "assistent", "text": e[1]}))
+                    await self.sag(e[1])
+                    ganze.append(e[1])
+                    continue
                 if e[0] == "werkzeug_beginnt":
                     ansage = ANSAGE.get(e[1])
                     # NICHT in den Verlauf, und je Werkzeug nur einmal.
@@ -1053,6 +1059,27 @@ class Sitzung:
                                                    "text": wahr}))
                     await self.sag(wahr)
                     ganze.append(wahr)
+
+            # Letzter Riegel: gar nichts gesagt zu haben ist fuer den Nutzer
+            # nicht von "hat mich nicht gehoert" zu unterscheiden, und genau
+            # das ist in diesem Projekt schon mehrfach als Ausfall
+            # missverstanden worden. Der Riegel sitzt hier und nicht an den
+            # einzelnen Fehlerstellen, weil er so JEDE Ursache abdeckt: einen
+            # Fehler des Motors ebenso wie eine leere Antwort. Reasoning-
+            # Modelle liefern die naemlich ganz ohne Fehler -- GLM-5.3 schrieb
+            # sein ganzes Token-Budget ins Nachdenken und `content` blieb leer.
+            if not any(z.strip() for z in ganze):
+                log.warning("Keine Antwort erzeugt — melde das hörbar")
+                notnagel = ("Darauf habe ich keine Antwort bekommen. "
+                            "Frag es bitte noch einmal.")
+                await self.ws.send(json.dumps({"typ": "text", "rolle": "assistent",
+                                               "text": notnagel}))
+                await self.sag(notnagel)
+                # NICHT in den Verlauf: die Notiz beantwortet nichts, und im
+                # Verlauf wuerde sie beim naechsten Zug als Vorbild dienen.
+                self.verlauf += [{"role": "user", "content": text}]
+                del self.verlauf[:-8]
+                return
 
             self.verlauf += [{"role": "user", "content": text},
                              {"role": "assistant", "content": " ".join(ganze)}]

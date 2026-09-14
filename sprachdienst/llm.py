@@ -367,8 +367,19 @@ async def antwort_mit_werkzeugen(frage: str, verlauf, werkzeuge, ausfuehren,
         try:
             text, rufe = await asyncio.to_thread(
                 _einmal, nachrichten, max_tokens, 0.3, werkzeuge)
+        except urllib.error.HTTPError as e:
+            # Den Text mitnehmen: "HTTP 500" allein sagt niemandem, was los
+            # war, und der Dienst schwieg dazu bisher ganz.
+            try:
+                grund = e.read().decode()[:200]
+            except Exception:
+                grund = ""
+            log.error("Werkzeugrunde gescheitert: HTTP %s %s", e.code, grund)
+            yield ("fehler", f"Der Motor hat einen Fehler gemeldet ({e.code}).")
+            return
         except Exception as e:
             log.error("Werkzeugrunde gescheitert: %r", e)
+            yield ("fehler", "Ich konnte das Modell nicht erreichen.")
             return
 
         if not rufe:
