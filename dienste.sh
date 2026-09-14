@@ -14,6 +14,7 @@
 #                                (einlesen | erschliessen | vektoren |
 #                                 katalog | ueberblick | status | suchen ...
 #                                 | web ...)
+#   ./dienste.sh namen           sucht Namen, die nirgends definiert sind
 #   ./dienste.sh sprechermodelle laedt die Modelle der Sprechertrennung nach
 #                                (35 MB, liegen nicht im Repo)
 #
@@ -334,10 +335,28 @@ status() {
     free -h | awk 'NR==2{printf "  Speicher: %s frei von %s\n", $7, $2}'
 }
 
+# Namen pruefen, bevor der Dienst startet. Ein Umbau hat am 14.09.2026 acht
+# Definitionen mitgerissen; py_compile merkt davon nichts, weil ein NameError
+# erst beim Aufruf entsteht. Der Assistent nahm danach jede Wissensfrage
+# entgegen und antwortete nicht.
+#
+# WARNT nur, bricht nicht ab: ein laufender Dienst mit einem Fehler in einem
+# Nebenpfad ist besser als gar keiner -- und wer die Warnung sieht, weiss
+# wenigstens, wo er suchen muss.
+namen_pruefen() {
+    local aus
+    aus="$("$VENV" "$WURZEL/namenspruefung.py" 2>&1)" || {
+        warn "Namenspruefung schlaegt an:"
+        echo "$aus" | grep -v "Dateien geprüft" | sed 's/^/      /'
+    }
+}
+
 # ------------------------------------------------------------------ Einstieg
 case "${1:-status}" in
     start)
-        start_vllm; start_whisper; start_sprach; echo; status ;;
+        namen_pruefen; start_vllm; start_whisper; start_sprach; echo; status ;;
+    namen)
+        exec "$VENV" "$WURZEL/namenspruefung.py" "${@:2}" ;;
     waechter)
         case "${2:-start}" in
             start) waechter_start ;;

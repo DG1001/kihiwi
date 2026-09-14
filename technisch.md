@@ -1226,6 +1226,28 @@ wird — fällt sie auf WEITER, hat sie nichts gekostet. **Greift sie, wird ihr
 Transkript weiterverwendet und das STT im Antwortpfad übersprungen** (0 ms statt
 130–257 ms).
 
+### Namensprüfung vor dem Start
+
+`./dienste.sh namen` (und jeder `start`) sucht Namen, die **nirgends im Modul
+gebunden** sind — 124 Dateien in Sekundenbruchteilen, ohne Fremdbibliothek.
+
+Sie sammelt jeden Namen, der irgendwo einen Wert bekommt (oben, in Funktionen,
+Parameter, Schleifen, `except … as`, `with … as`, Importe) und meldet jeden
+gelesenen Namen, der darin fehlt. **Gültigkeitsbereiche prüft sie nicht** —
+eine Variable, die nur in einer anderen Funktion existiert, fällt nicht auf.
+Dafür gibt es praktisch keine Fehlalarme: auf dem ganzen Bestand null Funde.
+
+Sie **warnt nur und bricht nicht ab**. Ein laufender Dienst mit einem Fehler
+in einem Nebenpfad ist besser als gar keiner, und wer die Warnung sieht, weiß,
+wo er suchen muss.
+
+Anlass war der 14.09.2026: ein Umbau in `llm.py` riss acht Definitionen mit,
+weil ein Textschnitt über einen Zeilenbereich keine Funktionsgrenzen kennt.
+`py_compile` merkt davon nichts — ein `NameError` entsteht erst beim Aufruf.
+Der Assistent nahm danach vier Stunden lang jede Wissensfrage entgegen und
+antwortete nicht. Gegen den kaputten Stand gehalten meldet die Prüfung genau
+die zwei Namen, an denen es brach.
+
 ## Fallen, die schon Zeit gekostet haben
 
 - **Silero v5 will 64 Samples Kontext vor dem 512er-Block**, Eingang also 576.

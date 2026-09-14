@@ -2212,3 +2212,9 @@ belegt: nichts fehlt, dazugekommen sind genau `_modellname`,
 Der AST-Vergleich ist die eigentliche Lehre. `grep '^def '` hätte hier nicht
 gereicht — `class _Teiler` und `async def _saetze` fangen anders an, und genau
 die fehlten am längsten.
+
+Damit das nicht wiederkommt, gibt es jetzt `./dienste.sh namen`: eine
+AST-Prüfung auf Namen, die nirgends im Modul gebunden sind. Sie läuft bei
+jedem `start` mit, warnt aber nur — ein Dienst mit einem Fehler in einem
+Nebenpfad ist besser als gar keiner. Auf dem ganzen Bestand null Funde, gegen
+den kaputten Stand von heute Vormittag genau die zwei Namen, an denen es brach.
