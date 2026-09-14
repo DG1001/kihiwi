@@ -1013,6 +1013,35 @@ ohne das Modell: über den Umweg suchte er dafür erst in den Unterlagen und dan
 im Netz. Abgegrenzt gegen Fragen an die Quellen — „Welches Datum steht im
 Protokoll?" ist keine Frage an die Uhr.
 
+### Bei einer Frage an die Unterlagen sucht der Dienst, nicht das Modell
+
+Im Systemprompt für `WISSEN` stand die Bitte „Rufe zuerst `dokumente_suchen`
+auf". **Gemessen am 14.09.2026: von elf Fragen in drei Minuten rief das Modell
+das Werkzeug zweimal.** In den neun anderen antwortete es aus dem Vorwissen —
+bei der Gerätebedienung mit einem erfundenen Schalter, und es blieb dabei, als
+der Nutzer ausdrücklich auf die Anleitung verwies.
+
+Die drei Nachhol-Mechanismen greifen alle zu spät: sie prüfen die **fertige**
+Antwort auf eine Absage („kann ich nicht"), auf ein Rechercheversprechen oder
+auf eine Ankündigung („ich schaue nach"). Eine selbstbewusst erfundene Antwort
+sieht nach keinem davon aus — und ist bereits gesprochen, wenn die Prüfung
+läuft.
+
+Deshalb sucht der Dienst jetzt **vor** der Modellantwort, sobald die Absicht
+`WISSEN` ist, und legt die Fundstellen in den Prompt. Die Absichtserkennung
+hat ohnehin schon entschieden, dass die Frage an die Unterlagen geht; dann
+wird auch nachgesehen. Dazu die Auflage, sich an die Fundstellen zu halten und
+offen zu sagen, wenn die Antwort nicht darunter ist.
+
+**Kurze Rückfragen bekommen die vorige Äußerung als Kontext** (unter 50
+Zeichen). „Und wie lange dauert das?" allein führte auf die Absuchzeit von
+Bakterien statt auf die Einschaltdauer — sauber belegt und trotzdem zur
+falschen Frage. Lange Fragen tragen ihr Thema selbst und würden durch den
+Zusatz eher verwässert.
+
+Das Werkzeug bleibt der Runde erhalten: findet die erste Suche nichts, kann
+das Modell mit anderen Worten nachfassen oder ins Netz gehen.
+
 ### Auslösewörter: der Dienst handelt, das Modell wird nicht gefragt
 
 Tabelle in `absicht.AUSLOESER`. Fällt eines dieser Wörter, handelt der Dienst

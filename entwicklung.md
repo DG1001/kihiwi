@@ -2218,3 +2218,31 @@ AST-Prüfung auf Namen, die nirgends im Modul gebunden sind. Sie läuft bei
 jedem `start` mit, warnt aber nur — ein Dienst mit einem Fehler in einem
 Nebenpfad ist besser als gar keiner. Auf dem ganzen Bestand null Funde, gegen
 den kaputten Stand von heute Vormittag genau die zwei Namen, an denen es brach.
+
+## Das Modell suchte in neun von elf Fällen nicht
+
+Fred hat mehrfach nach dem Einschalten eines Geräts gefragt, dessen Anleitung
+seit dem Vormittag im Index liegt. Der Assistent behauptete stur, man müsse
+hinten einen Schalter drücken — auch als Fred ausdrücklich auf die Anleitung
+verwies und ihn aufforderte, in den Unterlagen nachzusehen.
+
+Das Protokoll zeigt es genau: elf Runden „Absicht wissen → 3 Werkzeug(e)" in
+drei Minuten, und **zwei** Aufrufe von `dokumente_suchen`. Im Systemprompt
+stand die Bitte, zuerst zu suchen. Eine Bitte ist keine Entscheidung.
+
+Die drei vorhandenen Nachhol-Mechanismen greifen alle erst an der fertigen
+Antwort: bei einer Absage, bei einem Rechercheversprechen, bei einer
+Ankündigung. Eine erfundene Antwort sieht nach keinem davon aus — und ist
+längst gesprochen, wenn geprüft wird. Das ist die eigentliche Lehre: eine
+Prüfung nach dem Sprechen kann Halluzination nicht verhindern, nur
+nachträglich kommentieren.
+
+Jetzt gilt bei `WISSEN` dasselbe wie beim Auslösewort: der Dienst sucht, das
+Modell formuliert. Die Fundstellen stehen im Prompt, bevor das Modell den
+ersten Token schreibt.
+
+**Zweiter Fund beim Prüfen.** Die Folgefrage „Und wie lange dauert das?" wurde
+kontextlos gesucht und landete bei der Absuchzeit von Bakterien — belegt,
+sauber zitiert, zur falschen Frage. Kurze Rückfragen bekommen deshalb die
+vorige Äußerung vorangestellt. Danach korrigierte sich der Assistent im Test
+von selbst: „Ich habe mich geirrt, das steht so nicht in den Unterlagen."

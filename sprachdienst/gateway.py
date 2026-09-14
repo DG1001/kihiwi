@@ -836,8 +836,48 @@ class Sitzung:
 
             werkzeuge = self.werkzeuge_fuer(wofuer)
             log.info("  Absicht %s -> %d Werkzeug(e)", wofuer.value, len(werkzeuge))
+
+            # Frage an die Unterlagen: der DIENST sucht, nicht das Modell.
+            #
+            # Im Systemprompt stand bisher die Bitte "Rufe zuerst
+            # 'dokumente_suchen' auf". Gemessen am 14.09.2026: von elf Fragen
+            # in drei Minuten rief das Modell das Werkzeug ZWEIMAL. In den
+            # neun anderen antwortete es aus dem Vorwissen -- beim
+            # Rasterelektronenmikroskop mit einem erfundenen Schalter, und es
+            # blieb dabei, als der Nutzer ausdruecklich auf die Anleitung
+            # verwies. Die Nachhol-Mechanismen greifen alle erst, wenn die
+            # erfundene Antwort schon gesprochen ist.
+            #
+            # Dieselbe Ueberlegung wie beim Ausloesewort weiter unten: wo die
+            # Handlung feststeht, entscheidet sie der Dienst. Die
+            # Absichtserkennung hat bereits bestimmt, dass die Frage an die
+            # Unterlagen geht -- dann wird auch nachgesehen.
+            frage = text
+            if wofuer is absicht_modul.Absicht.WISSEN:
+                # Kurze Rueckfragen tragen ihr Thema nicht selbst. "Und wie
+                # lange dauert das?" allein fuehrte auf die Absuchzeit von
+                # Bakterien, obwohl es um die Einschaltdauer ging -- die
+                # Antwort war sauber belegt und trotzdem zur falschen Frage.
+                # Die vorige Aeusserung davor genuegt; lange Fragen brauchen
+                # sie nicht und wuerden durch sie eher verwaessert.
+                suchtext = text
+                if len(text) < 50:
+                    vorige = next((n["content"] for n in reversed(self.verlauf)
+                                   if n.get("role") == "user"), "")
+                    if vorige:
+                        suchtext = f"{vorige} {text}"
+                treffer = await self.werkzeug("dokumente_suchen", {"frage": suchtext})
+                await self.ws.send(json.dumps({"typ": "werkzeug",
+                                               "name": "dokumente_suchen",
+                                               "args": {"frage": suchtext},
+                                               "ergebnis": treffer}))
+                frage = (f"Das steht dazu in unseren Unterlagen:\n\n{treffer}\n\n"
+                         f"Beantworte damit: {text}\n\n"
+                         f"Halte dich an diese Fundstellen und nenne die Quelle."
+                         f" Steht die Antwort nicht darin, sage genau das —"
+                         f" antworte NICHT aus eigenem Wissen.")
             async for e in llm.antwort_mit_werkzeugen(
-                    text, self.verlauf, werkzeuge, self.werkzeug,
+                    frage, self.verlauf, werkzeuge, self.werkzeug,
                     system=self.system_prompt(wofuer),
                     system_antwort=self.antwort_prompt()):
                 if e[0] == "werkzeug_beginnt":
