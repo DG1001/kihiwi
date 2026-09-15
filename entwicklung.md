@@ -2307,3 +2307,39 @@ Nebenbei: die seit heute vorab laufende Dokumentensuche stand in keinem
 Protokoll, weil nur die Suchen des *Modells* mitgeschrieben werden. Ihr Fehlen
 sah bei der Fehlersuche so aus, als wäre gar nicht gesucht worden — eine
 Viertelstunde in die falsche Richtung. Jetzt schreibt sie sich mit.
+
+## Zwei Hinweise von außen, beide berechtigt
+
+Ein Bekannter hat den Stand mit GPT durchsehen lassen und zwei Stellen
+bemängelt: `_einmal()` laufe mit bis zu 200 Token, deren Text bei einem
+Werkzeugaufruf verworfen werde; und die Vorabsuche mit anschließender voller
+Werkzeugrunde sei unglücklich.
+
+**Beides trifft zu, und das zweite ist mein Fehler vom 14.09.** Ich hatte die
+deterministische Suche eingebaut, dem Modell danach aber weiterhin
+`dokumente_suchen` angeboten — dieselbe Suche ein zweites Mal, auf Zuruf.
+
+Gemessen statt diskutiert, warm, je drei Läufe:
+
+| | erster Satz |
+|---|---|
+| vorher | 11,7 s |
+| nachher | 3,9 s |
+
+Bei der Begründung ist der Hinweis allerdings einen Schritt zu weit gegangen:
+die Werkzeug*auswahl* ist längst deterministisch — `absicht.erkennen()`
+bestimmt sie per Regeln, das Modell entscheidet nur noch, ob es ruft. Das
+ebenfalls per Regeln zu ersetzen hieße, „brauche ich hier ein Werkzeug?" für
+jede denkbare Formulierung vorwegzunehmen; daran ist die Vorgängerlösung schon
+einmal gescheitert.
+
+Der wirkliche Fehler saß eine Ebene tiefer: das Budget kostet **nur dann**
+etwas, wenn das Modell antwortet statt zu rufen. Ein echter Aufruf endet bei
+`tool_calls` nach einer Sekunde, ob 40 oder 200 Token erlaubt sind. Schreibt
+es stattdessen Prosa, läuft es bis zum Anschlag — und genau die wird verworfen.
+
+**40 Token wären zu wenig gewesen.** Dort brach ein Rechercheauftrag mitten im
+Argument ab, `finish_reason: length`, unvollständiges JSON — und daraus wird
+ein Werkzeug mit leeren Argumenten. Genau das `dokumente_suchen{}`, das am
+14.09. im Protokoll stand und mich damals ratlos ließ. Es waren also nicht
+zwei Fehler, sondern derselbe an zwei Enden.

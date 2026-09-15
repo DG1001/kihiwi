@@ -106,6 +106,23 @@ _SATZENDE = re.compile(r'(?<![0-9]\.)(?<=[.!?])\s+')
 # 96-Zeichen-Satz 346 ms im LLM plus 268 ms im TTS, bevor der erste Ton kam.
 _TEILSATZ = re.compile(r'(?<=[,;:—–])\s+')
 _WERKZEUG_ROH = re.compile(r'<tool_call>\s*(.*?)\s*</tool_call>', re.S)
+# Token fuer die Werkzeugrunde. Sie entscheidet nur, OB ein Werkzeug laeuft
+# und mit welchen Argumenten -- ihr Text wird in jedem Fall verworfen: bei
+# einem Aufruf ohnehin, und ohne Aufruf wird die Antwort neu gestreamt, weil
+# der Werkzeug-Prompt keinen Sprechstil traegt.
+#
+# Sie lief frueher mit denselben 200 Token wie eine echte Antwort. Das kostete
+# nichts, solange ein Werkzeug gerufen wurde (der Lauf endet dann bei
+# `tool_calls`, rund 1 s) -- aber 5,3 s, wenn das Modell stattdessen Prosa
+# schrieb, die gleich darauf im Papierkorb landete.
+#
+# 80 und nicht weniger: bei 40 Token brach ein Rechercheauftrag mitten im
+# Argument ab (`finish_reason: length`, unvollstaendiges JSON), und aus einem
+# abgeschnittenen Aufruf wird ein Werkzeug mit leeren Argumenten. Kuerzer
+# gemessen bringt ohnehin nichts -- ein echter Aufruf dauert bei 40 wie bei
+# 200 Token rund eine Sekunde.
+WERKZEUG_TOKEN = 80
+
 ERSTER_MIN = 25          # kuerzer klingt abgehackt
 ERSTER_MAX = 60          # laenger kostet unnoetig Zeit
 
@@ -390,10 +407,21 @@ async def antwort_mit_werkzeugen(frage: str, verlauf, werkzeuge, ausfuehren,
                 + list(verlauf or [])
                 + [{"role": "user", "content": frage_mit_befunden}])
 
+    # Ohne Werkzeuge gibt es nichts zu entscheiden: direkt antworten. Der
+    # Aufrufer nutzt das, wenn er die Unterlagen schon selbst durchsucht hat
+    # -- dann ist die Runde reiner Aufwand. Gemessen am 16.09.2026 mit
+    # Qwen3.8-Flash-Next: 5,3 s fuer eine Runde, die in zwoelf Laeufen kein
+    # einziges Mal ein Werkzeug rief, weil die Fundstellen schon im Prompt
+    # standen.
+    if not werkzeuge:
+        async for satz in _saetze(_antwortlauf(), max_tokens, 0.3):
+            yield ("satz", satz)
+        return
+
     for runde in range(runden):
         try:
             text, rufe = await asyncio.to_thread(
-                _einmal, nachrichten, max_tokens, 0.3, werkzeuge)
+                _einmal, nachrichten, WERKZEUG_TOKEN, 0.3, werkzeuge)
         except urllib.error.HTTPError as e:
             # Den Text mitnehmen: "HTTP 500" allein sagt niemandem, was los
             # war, und der Dienst schwieg dazu bisher ganz.

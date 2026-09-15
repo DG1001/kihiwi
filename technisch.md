@@ -1067,8 +1067,42 @@ Bakterien statt auf die Einschaltdauer — sauber belegt und trotzdem zur
 falschen Frage. Lange Fragen tragen ihr Thema selbst und würden durch den
 Zusatz eher verwässert.
 
-Das Werkzeug bleibt der Runde erhalten: findet die erste Suche nichts, kann
-das Modell mit anderen Worten nachfassen oder ins Netz gehen.
+**Nach der Suche entfällt die Werkzeugrunde.** Findet die Suche etwas, wird
+dem Modell gar kein Werkzeug mehr angeboten — es formuliert nur noch. Findet
+sie nichts, bleiben `web_suchen` und `unterlagen_ueberblick` als Ausweg; dann
+gibt es wieder etwas zu entscheiden.
+
+Anfangs lief die Runde weiter mit, damit das Modell nachfassen kann. Gemessen
+am 16.09.2026 mit Qwen3.8-Flash-Next rief sie in **zwölf Läufen kein einziges
+Mal** ein Werkzeug — die Fundstellen standen ja schon im Prompt — und kostete
+dabei 5,3 s.
+
+#### Das Token-Budget der Werkzeugrunde
+
+`WERKZEUG_TOKEN = 80`, nicht die 200 einer Antwort. Die Runde entscheidet nur,
+**ob** ein Werkzeug läuft und mit welchen Argumenten; ihr Text wird in jedem
+Fall verworfen — bei einem Aufruf ohnehin, und ohne Aufruf wird die Antwort
+neu gestreamt, weil der Werkzeug-Prompt keinen Sprechstil trägt.
+
+Das Budget kostet nur dann etwas, wenn das Modell **antwortet statt zu rufen**:
+ein echter Aufruf endet bei `tool_calls` nach rund einer Sekunde, egal ob 40
+oder 200 Token erlaubt sind. Schreibt es stattdessen Prosa, läuft es bis zum
+Anschlag — 5,3 s für Text, der gleich darauf im Papierkorb landet.
+
+**80 und nicht weniger.** Bei 40 Token brach ein Rechercheauftrag mitten im
+Argument ab (`finish_reason: length`, unvollständiges JSON), und aus einem
+abgeschnittenen Aufruf wird ein Werkzeug mit leeren Argumenten — genau das
+`dokumente_suchen{}`, das vorher im Protokoll stand.
+
+Beides zusammen, derselbe Ablauf im direkten Vergleich, warm, je drei Läufe:
+
+| | erster Satz |
+|---|---|
+| vorher (200 Token, Suche weiter im Angebot) | **11,7 s** |
+| nachher (80 Token, Runde entfällt bei Treffern) | **3,9 s** |
+
+Befehlspfade (Aufzeichnung, Wecker) laufen weiter über die Runde und wurden
+mit dem kleineren Budget gegengeprüft.
 
 ### Auslösewörter: der Dienst handelt, das Modell wird nicht gefragt
 

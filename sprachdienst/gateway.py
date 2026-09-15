@@ -880,6 +880,19 @@ class Sitzung:
                          f"Halte dich an diese Fundstellen und nenne die Quelle."
                          f" Steht die Antwort nicht darin, sage genau das —"
                          f" antworte NICHT aus eigenem Wissen.")
+                # Gesucht ist gesucht: dem Modell danach noch einmal
+                # `dokumente_suchen` anzubieten, war doppelt gemoppelt -- und
+                # teuer. Die Werkzeugrunde entschied in zwoelf Messlaeufen
+                # kein einziges Mal etwas (die Fundstellen standen ja schon im
+                # Prompt) und kostete dabei 5,3 s, die in die Antwort gehen.
+                #
+                # Findet die Suche nichts, bleibt der Ausweg nach draussen
+                # offen -- dann gibt es etwas zu entscheiden.
+                if treffer.startswith("Nichts in den Unterlagen"):
+                    werkzeuge = [w for w in werkzeuge
+                                 if w["function"]["name"] != "dokumente_suchen"]
+                else:
+                    werkzeuge = []
             async for e in llm.antwort_mit_werkzeugen(
                     frage, self.verlauf, werkzeuge, self.werkzeug,
                     system=self.system_prompt(wofuer),
