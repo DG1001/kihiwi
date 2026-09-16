@@ -4,7 +4,7 @@
     {
       "name": "kihiwi",
       "art": "lokal",
-      "aktiv": true,
+      "aktiv": false,
       "pfad": "~/Developer/github.com/kihiwi",
       "muster": [
         "*.md"
@@ -18,7 +18,7 @@
         "testaudio",
         "wissen"
       ],
-      "_hinweis": "Nur die Projektdokumentation. recherchen/ ist ausgeschlossen: abgeleitetes Material konkurriert im Index mit den Primärquellen und gewinnt bei Zahlenfragen sogar, mit Sätzen wie 'nicht belegbar ohne weitere Prüfung'."
+      "_hinweis": "ABGESCHALTET am 16.09.2026. Die eigene Projektdokumentation ist Entwicklerwissen, kein Laborwissen: technisch.md (118 Abschnitte) und entwicklung.md (138) standen bei Fachfragen unter den acht Treffern und verdraengten die Primaerquellen. Dasselbe Argument wie bei recherchen/ -- abgeleitetes Material konkurriert im Index mit dem, worum es geht. Der Preis: Fragen ueber den Assistenten selbst beantwortet er nicht mehr aus Dokumenten, nur noch ueber 'Kiwihilfe'."
     },
     {
       "name": "protokolle",

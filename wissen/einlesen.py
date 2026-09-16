@@ -431,7 +431,17 @@ def alles(nur: str | None = None) -> list[dict]:
             if nur and q["name"] != nur:
                 continue
             if not q.get("aktiv", True):
-                print(f"  {q['name']}: abgeschaltet"); continue
+                # Abgeschaltet heisst: liefert nichts mehr. Frueher sprang der
+                # Lauf hier einfach weiter, und die Dokumente blieben im Index
+                # -- am 16.09.2026 kamen nach dem Abschalten der eigenen
+                # Projektdokumentation immer noch drei von fuenf Treffern aus
+                # ihr. Ein Index, der abgeschaltete Quellen weiter ausliefert,
+                # ist schlimmer als gar keiner: niemand sucht den Fehler dort.
+                weg = index.aufraeumen(c, q["name"], set())
+                c.commit()
+                print(f"  {q['name']}: abgeschaltet"
+                      + (f", {weg} Dokument(e) aus dem Index entfernt" if weg else ""))
+                continue
             f = ARTEN.get(q.get("art"))
             if not f:
                 print(f"  {q['name']}: unbekannte Art {q.get('art')!r}"); continue

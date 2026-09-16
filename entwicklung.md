@@ -2343,3 +2343,47 @@ Argument ab, `finish_reason: length`, unvollständiges JSON — und daraus wird
 ein Werkzeug mit leeren Argumenten. Genau das `dokumente_suchen{}`, das am
 14.09. im Protokoll stand und mich damals ratlos ließ. Es waren also nicht
 zwei Fehler, sondern derselbe an zwei Enden.
+
+## Die Projektdoku raus — und drei Fehler, die dabei auffielen
+
+Fred: die eigene Projektdokumentation gehört nicht in den Index, sie ist für
+das Laborgeschäft nicht relevant. Nachgesehen: **alle neun** Dokumente der
+Quelle sind Entwicklerwissen, auch GLOSSAR.md (ein Deutsch-Englisch-Glossar
+für den Quelltext) und fachlich.md (die Spezifikation des Assistenten). Also
+die ganze Quelle abgeschaltet statt einzelner Dateien.
+
+Vorher kamen bei Fachfragen drei von fünf Treffern aus `technisch.md` und
+`entwicklung.md` — zusammen 256 Abschnitte, mehr als alle übrigen
+Projektdateien. Danach: alle Treffer aus der Fachquelle.
+
+Beim Umsetzen fielen drei Fehler auf, von denen zwei teuer waren.
+
+**Abgeschaltet hieß nicht entfernt.** `aufraeumen()` lief nur für aktive
+Quellen; der Abschalt-Zweig sprang mit `continue` davor weg. Die neun
+Dokumente blieben mit 298 Abschnitten im Index und wurden weiter gefunden. Ein
+Index, der abgeschaltete Quellen ausliefert, ist schlimmer als gar keiner —
+dort sucht niemand den Fehler.
+
+**Ich habe das geladene Modell erschlagen.** Die Erschließung lief mit
+`GLEICHZEITIG = 32`, einer Konstante für vLLMs `--max-num-seqs`. Der
+llama-server lief mit **einem** Slot. Erst 56 Timeouts, dann beendete sich der
+Server und nahm das Modell mit. Eine Stapellast darf den Motor nicht
+umbringen, an dem der Assistent hängt: `parallelitaet()` fragt jetzt
+`/props` — llama.cpp verrät dort seine Slots, vLLM antwortet nicht und behält
+die Vorgabe.
+
+**Der Denkschalter saß nur im Sprachpfad.** Die Stapelwerkzeuge bauen ihre
+Anfragen selbst und gingen daran vorbei: 56 Abschnitte "ohne Ertrag", weil das
+Nachdenken die 120 Token verbrauchte. `denkschalter_fuer()` ist jetzt
+öffentlich und wird auch dort gesetzt.
+
+**Und eine Falle dahinter.** Die Merkliste hält fest, was versucht wurde —
+richtig, damit ein Formelfragment nicht bei jedem Lauf einen Aufruf kostet.
+Aber sie unterschied nicht, ob der *Text* nichts hergab oder der *Motor*
+nichts lieferte. So wurde ein Konfigurationsfehler für immer als "nichts zu
+holen" verbucht: der zweite Lauf meldete "nichts zu tun", während 105
+Abschnitte offen waren. Jetzt wird nur vermerkt, wenn das Modell tatsächlich
+geantwortet hat. Die 104 Fehlvermerke von heute sind gelöscht, der eine echte
+vom 14.09. steht noch.
+
+Danach: 104 erschlossen, 0 gescheitert, 218 s — und der Motor lebte noch.

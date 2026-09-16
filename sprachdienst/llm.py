@@ -62,13 +62,23 @@ def _modell_nachschlagen() -> str | None:
 _DENKER = ("glm-", "qwen3.8-flash")
 
 
-def _denkschalter(rumpf: dict) -> None:
-    """Bei einem Reasoning-Modell das Nachdenken abschalten."""
+def denkschalter_fuer(rumpf: dict, modell: str) -> None:
+    """Bei einem Reasoning-Modell das Nachdenken abschalten.
+
+    Oeffentlich, weil die Stapelwerkzeuge ihre Anfragen selbst bauen und
+    diesen Weg nicht gehen. Am 16.09.2026 lief die Erschliessung ohne den
+    Schalter gegen Qwen3.8-Flash-Next: 56 Abschnitte "ohne Ertrag", weil das
+    Nachdenken die 120 Token verbrauchte und nichts uebrig blieb. Der Schalter
+    gehoert an jede Anfrage, nicht nur an die des Sprachdienstes.
+    """
     if konfig.LLM_ZUSATZ:          # Vorgabe von Hand schlaegt die Automatik
         return
-    name = _modellname().lower()
-    if any(teil in name for teil in _DENKER):
+    if any(teil in (modell or "").lower() for teil in _DENKER):
         rumpf["chat_template_kwargs"] = {"enable_thinking": False}
+
+
+def _denkschalter(rumpf: dict) -> None:
+    denkschalter_fuer(rumpf, _modellname())
 
 
 def _anfragen(rumpf: dict, timeout: int):

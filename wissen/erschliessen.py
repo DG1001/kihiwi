@@ -29,10 +29,40 @@ import urllib.error
 import urllib.request
 from datetime import datetime, timezone
 
-from sprachdienst import konfig
+from sprachdienst import konfig, llm
 from . import index
 
-GLEICHZEITIG = 32          # entspricht --max-num-seqs des vLLM-Starts
+# Wie viele Anfragen gleichzeitig laufen duerfen. **Das haengt am Motor, nicht
+# an uns**: vLLM bedient `--max-num-seqs` Sitzungen nebeneinander, llama.cpp
+# nur so viele, wie es Slots hat -- oft einen einzigen.
+#
+# Am 16.09.2026 lief die Erschliessung mit 32 gegen einen llama-server mit
+# EINEM Slot. Erst liefen die Anfragen in den Timeout (56 von 104
+# gescheitert), dann beendete sich der Server ("cleaning up before exit") und
+# nahm das Modell mit. Eine Batchlast darf den Motor nicht umbringen, an dem
+# der Assistent haengt.
+GLEICHZEITIG = 32          # Vorgabe fuer vLLM (--max-num-seqs)
+LLAMA_PROPS = "/props"     # llama.cpp hat das, vLLM nicht
+
+
+def parallelitaet() -> int:
+    """So viele Anfragen vertraegt der Motor, der gerade laeuft.
+
+    llama.cpp verraet seine Slots ueber `/props`; wer nicht antwortet, gilt
+    als vLLM und bekommt die Vorgabe. Lieber einmal fragen als den Motor
+    erschlagen -- die Abfrage kostet Millisekunden, ein Absturz kostet das
+    geladene Modell.
+    """
+    wurzel = konfig.LLM_URL.rsplit("/v1", 1)[0]
+    try:
+        with urllib.request.urlopen(wurzel + LLAMA_PROPS, timeout=5) as a:
+            slots = int(json.load(a).get("total_slots") or 0)
+    except (urllib.error.URLError, OSError, ValueError, TypeError):
+        return GLEICHZEITIG
+    if slots > 0:
+        print(f"    (llama.cpp mit {slots} Slot(s) — hoechstens so viele Anfragen)")
+        return slots
+    return GLEICHZEITIG
 MAX_ZEICHEN = 2500         # laengere Abschnitte werden vorn beschnitten
 MAX_TOKEN = 120
 
@@ -102,6 +132,9 @@ def _einmal(text: str, modell: str) -> str:
              "temperature": 0,
              "messages": [{"role": "system", "content": SYSTEM},
                           {"role": "user", "content": text[:MAX_ZEICHEN]}]}
+    # Ohne den Schalter verbraucht ein Reasoning-Modell die 120 Token im
+    # Nachdenken und liefert leeren Text -- 56 Abschnitte "ohne Ertrag".
+    llm.denkschalter_fuer(rumpf, modell)
     req = urllib.request.Request(
         f"{konfig.LLM_URL}/chat/completions", data=json.dumps(rumpf).encode(),
         headers={"Content-Type": "application/json"})
@@ -143,7 +176,7 @@ async def alles(nur_fehlende: bool = True, grenze: int | None = None) -> dict:
     t0 = time.time()
     erledigt = gescheitert = leer = 0
     erster_fehler = None
-    sperre = asyncio.Semaphore(GLEICHZEITIG)
+    sperre = asyncio.Semaphore(parallelitaet())
     stand = datetime.now(timezone.utc).isoformat(timespec="seconds")
 
     async def eine(rowid, text):
@@ -168,8 +201,19 @@ async def alles(nur_fehlende: bool = True, grenze: int | None = None) -> dict:
                 return None
         w = _saeubern(roh)
         if not w:
-            # Trotzdem vermerken: versucht und nichts zu holen. Sonst laeuft
-            # derselbe Abschnitt bei jedem Aufruf wieder mit.
+            if not (roh or "").strip():
+                # Der Motor hat GAR NICHTS geliefert. Das sagt nichts ueber
+                # den Abschnitt aus -- am 16.09.2026 lag es daran, dass ein
+                # Reasoning-Modell ohne Denkschalter sein ganzes Budget ins
+                # Nachdenken steckte. Wird das vermerkt, gilt ein Fehler der
+                # Konfiguration fuer immer als "nichts zu holen", und kein
+                # spaeterer Lauf sieht den Abschnitt je wieder an.
+                gescheitert += 1
+                return None
+            # Der Motor hat geantwortet, der Abschnitt gibt nur nichts her --
+            # ein Formelfragment aus einem PDF etwa. Das ist ein Befund ueber
+            # den Text und wird vermerkt, sonst laeuft er bei jedem Aufruf
+            # wieder mit.
             leer += 1
             return (rowid, index.abschnitt_hash(text), "")
         erledigt += 1
@@ -227,6 +271,7 @@ def _kurz_einmal(text: str, modell: str) -> str:
              "temperature": 0,
              "messages": [{"role": "system", "content": KURZ_SYSTEM},
                           {"role": "user", "content": text}]}
+    llm.denkschalter_fuer(rumpf, modell)
     req = urllib.request.Request(
         f"{konfig.LLM_URL}/chat/completions", data=json.dumps(rumpf).encode(),
         headers={"Content-Type": "application/json"})
@@ -253,7 +298,7 @@ async def kurzfassungen(neu_bauen: bool = False) -> dict:
     t0 = time.time()
     erledigt = gescheitert = 0
     erster_fehler = None
-    sperre = asyncio.Semaphore(GLEICHZEITIG)
+    sperre = asyncio.Semaphore(parallelitaet())
     stand = datetime.now(timezone.utc).isoformat(timespec="seconds")
 
     # Texte VORHER im Hauptthread lesen: die SQLite-Verbindung darf nur dort
