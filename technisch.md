@@ -1339,6 +1339,25 @@ Der Assistent nahm danach vier Stunden lang jede Wissensfrage entgegen und
 antwortete nicht. Gegen den kaputten Stand gehalten meldet die Prüfung genau
 die zwei Namen, an denen es brach.
 
+### Die Anzeigetafel bedient nur der Dienst — auch wenn das Modell etwas anderes sagt
+
+`_TAFEL_BEHAUPTUNG` stellt richtig, wenn die Antwort behauptet, die Tafel
+bedient zu haben, ohne dass eine Anzeigeaktion lief. Der Auslöserzweig steigt
+vorher aus; was diese Prüfung erreicht, hat also nichts an der Tafel getan.
+
+Anlass: Auf „Zeig mir die Auslastung von GPU und RAM auf der Anzeige" kam
+„**Ich habe die Anzeigetafel aktiviert** und zeige dir nun die Auslastung" —
+und auf der Tafel rührte sich nichts. Die Formulierung trifft das Auslösewort
+nicht (`Anzeigetafel` ist bewusst ein Kompositum), landet also bei `WISSEN`,
+und die Vorabsuche legt dem Modell prompt die Dokumentation der Tafel vor.
+Daraus macht es eine Vollzugsmeldung.
+
+Die Richtigstellung nennt gleich den richtigen Weg: „Sag ‚Anzeigetafel' und
+was du sehen willst." Nur die Ich-Form und Vollzugsmeldungen lösen sie aus —
+auf „Wie funktioniert die Anzeigetafel?" darf erklärt werden, wie man sie
+bedient, ohne dass ihm widersprochen wird. Gegen zwölf Sätze geprüft, echte
+wie erfundene.
+
 ### Es kommt immer eine Antwort, notfalls eine Absage
 
 Am Ende von `_antworten()` steht ein Riegel: wurde **nichts** gesagt, sagt der

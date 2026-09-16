@@ -163,6 +163,25 @@ _BEHAUPTUNG = re.compile(
     r"(aufzeichnung|aufnahme|mitschnitt)[^.]{0,40}"
     r"(gestartet|gestoppt|angelaufen|beendet|läuft|aus|an)", re.I)
 
+# Dasselbe fuer die Anzeigetafel. Das Modell KANN sie nicht bedienen -- sie
+# haengt allein am Ausloesewort -- aber es behauptet es, sobald die Vorabsuche
+# ihm die Dokumentation dazu vorlegt: "Ich habe die Anzeigetafel aktiviert und
+# zeige dir nun die Auslastung" (16.09.2026, ohne dass sich auf der Tafel
+# irgendetwas geruehrt haette).
+#
+# Nur die ICH-Form im Perfekt oder Praesens, nicht jede Erwaehnung: auf "Wie
+# funktioniert die Anzeigetafel?" darf das Modell erklaeren, wie man sie
+# bedient, ohne dass ihm widersprochen wird.
+_TAT = r"(aktiviert|eingeblendet|eingerichtet|gesetzt|angelegt|zeige|zeig)"
+_TAFEL = r"(anzeige\w*|tafel)"
+_TAFEL_BEHAUPTUNG = re.compile(
+    # "Ich habe die Anzeigetafel aktiviert" -- Tat hinter dem Wort ...
+    rf"\bich\b[^.]{{0,40}}\b{_TAFEL}\b[^.]{{0,40}}\b{_TAT}\b"
+    # ... und "Ich zeige dir das auf der Anzeigetafel" -- Tat davor.
+    rf"|\bich\b[^.]{{0,40}}\b{_TAT}\b[^.]{{0,40}}\b{_TAFEL}\b"
+    # "Die Anzeigetafel ist aktiviert" -- ohne Ich, aber als Vollzugsmeldung.
+    rf"|\b{_TAFEL}\b[^.]{{0,30}}\b(ist|wurde)\b[^.]{{0,20}}\b{_TAT}\b", re.I)
+
 # Feste Ansage je Werkzeug, gesprochen BEVOR es laeuft. Bewusst im Dienst und
 # nicht per Prompt: das Modell haelt sich nicht zuverlaessig daran, und der
 # Nutzer muss wissen, ob er auf Sekunden oder auf Minuten wartet.
@@ -1053,6 +1072,19 @@ class Sitzung:
                 ganze += nach
                 antwort = " ".join(ganze)
                 werkzeug_gerufen = True
+
+            # Behauptet, die Tafel bedient zu haben, ohne dass eine
+            # Anzeigeaktion lief. Der Ausloeserzweig steigt vorher aus, hier
+            # kommt also nur an, wer NICHTS an der Tafel getan hat.
+            if _TAFEL_BEHAUPTUNG.search(antwort):
+                log.warning("Behauptung zur Anzeigetafel ohne Aktion — stelle richtig")
+                wahr = ("Zur Sicherheit: an der Anzeigetafel habe ich nichts"
+                        " geändert. Sag „Anzeigetafel“ und was du sehen willst,"
+                        " dann blende ich es ein.")
+                await self.ws.send(json.dumps({"typ": "text", "rolle": "assistent",
+                                               "text": wahr}))
+                await self.sag(wahr)
+                ganze.append(wahr)
 
             if not werkzeug_gerufen and _BEHAUPTUNG.search(antwort):
                 log.warning("Behauptung ohne Werkzeugaufruf — hole ihn nach")
