@@ -28,6 +28,12 @@ set -uo pipefail
 WURZEL="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LOGS="$WURZEL/logs"
 VENV="$WURZEL/.venv/bin/python"
+
+# Damit `-m sprachdienst.…` und `-m wissen` auch von ausserhalb des Projekts
+# laufen. NICHT per `cd` geloest: `./dienste.sh abschrift aufnahme.ogg` aus
+# einem beliebigen Ordner muss den relativen Dateinamen behalten. Gemeldet am
+# 17.09.2026 aus /tmp: "No module named 'sprachdienst'".
+export PYTHONPATH="$WURZEL${PYTHONPATH:+:$PYTHONPATH}"
 WHISPER="$HOME/code/whisper.cpp"
 MODELL="$WHISPER/models/ggml-large-v3-turbo.bin"
 
