@@ -14,6 +14,8 @@
 #                                (einlesen | erschliessen | vektoren |
 #                                 katalog | ueberblick | status | suchen ...
 #                                 | web ...)
+#   ./dienste.sh abschrift [...]  eine einzelne Audiodatei abschreiben
+#                                (<datei> [--fach] [--zeiten] [--nach <ziel>])
 #   ./dienste.sh namen           sucht Namen, die nirgends definiert sind
 #   ./dienste.sh sprechermodelle laedt die Modelle der Sprechertrennung nach
 #                                (35 MB, liegen nicht im Repo)
@@ -357,6 +359,11 @@ case "${1:-status}" in
         namen_pruefen; start_vllm; start_whisper; start_sprach; echo; status ;;
     namen)
         exec "$VENV" "$WURZEL/namenspruefung.py" "${@:2}" ;;
+    abschrift)
+        # Braucht nur den whisper-server, kein Sprachmodell.
+        belegt $P_WHISPER || { fehl "whisper-server laeuft nicht — erst ./dienste.sh start"; exit 1; }
+        shift
+        exec "$VENV" -m sprachdienst.abschrift "$@" ;;
     waechter)
         case "${2:-start}" in
             start) waechter_start ;;

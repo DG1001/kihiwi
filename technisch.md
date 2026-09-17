@@ -1425,6 +1425,30 @@ GLM-5.3-Flash** (5,2 s gegen 15,5 s) bei gleicher Quellentreue: Antworten mit
 Abschnittsangabe, und auf „Was ist die Hauptstadt von Frankreich?" kommt
 „steht in den vorliegenden Unterlagen nicht".
 
+### Eine einzelne Datei abschreiben
+
+```
+./dienste.sh abschrift <datei> [--fach] [--zeiten] [--nach <ziel>]
+```
+
+Für das, was einem zugeschickt wird: eine Sprachnachricht aus WhatsApp
+(`.ogg`/`.opus`), ein Diktat, ein Mitschnitt. Die Datei darf überall liegen.
+Derselbe Weg wie im Dokumentationspfad — ffmpeg wandelt, `sprachbereiche()`
+zerlegt, jedes Stück geht einzeln an den whisper-server — nur ohne
+Sitzungsordner, ohne Protokoll und ohne Sprechertrennung. Es braucht **kein
+Sprachmodell**, nur `whisper-server`.
+
+**Ohne Fachvokabular, wenn nichts anderes gesagt wird.** Der Laborpfad reicht
+`vokabular.txt` als initial_prompt mit, damit aus „BSE" nicht „Bese" wird. Auf
+eine private Sprachnachricht angewandt zieht dieselbe Liste die Erkennung in
+Richtung Elektronenmikroskopie. `--fach` schaltet sie zu; am Testaudio wird
+aus „Siliciometrit" dann „Siliziometrid".
+
+`--zeiten` stellt jedem Abschnitt seine Startzeit voran, `--nach` schreibt das
+Ergebnis zusätzlich in eine Datei. Ohne beides kommt Fließtext auf die
+Standardausgabe, der Fortschritt geht nach stderr — so lässt sich das Ergebnis
+weiterleiten, ohne die Zählung mitzunehmen.
+
 ## Fallen, die schon Zeit gekostet haben
 
 - **Silero v5 will 64 Samples Kontext vor dem 512er-Block**, Eingang also 576.
