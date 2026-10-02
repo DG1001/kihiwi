@@ -1532,8 +1532,15 @@ class Sitzung:
                               "Ich schaue kurz im Netz nach.")
             # Hier ist der ganze Satz ein brauchbarer Suchbegriff -- anders
             # als bei einem Rechercheauftrag, der eine Frage braucht.
-            ergebnis = await self.werkzeug(werkzeug, {"frage": thema or ganzer_text})
-            log.info("  %s per Auslösewort: %r", werkzeug, thema[:60])
+            gesucht = thema or ganzer_text
+            ergebnis = await self.werkzeug(werkzeug, {"frage": gesucht})
+            # Protokolliert wird, was TATSAECHLICH gesucht wurde. Vorher stand
+            # hier thema[:60] -- und bei leerem thema las man im Protokoll
+            # "web_suchen per Auslösewort: ''", obwohl mit dem ganzen Satz
+            # gesucht worden war. Eine Zeile, die beim Suchen des Fehlers in
+            # die Irre fuehrt, ist schlimmer als keine.
+            log.info("  %s per Auslösewort: %r (%d Zeichen Ergebnis)",
+                     werkzeug, gesucht[:60], len(ergebnis or ""))
             gesagt = []
             async for satz in llm.antwort_saetze_roh(
                     self.antwort_prompt(),

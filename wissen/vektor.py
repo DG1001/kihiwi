@@ -24,6 +24,8 @@ wirklich gesucht wird.
 """
 from __future__ import annotations
 
+import os
+
 import sqlite3
 import time
 from datetime import datetime, timezone
@@ -49,7 +51,15 @@ _matrix: tuple[np.ndarray, np.ndarray] | None = None   # (V, rowids)
 # Nebenlaeufigkeit nichts. Der Stapellauf wird dadurch langsamer -- das ist
 # der richtige Tausch, denn er laeuft im Hintergrund, waehrend der Assistent
 # antworten koennen muss.
-THREADS = 4
+# Uebersteuerbar, seit am 21.09.2026 auffiel, dass ein Stapellauf auf 20
+# Kernen drei benutzt. Die Begruendung oben gilt fuer den SPRACHDIENST, wo
+# der Threadpool im selben Prozess sitzt wie der Eventloop. Das Einlesen
+# ueber die Kommandozeile ist ein eigener Prozess -- dort schadet das
+# Spinnen niemandem, es nimmt nur CPU, die vLLM ohnehin nicht braucht.
+#
+# Die Vorgabe bleibt bewusst bei 4: wer sie erhoeht, muss wissen, dass er es
+# im richtigen Prozess tut. wissen/__main__.py setzt sie fuer Stapellaeufe.
+THREADS = int(os.environ.get("KIHIWI_VEKTOR_THREADS", "4"))
 
 _modell = None
 

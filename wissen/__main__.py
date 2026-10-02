@@ -1,5 +1,15 @@
 """Kommandozeile: ./dienste.sh wissen [einlesen|erschliessen|vektoren|katalog|ueberblick|status|suchen ...]"""
+import os
 import sys
+
+# Stapellaeufe auf der Kommandozeile duerfen die Maschine nutzen: hier laeuft
+# kein Eventloop, den ein busy-waitender Threadpool aushungern koennte. Zwoelf
+# von zwanzig Kernen -- der Rest bleibt fuer vLLM und den Sprachdienst, die
+# waehrenddessen weiterlaufen. Muss VOR dem Import von wissen.vektor stehen,
+# denn THREADS wird beim Import ausgewertet.
+#
+# Uebersteuerbar: KIHIWI_VEKTOR_THREADS=4 ./dienste.sh wissen einlesen
+os.environ.setdefault("KIHIWI_VEKTOR_THREADS", "12")
 
 from . import einlesen, erschliessen, index, vektor, web
 

@@ -518,9 +518,20 @@ async def erzwinge_werkzeug(frage: str, verlauf, werkzeuge, name: str,
 
 
 async def erreichbar(timeout: float = 2.0) -> bool:
+    """Antwortet der Motor -- und bietet er das an, womit wir sprechen?
+
+    Verglichen wird gegen _modellname(), NICHT gegen konfig.LLM_MODEL. Der
+    Unterschied ist der zwischen "beim Start eingestellt" und "gerade in
+    Benutzung": bei einem Modellwechsel zieht _modell_nachschlagen() den
+    Namen nach, und die Anfragen laufen weiter. Diese Pruefung tat das bis
+    zum 21.09.2026 nicht und verglich weiter gegen die Startkonfiguration.
+    Ergebnis: Der Dienst ANTWORTETE einwandfrei und meldete dabei
+    "Modell nicht erreichbar" -- der unangenehmste Fehlerzustand, weil die
+    Anzeige luegt und alles andere stimmt.
+    """
     def _p():
         with urllib.request.urlopen(f"{konfig.LLM_URL}/models", timeout=timeout) as r:
-            return konfig.LLM_MODEL in r.read().decode()
+            return _modellname() in r.read().decode()
     try:
         return await asyncio.to_thread(_p)
     except Exception:

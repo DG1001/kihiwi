@@ -10,6 +10,7 @@ benutzen, aber nichts daran veraendern.
 from __future__ import annotations
 
 import base64
+import collections
 import hashlib
 import json
 import os
@@ -31,9 +32,14 @@ QUELLEN = (konfig.WURZEL / "wissen" / "quellen.json"
            else konfig.WURZEL / "wissen" / "quellen.beispiel.json")
 REPOS = konfig.WURZEL / "wissen" / "repos"
 
+# DIESE Liste entscheidet, ob eine Datei ueberhaupt gelesen wird (text_aus).
+# CODE_ENDUNGEN weiter unten waehlt nur den Zerleger -- wer dort eine Endung
+# ergaenzt und hier nicht, aendert nichts: die Datei kommt gar nicht erst an.
+# Genau so passiert am 21.09.2026 mit .go und .v.
 TEXT_ENDUNGEN = {".md", ".txt", ".rst", ".org", ".csv", ".tsv", ".json", ".yaml",
                  ".yml", ".toml", ".ini", ".cfg", ".py", ".sh", ".c", ".h",
-                 ".cpp", ".java", ".js", ".ts", ".sql", ".tex", ".log"}
+                 ".cpp", ".java", ".js", ".ts", ".sql", ".tex", ".log",
+                 ".go", ".v", ".sv", ".tcl", ".xdc"}
 PDF_ENDUNGEN = {".pdf"}
 MAX_BYTES = 8 * 1024 * 1024        # groessere Dateien sind Daten, keine Unterlagen
 
@@ -121,12 +127,21 @@ MARKDOWN_ENDUNGEN = {".md", ".markdown"}
 # Betroffen waren 879 von 2495 Abschnitten, gut ein Drittel des Index.
 # Hochzaehlen, sobald sich die Zerlegung aendert -- erzwingt neues Einlesen.
 ZERLEGER_FASSUNG = 5
-CODE_ENDUNGEN = {".py", ".sh", ".c", ".h", ".cpp", ".java", ".js", ".ts", ".sql"}
+# .go, .v, .sv, .tcl und .xdc am 21.09.2026 dazu, fuer das Repo rem-scanner:
+# dort liegen 15 Go- und 6 Verilog-Dateien, und die Antwort auf "wie stellt
+# man die Verweilzeit ein" steht im Steuercode, nicht in der Anleitung. Ohne
+# die Endungen fielen sie stillschweigend durch -- von 26 passenden Dateien
+# landeten 9 im Index, und niemand haette es gemerkt.
+CODE_ENDUNGEN = {".py", ".sh", ".c", ".h", ".cpp", ".java", ".js", ".ts", ".sql",
+                 ".go", ".v", ".sv", ".tcl", ".xdc"}
 _SYMBOL = re.compile(
     r"^(?:async\s+)?(?:def|class)\s+([A-Za-z_]\w*)"          # Python
     r"|^(?:export\s+)?(?:async\s+)?function\s+([A-Za-z_$][\w$]*)"   # JS/TS
     r"|^(?:[A-Za-z_][\w:<>,\s*&]*?)\b([A-Za-z_]\w*)\s*\([^;]*\)\s*\{"  # C/Java
-    r"|^([A-Za-z_]\w*)\s*\(\)\s*\{",                              # sh
+    r"|^([A-Za-z_]\w*)\s*\(\)\s*\{"                               # sh
+    r"|^func\s+(?:\([^)]*\)\s*)?([A-Za-z_]\w*)"                      # Go
+    r"|^\s*(?:module|task)\s+([A-Za-z_]\w*)"                          # Verilog
+    r"|^proc\s+([A-Za-z_:]\w*)",                                      # Tcl
     re.M)
 
 
@@ -263,7 +278,17 @@ def zerlegen(text: str, titel: str, endung: str = "") -> list[tuple[str, str]]:
 
 
 # ------------------------------------------------------------------ Quellen
-def _dateien(wurzel: Path, muster, aus):
+def _dateien(wurzel: Path, muster, aus, verworfen=None):
+    """Dateien einer Quelle. `verworfen` sammelt, was am Muster vorbeikam,
+    aber an der Endung scheiterte.
+
+    Diese beiden Bedingungen wissen nichts voneinander: `muster` steht in
+    quellen.json und sagt, was gewollt ist; TEXT_ENDUNGEN steht hier und
+    sagt, was moeglich ist. Am 21.09.2026 stand `*.go` im Muster von
+    rem-scanner, und 15 Dateien fielen still durch -- von 33 passenden
+    landeten 9 im Index, ohne eine einzige Meldung. Wer die Zahl nicht
+    nachzaehlt, haelt die Quelle fuer vollstaendig eingelesen.
+    """
     for p in wurzel.rglob("*"):
         if not p.is_file():
             continue
@@ -273,8 +298,21 @@ def _dateien(wurzel: Path, muster, aus):
         if muster and not any(p.match(m) for m in muster):
             continue
         if p.suffix.lower() not in TEXT_ENDUNGEN | PDF_ENDUNGEN:
+            if verworfen is not None:
+                verworfen[p.suffix.lower() or "(ohne Endung)"] += 1
             continue
         yield p, rel
+
+
+def _verworfen_melden(verworfen, name):
+    if not verworfen:
+        return
+    teile = ", ".join(f"{e} ({n})" for e, n in sorted(
+        verworfen.items(), key=lambda x: -x[1]))
+    print(f"    HINWEIS: {sum(verworfen.values())} Datei(en) passten zum Muster "
+          f"von {name}, aber die Endung ist unbekannt: {teile}")
+    print(f"    Wenn sie hineingehoeren: TEXT_ENDUNGEN in wissen/einlesen.py "
+          f"ergaenzen und die Quelle neu einlesen.")
 
 
 def lokal(q: dict, c) -> int:
@@ -283,12 +321,14 @@ def lokal(q: dict, c) -> int:
         print(f"    Ordner fehlt: {wurzel}"); return 0
     aus = set(q.get("aus", [])) | {".git", ".venv", "node_modules", "__pycache__"}
     n = 0
-    for p, rel in _dateien(wurzel, q.get("muster"), aus):
+    verworfen = collections.Counter()
+    for p, rel in _dateien(wurzel, q.get("muster"), aus, verworfen):
         # Der relative Pfad statt des Dateinamens: sonst heissen alle
         # Laborprotokolle "protokoll.md" und die Quellenangabe sagt nichts
         # darueber, aus welcher Sitzung sie stammen.
         n += _eintragen(c, q["name"], f"{q['name']}:{rel}", str(rel), str(p),
                         str(int(p.stat().st_mtime)), text_aus(p))
+    _verworfen_melden(verworfen, q["name"])
     return n
 
 
@@ -324,10 +364,12 @@ def git(q: dict, c) -> int:
     stand = _head(ziel)
     aus = set(q.get("aus", [])) | {".git", "node_modules", "__pycache__"}
     n = 0
-    for p, rel in _dateien(ziel, q.get("muster"), aus):
+    verworfen = collections.Counter()
+    for p, rel in _dateien(ziel, q.get("muster"), aus, verworfen):
         herkunft = q.get("web", "").rstrip("/") + f"/blob/HEAD/{rel}" if q.get("web") else str(p)
         n += _eintragen(c, q["name"], f"{q['name']}:{rel}", p.name, herkunft,
                         stand, text_aus(p))
+    _verworfen_melden(verworfen, q["name"])
     return n
 
 
