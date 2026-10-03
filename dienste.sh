@@ -194,7 +194,25 @@ waechter_lauf() {
 
 waechter_start() {
     if [ -f "$WAECHTER_PID" ] && kill -0 "$(cat "$WAECHTER_PID")" 2>/dev/null; then
-        ok "Waechter laeuft bereits (PID $(cat "$WAECHTER_PID"))"; return 0
+        local pid laeuft_mit
+        pid=$(cat "$WAECHTER_PID")
+        # Ein laufender Prozess uebernimmt keine neue Umgebung. Wer
+        # "KIHIWI_PROFIL=x ./dienste.sh waechter start" tippt und "laeuft
+        # bereits" liest, glaubt, sein Profil sei gesetzt -- es ist das alte.
+        # Am 03.10.2026 lief der Waechter deshalb mit qwen36nvfp4-voice,
+        # waehrend qwen3.8-flash-next geladen war: beim ersten Fehlschlag
+        # haette er das laufende Modell gegen ein anderes getauscht.
+        laeuft_mit=$(tr '\0' '\n' < "/proc/$pid/environ" 2>/dev/null \
+                     | sed -n 's/^KIHIWI_PROFIL=//p')
+        laeuft_mit=${laeuft_mit:-qwen36nvfp4-voice}
+        if [ "$laeuft_mit" != "$PROFIL" ]; then
+            warn "Waechter laeuft bereits (PID $pid), aber mit Profil"
+            warn "  '$laeuft_mit' statt '$PROFIL'. Die Umgebung eines laufenden"
+            warn "  Prozesses laesst sich nicht aendern -- zum Umstellen:"
+            warn "  ./dienste.sh waechter stop && KIHIWI_PROFIL=$PROFIL $0 waechter start"
+            return 1
+        fi
+        ok "Waechter laeuft bereits (PID $pid, Profil $laeuft_mit)"; return 0
     fi
     setsid --fork nohup "$0" waechter-lauf </dev/null >>"$LOGS/waechter.log" 2>&1
     sleep 1
