@@ -105,9 +105,17 @@ except Exception:
 # demselben Kontext wie das Pruefstandsprofil 'ornith' (131072). Frueher
 # stand hier ein Vergleich auf 32768 -- der traf seitdem nie mehr zu und
 # warnte bei jedem Start, gerade wenn alles richtig war.
-vllm_util() { docker inspect --format '{{range .Args}}{{println .}}{{end}}' \
-    "$C_VLLM" 2>/dev/null \
-    | grep -A1 -Fx -- '--gpu-memory-utilization' | tail -1; }
+#
+# Nur wenn der Container LAEUFT. `docker inspect` antwortet auch fuer einen
+# gestoppten, und dann stand hier der Wert des letzten vLLM-Laufs neben einem
+# Modell, das gar nicht aus vLLM kommt: am 04.10.2026 "GPU_UTIL 0.85" (vom
+# gestoppten JEV-Container) fuer qwen3.8-flash-next auf llama-server.
+vllm_util() {
+    [ "$(docker inspect --format '{{.State.Running}}' "$C_VLLM" 2>/dev/null)" = true ] \
+        || return 0
+    docker inspect --format '{{range .Args}}{{println .}}{{end}}' \
+        "$C_VLLM" 2>/dev/null \
+        | grep -A1 -Fx -- '--gpu-memory-utilization' | tail -1; }
 bereit_whisper() { curl -sf --max-time 2 -o /dev/null "http://127.0.0.1:$P_WHISPER/"; }
 bereit_sprach()  { curl -sf --max-time 2 -o /dev/null "http://127.0.0.1:$P_SPRACH/"; }
 
@@ -272,7 +280,13 @@ start_vllm() {
         ctx=$(curl -s "http://127.0.0.1:$P_VLLM/v1/models" | modellctx)
         util=$(vllm_util)
         frei=$(free -g | awk 'NR==2{print $7}')
-        ok "vLLM laeuft bereits (Kontext $ctx, GPU_UTIL ${util:-?})"
+        if [ -n "$util" ]; then
+            ok "vLLM laeuft bereits (Kontext $ctx, GPU_UTIL $util)"
+        else
+            # llama-server oder ds4-server auf demselben Port: die kennen
+            # keine Vorab-Reservierung, es gibt nichts anzuzeigen.
+            ok "Modell laeuft bereits (Kontext $ctx, kein vLLM-Container)"
+        fi
         modell_pruefen
         # Nicht das Profil pruefen, sondern was davon abhaengt: bleibt neben
         # dem Modell genug Speicher fuer whisper.cpp, Piper und sherpa-onnx?
