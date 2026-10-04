@@ -35,7 +35,10 @@ import numpy as np
 from . import index
 
 MODELL = "intfloat/multilingual-e5-large"
-ZWISCHEN = "/tmp/kihiwi-embed"     # Modellablage; enthaelt nichts Eigenes
+# Modellablage; enthaelt nichts Eigenes. Nicht unter /tmp: das wird beim
+# Neustart geleert, und die erste Wissensfrage danach lud 2,1 GB neu -- 43 s,
+# die Antwort lief in die 45-s-Grenze und wurde abgebrochen (04.10.2026).
+ZWISCHEN = os.path.expanduser("~/.cache/kihiwi-embed")
 DIM = 1024
 
 _matrix: tuple[np.ndarray, np.ndarray] | None = None   # (V, rowids)
