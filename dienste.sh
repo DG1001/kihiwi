@@ -368,7 +368,9 @@ status() {
     local modell=""
     bereit_vllm >/dev/null 2>&1 && modell=$(curl -s "http://127.0.0.1:$P_VLLM/v1/models" | modellzeile)
     echo "Dienste:"
-    zeile "vLLM"           $P_VLLM    bereit_vllm    "$modell"
+    # "Sprachmodell", nicht "vLLM": auf dem Port laeuft je nach Profil auch
+    # llama-server oder ds4-server.
+    zeile "Sprachmodell"   $P_VLLM    bereit_vllm    "$modell"
     zeile "whisper-server" $P_WHISPER bereit_whisper "large-v3-turbo, -l de"
     zeile "Sprachdienst"   $P_SPRACH  bereit_sprach  "Monitor: http://127.0.0.1:$P_SPRACH/"
     echo
