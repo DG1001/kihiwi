@@ -405,6 +405,10 @@ AUSLOESER = {
     # ("die Anzeige spinnt"), "Anzeigeanpassung" ist schwer auszusprechen.
     "anzeige":   rf"anzeige{_}tafel|mess{_}anzeige|instrumenten{_}tafel|"
                  rf"anzeige{_}anpassung",
+    # Zeigt ein Bild oder PDF aus den Git-Quellen auf der Buehne. "Bild"
+    # allein faellt in einem REM-Labor in jedem zweiten Satz, deshalb das
+    # Kompositum -- dieselbe Ueberlegung wie bei "Anzeigetafel".
+    "bild":      rf"bild{_}anzeige|bilder{_}anzeige|abbildungs{_}anzeige",
     # Holt das Erschliessen nach, wenn der Abgleich es wegen der Menge
     # ausgelassen hat. Braucht ein eigenes Wort, weil es Minuten dauert und
     # die GPU belegt -- der Nutzer soll wissen, was er anstoesst.
@@ -451,6 +455,7 @@ BESCHREIBUNG = {
     "abgleich":  ("Wissensabgleich", "neue Stände aus Repo und Cloud holen"),
     "abbruch":   ("Recherche abbrechen", "einen laufenden Auftrag beenden"),
     "anzeige":   ("Anzeigetafel", "Messwerte einblenden: GPU, CPU, Speicher, Platte"),
+    "bild":      ("Bildanzeige", "ein Bild oder PDF aus den Unterlagen zeigen"),
     "nachziehen": ("Wissen nachziehen", "Schlagwörter und Vektoren nachholen, dauert Minuten"),
     "hilfe":     ("Kiwihilfe", "diese Liste"),
 }
@@ -478,7 +483,7 @@ def ausloeser(text: str):
         return "hilfe", ""
 
     # abbruch vor recherche: "Recherche abbrechen" darf keine neue starten.
-    for art in ("hilfe", "abbruch", "anzeige", "nachziehen", "abgleich",
+    for art in ("hilfe", "abbruch", "bild", "anzeige", "nachziehen", "abgleich",
                 "hermes", "dokumente", "websuche", "recherche"):
         m = _AUSLOESER_RE[art].search(text)
         if not m:

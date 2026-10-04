@@ -49,3 +49,5 @@ modelle/
 # Die .beispiel-Dateien liegen im Repo und dienen als Rueckfall.
 vokabular.txt
 wissen/quellen.json
+# Probefragen der Bildsuche: nennen Dateien aus den privaten Quellen.
+wissen/bilder_fragen.json

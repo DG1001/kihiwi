@@ -1,4 +1,4 @@
-"""Kommandozeile: ./dienste.sh wissen [einlesen|erschliessen|vektoren|katalog|ueberblick|status|suchen ...]"""
+"""Kommandozeile: ./dienste.sh wissen [einlesen|erschliessen|vektoren|katalog|ueberblick|status|suchen ...|bilder [thema]]"""
 import os
 import sys
 
@@ -11,7 +11,7 @@ import sys
 # Uebersteuerbar: KIHIWI_VEKTOR_THREADS=4 ./dienste.sh wissen einlesen
 os.environ.setdefault("KIHIWI_VEKTOR_THREADS", "12")
 
-from . import einlesen, erschliessen, index, vektor, web
+from . import bilder, einlesen, erschliessen, index, vektor, web
 
 
 def main(argv):
@@ -39,6 +39,8 @@ def main(argv):
             print(f"  vektoren: übersprungen ({v['fehler'][:80]})")
         elif v.get("offen"):
             print(f"  vektoren: {v['erledigt']} von {v['offen']}, {v['sekunden']:.0f} s")
+        b = bilder.aufbauen()
+        print(f"  bilder: {b['bilder']} im Katalog, {b['neu']} neu, {b['sekunden']:.0f} s")
     elif befehl == "erschliessen":
         # Braucht das Sprachmodell. Laut scheitern, nicht still weniger tun.
         import asyncio
@@ -96,6 +98,7 @@ def main(argv):
         print(f"  Kurzfassungen: {kurz} von {s['dokumente']} Dokumenten")
         print(f"  Vektoren: {vek} von {s['abschnitte']} Abschnitten"
               + ("" if vek else "  (Suche laeuft nur ueber den Volltext)"))
+        print(f"  Bilder: {bilder.anzahl()} im Katalog")
         for q, n in sorted(s["quellen"].items()):
             print(f"  {q:<16} {n}")
         if not s["quellen"]:
@@ -106,6 +109,23 @@ def main(argv):
             print(f"\n  [{t.quelle}] {t.titel} — {t.ueberschrift}")
             print(f"  {t.text[:280].strip()}")
             print(f"  ({t.herkunft})")
+    elif befehl == "bilder":
+        # Ohne Thema: Katalog bauen. Mit Thema: suchen, wie es die
+        # Bildanzeige tut -- zum Ausprobieren ohne Stimme.
+        frage = " ".join(argv[1:])
+        if not frage:
+            b = bilder.aufbauen()
+            print(f"Bildkatalog: {b['bilder']} Einträge, {b['neu']} neu, "
+                  f"{b['entfernt']} entfernt, {b['sekunden']:.0f} s")
+            return 0
+        if not bilder.anzahl():
+            print("Kein Bildkatalog — erst './dienste.sh wissen bilder' ohne Thema")
+            return 1
+        for t in bilder.suchen(frage):
+            print(f"  {t['punkte']:.3f} {'sicher ' if t['sicher'] else 'unsicher'} "
+                  f"[{t['quelle']}] {t['rel']}")
+            if t["unterschrift"]:
+                print(f"        {t['unterschrift'][:110]}")
     elif befehl == "web":
         import asyncio
         for t in asyncio.run(web.suchen(" ".join(argv[1:]))):

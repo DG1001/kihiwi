@@ -134,7 +134,15 @@ Sprachmodell darüber entscheidet:
 | `Internetrecherche` | gründliche Recherche, Ergebnis kommt in einigen Minuten |
 | `Dokumentenrecherche` | Suche in den eigenen Unterlagen |
 | `Hermesaufgabe` | Anweisung unverändert an den Rechercheagenten |
+| `Bildanzeige` | zeigt ein Bild oder PDF aus den Unterlagen auf dem Monitor |
 | `Kiwihilfe` | zählt auf, was Kiwi versteht |
+
+**Bildanzeige zeigt nur, was es gibt.** „Kiwi, Bildanzeige Schaltplan" holt
+eine Datei aus den Git-Quellen auf den Monitor — mit Repo, Pfad und
+Commit-Stand darüber. Erzeugte Bilder gehören nicht dazu: in einem Labor darf
+auf dem Monitor nichts stehen, das wie ein Beleg aussieht und keiner ist. Sollten später
+Illustrationen erzeugt werden, tragen sie an derselben Stelle eine sichtbar
+andere Herkunft.
 
 ## Zwei Stufen beim Antworten
 

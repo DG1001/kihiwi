@@ -172,6 +172,27 @@
   .art-erinnerungen { background:#3a2a12; color:#e8b339; }
   .art-ablage    { background:#22222c; color:var(--matt); }
   .art-anzeige   { background:#12301f; color:#7fd39b; }
+  .art-bild      { background:#2a1f3a; color:#c3a6ee; }
+  /* Bildanzeige: das Bild nimmt die Buehne, Herkunft und Auswahl rahmen es. */
+  #b-inhalt .bildschau .herkunft { color:var(--matt); font-size:.8rem;
+                                   margin-bottom:.8rem; overflow-wrap:anywhere; }
+  #b-inhalt .bildschau .herkunft a { color:#7ab8e8; }
+  #b-inhalt .bildschau .unsicher { color:#e8b339; }
+  #b-inhalt .bildschau img.gross { display:block; max-width:100%; max-height:68vh;
+                                   background:#fff; border-radius:.3rem; }
+  #b-inhalt .bildschau iframe.gross { display:block; width:100%; height:72vh;
+                                      border:1px solid var(--linie); background:#fff; }
+  #b-inhalt .bildschau .unterschrift { margin:.8rem 0 0; max-width:52rem; }
+  #b-inhalt .bildschau .auswahl { display:flex; flex-wrap:wrap; gap:.6rem; margin-top:1.2rem; }
+  #b-inhalt .bildschau .wahl { width:9rem; cursor:pointer; border:1px solid var(--linie);
+                               border-radius:.3rem; padding:.3rem; font-size:.72rem;
+                               color:var(--matt); overflow-wrap:anywhere; }
+  #b-inhalt .bildschau .wahl.an { border-color:#c3a6ee; color:var(--fg); }
+  #b-inhalt .bildschau .wahl img { display:block; width:100%; height:5.5rem;
+                                   object-fit:contain; background:#fff; margin-bottom:.3rem; }
+  #b-inhalt .bildschau .wahl .pdf { display:flex; align-items:center; justify-content:center;
+                                    height:5.5rem; background:#1c1c24; margin-bottom:.3rem;
+                                    font-weight:600; letter-spacing:.08em; }
 
   #b-inhalt { flex:1; min-height:0; overflow-y:auto; padding:1.4rem 1.6rem 3rem;
               font-size:.92rem; line-height:1.65; }
@@ -650,7 +671,7 @@ function buehne(art, titel, html, wann) {
   if (tafelUhr) { clearInterval(tafelUhr); tafelUhr = null; }
   if (art !== "Ablage") buehneBelegt = true;
   $("b-art").textContent = art;
-  $("b-art").className = "art-" + (["protokoll","recherche","hilfe","erinnerungen","anzeige"]
+  $("b-art").className = "art-" + (["protokoll","recherche","hilfe","erinnerungen","anzeige","bild"]
                                    .includes(art.toLowerCase()) ? art.toLowerCase()
                                                                 : "ablage");
   $("b-titel").textContent = titel;
@@ -658,6 +679,66 @@ function buehne(art, titel, html, wann) {
   $("b-inhalt").innerHTML = `<div class="lauf">${html}</div>`;
   $("b-inhalt").scrollTop = 0;
   $("b-zurueck").style.display = art === "Ablage" ? "none" : "";
+}
+
+/* --- Bildanzeige --------------------------------------------------------------
+   Der beste Treffer gross, die uebrigen als Auswahl darunter -- die Suche
+   laeuft ueber Dateinamen und Bildunterschriften und liegt auch mal daneben.
+   Ein Klick tauscht, ohne den Dienst zu fragen: die Treffer stehen alle in
+   der Nachricht.
+
+   Per DOM gebaut, nicht per innerHTML: Dateinamen und Unterschriften kommen
+   aus den Repos und sind fuer diese Seite fremder Text. */
+const bildUrl = t => "/bild/" + encodeURIComponent(t.quelle) + "/" +
+                     t.rel.split("/").map(encodeURIComponent).join("/");
+
+function bildZeigen(d, i) {
+  const t = d.treffer[i];
+  buehne("Bild", t.titel, "", wannZusatz(d));
+  const lauf = $("b-inhalt").firstChild;
+  lauf.style.maxWidth = "none";
+  const el = (art, klasse, text) => {
+    const e = document.createElement(art);
+    if (klasse) e.className = klasse;
+    if (text) e.textContent = text;
+    return e;
+  };
+  const schau = el("div", "bildschau");
+
+  const her = el("div", "herkunft",
+                 `${t.quelle} / ${t.rel}` + (t.stand ? ` · Stand ${t.stand}` : ""));
+  if (/^https?:/.test(t.herkunft)) {
+    her.append(" · ");
+    const a = el("a", "", "im Repo");
+    a.href = t.herkunft; a.target = "_blank"; a.rel = "noopener";
+    her.append(a);
+  }
+  if (i === 0 && !t.sicher) {
+    her.append(el("div", "unsicher",
+                  `Kein klarer Treffer für „${d.frage}" — das hier kommt am nächsten.`));
+  }
+  schau.append(her);
+
+  const gross = el(t.pdf ? "iframe" : "img", "gross");
+  gross.src = bildUrl(t);
+  if (!t.pdf) gross.alt = t.titel;
+  schau.append(gross);
+  if (t.unterschrift) schau.append(el("p", "unterschrift", t.unterschrift));
+
+  if (d.treffer.length > 1) {
+    const auswahl = el("div", "auswahl");
+    d.treffer.forEach((w, j) => {
+      const k = el("div", "wahl" + (j === i ? " an" : ""));
+      if (w.pdf) k.append(el("div", "pdf", "PDF"));
+      else { const b = el("img"); b.src = bildUrl(w); b.loading = "lazy"; k.append(b); }
+      k.append(w.titel);
+      k.title = `${w.quelle} / ${w.rel}`;
+      k.onclick = () => bildZeigen(d, j);
+      auswahl.append(k);
+    });
+    schau.append(auswahl);
+  }
+  lauf.append(schau);
 }
 
 function verbinden() {
@@ -729,6 +810,9 @@ function verbinden() {
                                   wannZusatz(d, `${d.dauer}s`));
       zeigen();
       if (!d.wieder) merker(`Rechercheergebnis: ${d.frage}`, zeigen);
+    } else if (d.typ === "bild") {
+      bildZeigen(d, 0);
+      if (!d.wieder) merker(`Bild: ${d.frage}`, () => bildZeigen(d, 0));
     } else if (d.typ === "anzeige") {
       // d.tafel kann fehlen, wenn ein alter Buehnenstand wiederhergestellt
       // wird (frueher: groessen + eine gemeinsame darstellung). Ein

@@ -2387,3 +2387,35 @@ geantwortet hat. Die 104 Fehlvermerke von heute sind gelöscht, der eine echte
 vom 14.09. steht noch.
 
 Danach: 104 erschlossen, 0 gescheitert, 218 s — und der Motor lebte noch.
+
+## Bilder auf die Bühne — aber nur echte (04.10.2026)
+
+Ausgangspunkt war die Frage, was Bild- und Videoerzeugung dem Labor nützen
+könnte. Ein Blick in den Wissensbestand drehte die Antwort um: ein erzeugtes
+Bild auf dem Monitor sähe aus wie ein Beleg. Also zuerst das Naheliegende:
+die Bilder und PDFs, die in den Quellen schon liegen, per Stimme auf die
+Bühne holen.
+
+**Dateinamen tragen weiter als gedacht.** Nur ein Viertel der Bilder hat eine
+Bildunterschrift. Trotzdem trafen alle sieben Probeanfragen den gemeinten
+Eintrag — über Name und Ordner allein. Ein sehendes Modell für
+Bildbeschreibungen war erwogen und ist nicht gebaut; es bräuchte beim
+Abgleich einen Modellwechsel.
+
+**Eine Erwartung im Test war falsch, nicht die Suche.** Eine Probefrage
+lieferte ein anderes Bild als erwartet — es trug die passendere
+Bildunterschrift und war die bessere Antwort.
+
+**Private Dateinamen im öffentlichen Repo.** Die erste Fassung dieses
+Eintrags, des Tests und der Kommentare nannte Dateinamen und eine
+Bildunterschrift aus den privaten Quellen. `vokabular.txt` und
+`quellen.json` sind genau deshalb nicht versioniert — dieselbe Regel gilt für
+Beispiele in Kommentaren, Tests und Doku. Die Probefragen liegen jetzt in
+`wissen/bilder_fragen.json` außerhalb des Repos, die Beispiele sind erfunden.
+
+**Der Test nach dem Neustart blieb stumm.** Der Sprachdienst war neu
+gestartet worden, während kein Modell lief; `dienste.sh` konnte den
+Modellnamen nicht übernehmen, der Dienst hielt das später gestartete Modell
+für nicht erreichbar und stieg vor den Auslösewörtern aus. Gesprochen wurde
+die Absage auch nicht, weil der Testklient stumm geschaltet war. Reihenfolge
+merken: erst das Modell, dann der Sprachdienst.

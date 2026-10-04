@@ -369,6 +369,7 @@ Assistenten.
     ./dienste.sh wissen einlesen        alle Quellen einlesen
     ./dienste.sh wissen status          was im Index liegt
     ./dienste.sh wissen suchen ...      Volltextsuche
+    ./dienste.sh wissen bilder [thema]  Bildkatalog bauen / darin suchen
     ./dienste.sh wissen web ...         SearXNG
 
 **`#` ist NUR in Markdown ein Überschriftszeichen.** Überall sonst leitet es
@@ -1728,6 +1729,49 @@ werden.
 **`alsHtml()`** entfernt die `<br>` unmittelbar vor und nach Ueberschriften und
 Zitaten. Die Blockelemente bringen eigenen Abstand mit, die `<br>` aus den
 Leerzeilen kamen obendrauf und rissen Loecher in den Text.
+
+### Bildanzeige (`wissen/bilder.py`)
+
+„Bildanzeige <Thema>" zeigt ein Bild oder PDF aus den Git-Quellen auf der
+Bühne. Bilder haben keinen Text und stehen nicht im Index; auffindbar werden
+sie über Dateiname, Ordner und — wo eine Markdown-Datei mit `![…](…)` auf sie
+verweist — die Bildunterschrift. Daraus entsteht je Datei eine Zeile, die wie
+ein Abschnitt eingebettet wird (Tabelle `bilder` in `index.db`).
+
+**Gesucht wird über Vektoren, nicht über Wörter.** „Schaltplan" muss
+`netzteil_schaltbild.png` treffen. Stand 04.10.2026: 214 Einträge, Aufbau
+28 s auf der Kommandozeile, rund 50 s im Dienst (vier Threads).
+
+**Die Schwelle `SICHER_AB = 0.815` entscheidet nur über den Satz.** e5 drückt
+alle Ähnlichkeiten in ein schmales Band: gemeinte Treffer lagen bei 0,823 bis
+0,898, Unsinnsfragen bei 0,784 bis 0,801. Der Abstand ist zu schmal, um
+darauf zu bauen — deshalb stehen in beiden Fällen der beste Treffer groß und
+bis zu fünf weitere als Auswahl auf der Bühne. Ein Klick tauscht, ohne den
+Dienst zu fragen.
+
+**Ausgeliefert wird über `/bild/<quelle>/<pfad>`.** `bilder.datei()`
+entscheidet: nur Dateien unterhalb von `wissen/repos/<quelle>`, nur zeigbare
+Endungen, nichts aus `.git`. Geprüft wird der aufgelöste Pfad, damit auch ein
+Symlink im Repo nicht hinausführt. SVG bekommt eine `Content-Security-Policy`
+mit `sandbox`: im `<img>` läuft Skript nicht, direkt aufgerufen schon.
+
+**Der Katalog folgt dem Abgleich.** `Wissensabgleich` stößt `bilder_lauf()`
+im Hintergrund an, `./dienste.sh wissen einlesen` baut ihn mit. Eingebettet
+wird nur, was neu ist oder eine andere Beschreibung bekommen hat.
+
+    ./dienste.sh wissen bilder              Katalog bauen
+    ./dienste.sh wissen bilder <thema>      suchen wie die Bildanzeige
+    .venv/bin/python -m wissen.bilder_test  Katalog, Suche, Auslieferungsgrenze
+
+Die Probefragen gegen die echten Quellen liegen in `wissen/bilder_fragen.json`
+und nicht im Repo: sie nennen Dateien aus privaten Quellen.
+
+**Braucht ein erreichbares Sprachmodell, obwohl es keines benutzt.**
+`_antworten()` steigt vor den Auslösewörtern aus, wenn das Modell fehlt. Das
+gilt für alle Auslöser und ist hier nicht geändert.
+
+PDFs zeigt der Browser eingebettet (`<iframe>`); am Laborrechner ist das noch
+nicht ausprobiert.
 
 ### Timer und Erinnerungen (`sprachdienst/wecker.py`)
 

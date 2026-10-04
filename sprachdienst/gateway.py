@@ -21,6 +21,7 @@ from websockets.asyncio.server import serve
 from websockets.datastructures import Headers
 from websockets.http11 import Response
 
+from wissen import bilder as wissen_bilder
 from wissen import einlesen as wissen_einlesen
 from wissen import erschliessen as wissen_erschliessen
 from wissen import index as wissen_index, recherche as wissen_recherche
@@ -36,6 +37,19 @@ from .zustand import Phase, Zustandshalter
 
 log = logging.getLogger("kihiwi")
 HALTER = Zustandshalter()
+
+
+def _bild_satz(t: dict) -> str:
+    """Der gesprochene Satz zur Bildanzeige. Name und Ordner in Worten --
+    "netzteil_schaltbild.png" liest Piper Zeichen fuer Zeichen vor."""
+    p = Path(t["rel"])
+    name = re.sub(r"[_\-.]+", " ", p.stem).strip()
+    ordner = re.sub(r"[_\-.]+", " ", p.parent.name).strip()
+    was = name + (f" aus {ordner}" if ordner else "")
+    if t["sicher"]:
+        return f"Ich zeige {was}."
+    return (f"Ich bin nicht sicher, was gemeint ist. Am nächsten kommt {was}, "
+            "weitere stehen darunter.")
 # Global, nicht je Sitzung: Hermes und der Sprachpfad teilen sich ein Modell,
 # zwei parallele Auftraege wuerden die Sprachantworten unbrauchbar traege machen.
 RECHERCHE = wissen_recherche.Recherche()
@@ -46,6 +60,8 @@ ABGLEICH = asyncio.Lock()
 # Nachziehen Minuten. Zwei parallele Laeufe wuerden dieselben Abschnitte
 # doppelt durch das Modell schicken.
 NACHZIEHEN = asyncio.Lock()
+# Der Bildkatalog schreibt in denselben Index; zwei Laeufe betten doppelt ein.
+BILDER = asyncio.Lock()
 # Hoechstlaenge der gesprochenen Kurzfassung eines Rechercheergebnisses.
 # 400 Zeichen sind rund 25 Sekunden Piper -- laenger hoert niemand zu, und das
 # Ganze steht ohnehin auf der Buehne.
@@ -578,6 +594,19 @@ class Sitzung:
             log.info("Endpoint: %s nach %.0f ms Aeusserung", ep.grund, ep.dauer_ms)
             HALTER.setzen(phase=Phase.DENKEN)
             self.antwort_task = asyncio.create_task(self.antworten(ep))
+
+    async def bilder_lauf(self):
+        """Bildkatalog auf den Stand der Repos bringen. Im Thread: eingebettet
+        wird auf der CPU, und der Eventloop muss derweil antworten koennen."""
+        if BILDER.locked():
+            return
+        try:
+            async with BILDER:
+                e = await asyncio.to_thread(wissen_bilder.aufbauen)
+            log.info("  Bildkatalog: %d Einträge, %d neu, %.0f s",
+                     e["bilder"], e["neu"], e["sekunden"])
+        except Exception as exc:
+            log.warning("Bildkatalog gescheitert: %r", exc)
 
     async def nachziehen_lauf(self, grenze: int | None = -1):
         """Schlagwoerter, Kurzfassungen und Vektoren nach einem Abgleich.
@@ -1373,6 +1402,32 @@ class Sitzung:
             # NICHT vor der Antwort: der Abgleich soll nicht dadurch minutenlang
             # dauern, dass danach noch eingebettet wird.
             asyncio.create_task(self.nachziehen_lauf())
+            asyncio.create_task(self.bilder_lauf())
+            return True
+
+        if art == "bild":
+            if not thema:
+                await self.melden("Welches Bild soll ich zeigen?")
+                return True
+            if not await asyncio.to_thread(wissen_bilder.anzahl):
+                # Ohne Katalog gibt es nichts zu finden. Anlegen dauert beim
+                # ersten Mal rund eine Minute -- das sagen, statt stumm zu rechnen.
+                await self.melden("Ich lege erst den Bildkatalog an, das dauert "
+                                  "etwa eine Minute.")
+                await self.bilder_lauf()
+            # Im Thread: die Frage wird eingebettet, und das Modell laedt beim
+            # ersten Gebrauch.
+            treffer = await asyncio.to_thread(wissen_bilder.suchen, thema)
+            if not treffer:
+                await self.melden("In den Unterlagen liegen keine Bilder.")
+                return True
+            log.info("  Bildanzeige %r -> %s (%.3f)", thema, treffer[0]["rel"],
+                     treffer[0]["punkte"])
+            await self.ws.send(json.dumps({"typ": "werkzeug", "name": "bildanzeige",
+                                           "args": {"thema": thema},
+                                           "ergebnis": treffer[0]["rel"]}))
+            await self.zur_buehne({"typ": "bild", "frage": thema, "treffer": treffer})
+            await self.melden(_bild_satz(treffer[0]))
             return True
 
         if art == "hilfe":
@@ -1975,6 +2030,24 @@ async def http_seite(verbindung, anfrage):
                 "Content-Length": str(len(leib)),
             }), leib)
         return verbindung.respond(http.HTTPStatus.NOT_FOUND, "unbekannt\n")
+
+    # Bilder und PDFs fuer die Buehne. Was ausgeliefert werden darf,
+    # entscheidet wissen_bilder.datei() -- nur Dateien unterhalb der Git-Quellen.
+    if pfad_teil.startswith("/bild/"):
+        from urllib.parse import unquote
+        quelle, _, rel = unquote(pfad_teil[len("/bild/"):]).partition("/")
+        datei = wissen_bilder.datei(quelle, rel)
+        if datei is None:
+            return verbindung.respond(http.HTTPStatus.NOT_FOUND, "unbekannt\n")
+        leib = datei.read_bytes()
+        kopf = {"Content-Type": wissen_bilder.MIME[datei.suffix.lower()],
+                "Content-Length": str(len(leib)),
+                "X-Content-Type-Options": "nosniff"}
+        if datei.suffix.lower() == ".svg":
+            # Ein SVG kann Skript tragen. Im <img> laeuft es nicht, direkt
+            # aufgerufen schon -- und dann mit den Rechten dieser Seite.
+            kopf["Content-Security-Policy"] = "default-src 'none'; style-src 'unsafe-inline'; sandbox"
+        return Response(200, "OK", Headers(kopf), leib)
 
     if pfad_teil == "/api/datei":
         from urllib.parse import parse_qs, urlparse
