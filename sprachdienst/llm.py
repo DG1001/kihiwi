@@ -54,12 +54,15 @@ def _modell_nachschlagen() -> str | None:
 #                       mit  Schalter: 5,2 s bis zum ersten Satz
 #   GLM-5.3-Flash       ohne Schalter: 15,1 s, Antwort abgeschnitten
 #                       mit  Schalter: 5,7 s
+#   Kolibri-1           ohne Schalter: keine Antwort auf vier von vier
+#                       mit  Schalter: 1,4-3,3 s (06.10.2026) -- die
+#                       Vorlage denkt ungefragt auf Stufe "high"
 #
 # Nach dem Namen und nicht nach einer Probe: eine Probe kostet einen Aufruf
 # bei jedem Start, und der Name steht ohnehin fest. Wer ein Modell findet,
 # das hier fehlt, traegt es ein -- oder setzt KIHIWI_LLM_ZUSATZ von Hand,
 # das hat Vorrang.
-_DENKER = ("glm-", "qwen3.8-flash")
+_DENKER = ("glm-", "qwen3.8-flash", "kolibri")
 
 
 def denkschalter_fuer(rumpf: dict, modell: str) -> None:

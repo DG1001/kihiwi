@@ -2419,3 +2419,31 @@ Modellnamen nicht übernehmen, der Dienst hielt das später gestartete Modell
 für nicht erreichbar und stieg vor den Auslösewörtern aus. Gesprochen wurde
 die Absage auch nicht, weil der Testklient stumm geschaltet war. Reihenfolge
 merken: erst das Modell, dann der Sprachdienst.
+
+## Kolibri-1 im Sprachpfad: ohne Denkschalter stumm (06.10.2026)
+
+Aleph Alphas Kolibri-1 (78B gesamt, 3,46B aktiv, FP8, Apache 2.0) am
+Sprachdienst getestet: drei Fachfragen mit Piper erzeugt, eine Frage zu den
+Unterlagen und ein Rechercheauftrag aus `testaudio/`. Inhaltlich nah an den
+Fragen vom 28.08., aber nicht wortgleich — die damalige Formulierung ist nicht
+festgehalten.
+
+**Ohne Schalter kam auf vier von vier Fragen „Darauf habe ich keine Antwort
+bekommen".** Die Vorlage des Modells denkt ungefragt auf Stufe `high`; die
+400 `max_tokens` gingen ins Nachdenken, `content` blieb leer. Dasselbe Bild wie
+bei Qwen3.8-Flash-Next am 14.09. `kolibri` steht deshalb jetzt in `_DENKER`.
+Die Vorlage versteht `enable_thinking: false`, ein eigener Schalter ist nicht
+nötig.
+
+**Mit Schalter:** erster Satz nach 1,4–3,3 s über zwei Runden, kein Nachdenken
+im Sprachtext, keine eigenen Werkzeugaufrufe in acht Zügen — der Dienst sucht
+inzwischen vorab selbst, die Zahl ist mit der Tabelle vom 28.08. nicht
+vergleichbar. Fragen zu den Unterlagen beantwortet es konkret und mit Quelle.
+Auf eine Lehrbuchfrage zum Vakuum antwortete es „die Unterlagen sagen nicht,
+warum" statt aus eigenem Wissen — dieselbe Schwäche wie Qwen3.8-27B. Recherche
+über Hermes in 62 s; einen verstümmelten Ortsnamen fragte es nach, statt zu
+raten.
+
+**Für den Dauerbetrieb nicht vorgesehen.** 79 GB Gewichte lassen neben dem
+Sprachstapel 7,6 GiB frei, für das Bildmodell bleibt nichts. Start und
+Prüfstandszahlen stehen im Bericht `local-agentic-coding-128gb`.
