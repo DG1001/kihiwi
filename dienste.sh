@@ -17,6 +17,8 @@
 #   ./dienste.sh abschrift [...]  eine einzelne Audiodatei abschreiben
 #                                (<datei> [--fach] [--zeiten] [--nach <ziel>])
 #   ./dienste.sh namen           sucht Namen, die nirgends definiert sind
+#   ./dienste.sh logs-rotieren   whisper.log kuerzen, alte Staende gepackt
+#                                aufheben (laeuft taeglich per crontab)
 #   ./dienste.sh sprechermodelle laedt die Modelle der Sprechertrennung nach
 #                                (35 MB, liegen nicht im Repo)
 #
@@ -319,7 +321,7 @@ start_whisper() {
     # ist sofort fertig. </dev/null klemmt zusaetzlich stdin ab.
     ( cd "$WHISPER" && setsid --fork nohup ./build/bin/whisper-server \
         -m "$MODELL" --host 127.0.0.1 --port $P_WHISPER -l de -t 8 \
-        </dev/null >"$LOGS/whisper.log" 2>&1 & )
+        </dev/null >>"$LOGS/whisper.log" 2>&1 & )
     warte 60 bereit_whisper && ok "whisper-server bereit (:$P_WHISPER)" \
         || { fehl "whisper-server kam nicht hoch, siehe $LOGS/whisper.log"; return 1; }
 }
@@ -393,6 +395,27 @@ namen_pruefen() {
     }
 }
 
+# whisper-server schreibt bei jeder Abschrift mehrere Zeilen und wurde nie
+# gekuerzt (63 MB nach fuenf Wochen). copytruncate, weil der Server die Datei
+# offen haelt und kein Signal zum Neuoeffnen kennt. Das geht nur, weil er mit
+# >> startet: ohne O_APPEND schriebe er nach dem Kuerzen am alten Versatz
+# weiter, und die Datei waere sofort wieder so gross, nur voller Nullbytes.
+logs_rotieren() {
+    local konf="$LOGS/.logrotate.conf"
+    cat > "$konf" <<KONF
+"$LOGS/whisper.log" {
+    size 10M
+    rotate 4
+    compress
+    delaycompress
+    copytruncate
+    missingok
+    notifempty
+}
+KONF
+    /usr/sbin/logrotate -s "$LOGS/.logrotate.stand" "$konf"
+}
+
 # ------------------------------------------------------------------ Einstieg
 case "${1:-status}" in
     start)
@@ -413,6 +436,8 @@ case "${1:-status}" in
         esac ;;
     waechter-lauf)
         waechter_lauf ;;
+    logs-rotieren)
+        logs_rotieren ;;
     stop)
         stopp_port $P_SPRACH  "Sprachdienst"
         stopp_port $P_WHISPER "whisper-server"

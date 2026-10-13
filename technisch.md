@@ -246,11 +246,22 @@ Alles läuft über **`./dienste.sh`**:
     ./dienste.sh neustart       nur die beiden lokalen Dienste
     ./dienste.sh status         was läuft, auf welchem Port
     ./dienste.sh log sprach     Protokoll folgen (sprach | whisper | vllm)
+    ./dienste.sh logs-rotieren  whisper.log ab 10 MB kürzen, 4 Stände aufheben
 
 Protokolle in `logs/`. **`start` schaltet vLLM nicht ungefragt um** — läuft dort
 ein anderes Profil, wird nur gewarnt, denn auf dieser Maschine wird auch gemessen
 und ein Wechsel kostet zwei Minuten. Dienste werden über den **Port** gefunden,
 nicht über den Prozessnamen.
+
+**`whisper.log` wird rotiert**, täglich um 4:17 per Crontab
+(`17 4 * * * …/dienste.sh logs-rotieren`). Der Eintrag gehört zur Maschine,
+nicht zum Repo, und muss nach einem frischen Aufsetzen neu angelegt werden.
+Der Server schreibt bei jeder Abschrift mehrere Zeilen, und nach fünf Wochen
+waren es 63 MB. logrotate läuft mit `copytruncate`, weil whisper-server die Datei
+offen hält und kein Signal zum Neuöffnen kennt. Das funktioniert nur, weil der
+Server mit `>>` startet: Mit `>` schriebe er nach dem Kürzen am alten Versatz
+weiter, und die Datei hätte sofort wieder die alte Größe, nur aus Nullbytes.
+Konfiguration und Stand legt der Befehl selbst in `logs/` ab.
 
 | Dienst | Adresse | Anmerkung |
 |---|---|---|
