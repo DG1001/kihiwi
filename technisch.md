@@ -16,18 +16,26 @@ und GPU teilen sich diese Bandbreite, ein großes CPU-Modell hilft nicht.
 
 `~/.local/bin/model-switch` — es läuft immer nur **ein** großes Modell.
 Argumente: `ds4` | `ornith` | **`ornith-voice`** | `qwen36nvfp4` | `qwen38` |
-`nemotron` | `nemotronspec` | `qwenvl30` | `stop` | `status`.
+`nemotron` | `nemotronspec` | `qwenvl30` | **`qwen38flash`** | `stop` | `status`.
 
-**Für kihiwi ein `*-voice`-Profil benutzen**, nicht das Prüfstandsprofil.
-Es gibt `ornith-voice` und `qwen36nvfp4-voice`; welches `./dienste.sh start`
-lädt, steht in `KIHIWI_PROFIL`. **Vorgabe ist seit dem 01.09.2026
-`qwen36nvfp4-voice`** — gleiche Bauart und gleicher Durchsatz wie Ornith
-(78,3 gegen 78,4 tok/s), aber es sucht in den Unterlagen *und* antwortet
-trotzdem aus eigenem Wissen, wenn nichts zu finden ist.
+**Vorgabe ist `qwen38flash`** (Qwen3.8-Flash-Next über llama.cpp, Modellname
+`qwen3.8-flash-next`). Im Betrieb ist es seit dem 30.08.2026, als Vorgabe in
+`dienste.sh` und `konfig.py` aber erst seit dem 14.10.2026 eingetragen. Bis
+dahin stand dort noch `qwen36nvfp4-voice`. Aufgefallen ist das nicht, weil der
+Wächter mit ausdrücklichem `KIHIWI_PROFIL=qwen38flash` lief und `start_sprach`
+den angebotenen Namen übernimmt. Den Denkschalter ergänzt `_denkschalter()`
+selbst (siehe unten).
+
+**Bei vLLM ein `*-voice`-Profil benutzen**, nicht das Prüfstandsprofil.
+Es gibt `ornith-voice` und `qwen36nvfp4-voice`. Qwen3.6-35B-A3B hat
+die gleiche Bauart und den gleichen Durchsatz wie Ornith (78,3 gegen
+78,4 tok/s), sucht aber in den Unterlagen *und* antwortet trotzdem aus eigenem
+Wissen, wenn nichts zu finden ist.
 
 ```bash
-./dienste.sh start                              # Qwen3.6-35B-A3B NVFP4
-KIHIWI_PROFIL=ornith-voice ./dienste.sh start   # Ornith wie bisher
+./dienste.sh start                                   # Qwen3.8-Flash-Next
+KIHIWI_PROFIL=qwen36nvfp4-voice ./dienste.sh start   # Qwen3.6-35B-A3B NVFP4
+KIHIWI_PROFIL=ornith-voice ./dienste.sh start        # Ornith
 ```
 
 **`dienste.sh` hält Profil und Modellnamen zusammen.** Ist `KIHIWI_MODEL`

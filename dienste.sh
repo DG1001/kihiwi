@@ -46,14 +46,14 @@ P_SPRACH=8920
 C_VLLM=vllm-model          # Containername, den model-switch vergibt
 # Welches model-switch-Profil `start` laedt, wenn nichts auf :8889 laeuft.
 # Ueberschreibbar: KIHIWI_PROFIL=qwen36nvfp4-voice ./dienste.sh start
-# Immer ein *-voice-Profil nehmen -- die Pruefstandsprofile reservieren 0.85
-# des Speichers, und dann hungert der Rest des Sprachstapels.
+# Bei vLLM immer ein *-voice-Profil nehmen -- die Pruefstandsprofile
+# reservieren 0.85 des Speichers, und dann hungert der Rest des Sprachstapels.
 #
-# Qwen3.6-35B-A3B statt Ornith seit dem 01.09.2026: gleiche Bauart, gleiche
-# Groesse, gleicher Durchsatz (78,3 gegen 78,4 tok/s), aber es sucht in den
-# Unterlagen UND antwortet trotzdem aus eigenem Wissen, wenn nichts zu finden
-# ist. Ornith bleibt als Profil bestehen.
-PROFIL="${KIHIWI_PROFIL:-qwen36nvfp4-voice}"
+# Qwen3.8-Flash-Next (llama.cpp) seit dem 30.08.2026 im Betrieb, als Vorgabe
+# nachgezogen am 14.10.2026. Der Waechter lief schon die ganze Zeit mit
+# KIHIWI_PROFIL=qwen38flash, die Vorgabe war liegen geblieben. Davor
+# Qwen3.6-35B-A3B (qwen36nvfp4-voice), das als Profil bestehen bleibt.
+PROFIL="${KIHIWI_PROFIL:-qwen38flash}"
 # Untergrenze in GiB, unter der es fuer den Sprachstapel eng wird.
 # whisper.cpp (CUDA), Piper, sherpa-onnx und der Sprachdienst brauchen
 # zusammen rund 13 GiB. Mit dem Sprachprofil (GPU_UTIL 0.55) bleiben etwa
