@@ -532,9 +532,14 @@ async def erreichbar(timeout: float = 2.0) -> bool:
     "Modell nicht erreichbar" -- der unangenehmste Fehlerzustand, weil die
     Anzeige luegt und alles andere stimmt.
     """
+    # Nachziehen auch hier, nicht nur bei einem 404: der kommt erst mit der
+    # ersten Anfrage. Nach einem Wechsel ohne Gespraech stand sonst wieder
+    # "Modell nicht erreichbar" in der Anzeige (17.10.2026, nemo35super).
     def _p():
         with urllib.request.urlopen(f"{konfig.LLM_URL}/models", timeout=timeout) as r:
-            return _modellname() in r.read().decode()
+            if _modellname() in r.read().decode():
+                return True
+        return _modell_nachschlagen() is not None
     try:
         return await asyncio.to_thread(_p)
     except Exception:

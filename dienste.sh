@@ -53,7 +53,8 @@ C_VLLM=vllm-model          # Containername, den model-switch vergibt
 # nachgezogen am 14.10.2026. Der Waechter lief schon die ganze Zeit mit
 # KIHIWI_PROFIL=qwen38flash, die Vorgabe war liegen geblieben. Davor
 # Qwen3.6-35B-A3B (qwen36nvfp4-voice), das als Profil bestehen bleibt.
-PROFIL="${KIHIWI_PROFIL:-qwen38flash}"
+PROFIL_VORGABE=qwen38flash
+PROFIL="${KIHIWI_PROFIL:-$PROFIL_VORGABE}"
 # Untergrenze in GiB, unter der es fuer den Sprachstapel eng wird.
 # whisper.cpp (CUDA), Piper, sherpa-onnx und der Sprachdienst brauchen
 # zusammen rund 13 GiB. Mit dem Sprachprofil (GPU_UTIL 0.55) bleiben etwa
@@ -214,7 +215,7 @@ waechter_start() {
         # haette er das laufende Modell gegen ein anderes getauscht.
         laeuft_mit=$(tr '\0' '\n' < "/proc/$pid/environ" 2>/dev/null \
                      | sed -n 's/^KIHIWI_PROFIL=//p')
-        laeuft_mit=${laeuft_mit:-qwen36nvfp4-voice}
+        laeuft_mit=${laeuft_mit:-$PROFIL_VORGABE}
         if [ "$laeuft_mit" != "$PROFIL" ]; then
             warn "Waechter laeuft bereits (PID $pid), aber mit Profil"
             warn "  '$laeuft_mit' statt '$PROFIL'. Die Umgebung eines laufenden"
