@@ -133,7 +133,7 @@ Sprachmodell darüber entscheidet:
 | `Internetsuche` | eine Tatsache schnell aus dem Netz, Antwort sofort |
 | `Internetrecherche` | gründliche Recherche, Ergebnis kommt in einigen Minuten |
 | `Dokumentenrecherche` | Suche in den eigenen Unterlagen |
-| `Hermesaufgabe` | Anweisung unverändert an den Rechercheagenten |
+| `Hermesaufgabe` | Anweisung unverändert an den Rechercheagenten, mit Auszügen aus den eigenen Unterlagen |
 | `Bildanzeige` | zeigt ein Bild oder PDF aus den Unterlagen auf dem Monitor |
 | `Kiwihilfe` | zählt auf, was Kiwi versteht |
 

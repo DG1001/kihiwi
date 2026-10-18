@@ -37,6 +37,10 @@ ORDNER = konfig.WURZEL / "recherchen"
 # gehoert und man trotzdem nachsehen kann, was der Agent gebaut hat.
 ARBEIT = konfig.WURZEL / "zustand" / "hermes"
 MAX_S = 420          # danach gilt der Auftrag als gescheitert
+# Die eingelesenen Unterlagen. Hermes bekommt den Pfad mit, damit er bei
+# breiten Auftraegen selbst weiterlesen kann -- acht Auszuege reichen fuer
+# eine Einzelfrage, nicht fuer eine Projektzusammenfassung.
+UNTERLAGEN = konfig.WURZEL / "wissen" / "repos"
 
 # Werkzeuge des Rechercheagenten. `-t` ist eine POSITIVLISTE, also stehen hier
 # alle ausser `computer_use`.
@@ -104,14 +108,18 @@ def _unterlagen(frage: str) -> str:
     except Exception as e:                            # pragma: no cover
         log.warning("Unterlagen fuer den Auftrag nicht lesbar: %r", e)
         return ""
+    hinweis = (f"Die vollstaendigen Unterlagen des Labors liegen unter {UNTERLAGEN} "
+               "(nur lesen, dort nichts aendern). Reichen die Auszuege nicht, lies "
+               "dort selbst weiter." if UNTERLAGEN.is_dir() else "")
     if not treffer:
-        return ""
+        return (hinweis + "\n\n---\n\nDein Auftrag: ") if hinweis else ""
     teile = []
     for t in treffer:
         auszug = _index.auszug(t.text, _index.begriffe(_index.aufbrechen(frage)))
         teile.append(f"[{t.quelle} — {t.titel}, Abschnitt: {t.ueberschrift}]\n{auszug}")
     return ("Aus den Unterlagen des Labors (bereits durchsucht, du musst das "
             "nicht wiederholen):\n\n" + "\n\n".join(teile)
+            + (f"\n\n{hinweis}" if hinweis else "")
             + "\n\n---\n\nDein Auftrag: ")
 
 
@@ -174,14 +182,17 @@ class Recherche:
 
     async def _lauf(self, a: Auftrag, wenn_fertig, roh: bool = False):
         try:
-            # roh=True reicht die Anweisung unveraendert durch -- fuer den
-            # Fall, dass jemand Hermes direkt ansprechen will.
-            # roh: unveraendert durchreichen, ohne Unterlagen und ohne Zusatz.
-            if roh:
-                auftrag = a.frage
-            else:
-                vorlage = await asyncio.to_thread(_unterlagen, a.frage)
-                auftrag = vorlage + a.frage + AUFTRAG_ZUSATZ
+            # roh=True ("Hermesaufgabe") laesst die Anweisung unveraendert --
+            # ohne den Zusatz "hoechstens acht Saetze, Quellen", weil ein
+            # Auftrag an den Agenten etwas anderes sein kann als eine Frage.
+            # Die Unterlagen bekommt er trotzdem: bis zum 18.10.2026 ging die
+            # Hermesaufgabe ohne sie hinaus, und eine Projektzusammenfassung
+            # kam aus Allgemeinwissen und dem eigenen Arbeitsordner zurueck
+            # ("kein Treffer"), waehrend der Index acht passende Auszuege
+            # hatte. Eine Anweisung ohne die eigenen Unterlagen will hier
+            # praktisch niemand.
+            vorlage = await asyncio.to_thread(_unterlagen, a.frage)
+            auftrag = vorlage + a.frage + ("" if roh else AUFTRAG_ZUSATZ)
             a.ergebnis, a.hermes_sitzung = await self._hermes(auftrag)
         except asyncio.CancelledError:
             a.fehler = "abgebrochen"

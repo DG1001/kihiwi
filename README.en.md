@@ -39,7 +39,7 @@ of silence.
 | **Internetrecherche** | thorough research, result arrives later (30–40 s) |
 | **Dokumentenrecherche** | search your own documents |
 | **Wissensabgleich** | pull fresh state from repositories and cloud |
-| **Hermesaufgabe** | pass the instruction verbatim to the research agent |
+| **Hermesaufgabe** | pass the instruction verbatim to the research agent, with excerpts from your own documents |
 | **Kiwihilfe** | the list, spoken and on screen |
 
 **Without the wake word:** „Sprachaufzeichnung starten" / „… stoppen" act

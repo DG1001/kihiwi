@@ -2447,3 +2447,24 @@ raten.
 **Für den Dauerbetrieb nicht vorgesehen.** 79 GB Gewichte lassen neben dem
 Sprachstapel 7,6 GiB frei, für das Bildmodell bleibt nichts. Start und
 Prüfstandszahlen stehen im Bericht `local-agentic-coding-128gb`.
+
+## 18.10.2026: Die Hermesaufgabe bekommt die Unterlagen
+
+Fred bat per „Hermes-Aufgabe" um eine Projektzusammenfassung und bekam
+Allgemeinwissen zurück. Hermes meldete, zum Auftrag gebe es „keinen Treffer".
+Die Ursache steckte nicht in der Suche, sondern im Weg dorthin. Die
+Hermesaufgabe reichte die Anweisung **roh** durch, ohne Unterlagen und ohne
+Zusatz. Hermes läuft in `zustand/hermes/` und sieht `wissen/repos/` von dort
+aus nicht, also durchsuchte er nur seinen eigenen Arbeitsordner. Dieselbe
+Frage, wörtlich so erkannt wie gesprochen, also samt Hörfehlern, lieferte im
+Index acht passende Auszüge.
+
+Jetzt gilt:
+
+- Auch die Hermesaufgabe bekommt die Auszüge vorangestellt. Nur der Zusatz
+  der Recherche („höchstens acht Sätze, Quellen") entfällt, weil ein Auftrag an
+  den Agenten etwas anderes sein kann als eine Frage.
+- Beide Wege nennen Hermes den Pfad der vollständigen Unterlagen, nur zum
+  Lesen. Acht Auszüge reichen für eine Einzelfrage, nicht für eine
+  Zusammenfassung.
+- Gibt der Index nichts her, bekommt Hermes wenigstens den Pfad.

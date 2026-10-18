@@ -451,7 +451,7 @@ BESCHREIBUNG = {
     "websuche":  ("Internetsuche", "eine Sache schnell im Netz nachsehen"),
     "recherche": ("Internetrecherche", "gründliche Recherche, Ergebnis kommt nach"),
     "dokumente": ("Dokumentenrecherche", "in unseren eigenen Unterlagen suchen"),
-    "hermes":    ("Hermesaufgabe", "Anweisung unverändert an den Rechercheagenten"),
+    "hermes":    ("Hermesaufgabe", "Anweisung unverändert, mit den eigenen Unterlagen, an den Rechercheagenten"),
     "abgleich":  ("Wissensabgleich", "neue Stände aus Repo und Cloud holen"),
     "abbruch":   ("Recherche abbrechen", "einen laufenden Auftrag beenden"),
     "anzeige":   ("Anzeigetafel", "Messwerte einblenden: GPU, CPU, Speicher, Platte"),

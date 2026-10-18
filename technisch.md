@@ -1134,7 +1134,7 @@ sofort — wie bei „Kiwi" selbst:
 | `Internetsuche`, `Netzsuche`, `Websuche` | **eine** Tatsache direkt über SearXNG, sofortige Antwort (~1 s) |
 | `Internetrecherche`, `Webrecherche`, `recherchiere` | Rechercheauftrag an Hermes, Ergebnis kommt nach (30–40 s) |
 | `Dokumentenrecherche`, `Dokumentensuche` | Suche in den Unterlagen, das Modell formuliert nur noch die Antwort |
-| `Hermesaufgabe`, `Hermesauftrag` | Anweisung **unverändert** an Hermes durchreichen |
+| `Hermesaufgabe`, `Hermesauftrag` | Anweisung **unverändert** an Hermes durchreichen, davor Auszüge aus den Unterlagen und ihr Pfad |
 | `Kiwihilfe`, `Befehlsliste`, `was kannst du` | Liste der Auslösewörter — gesprochen kurz, angezeigt vollständig |
 
 **Warum:** Das Modell hat sich wiederholt geweigert, obwohl das Werkzeug

@@ -33,7 +33,7 @@ Sekunden nichts kommt.
 | **Internetrecherche** | gründlich, Ergebnis kommt nach (30–40 s) |
 | **Dokumentenrecherche** | in den eigenen Unterlagen suchen |
 | **Wissensabgleich** | neue Stände aus Repo und Cloud holen |
-| **Hermesaufgabe** | Anweisung unverändert an den Rechercheagenten |
+| **Hermesaufgabe** | Anweisung unverändert an den Rechercheagenten, mit Auszügen aus den eigenen Unterlagen |
 | **Kiwihilfe** | die Liste, gesprochen und auf dem Monitor |
 
 **Ohne Aktivierungswort:** „Sprachaufzeichnung starten", „Audioaufnahme
