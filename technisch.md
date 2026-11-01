@@ -363,6 +363,44 @@ Testen ohne Hardware:
 
     .venv/bin/python -m sprachdienst.klient_test testaudio/s3.wav [--aufnahme]
 
+### Jitsi-Brücke: Kiwi in einer Videokonferenz
+
+`sprachdienst/jitsi_bruecke.py` (Python) und `jitsi_bruecke.js` (läuft in der
+Jitsi-Seite) machen Kiwi zu einem Konferenzteilnehmer. Für den Sprachdienst
+ist die Brücke ein Klient wie `/klient`.
+
+    .venv/bin/python -m sprachdienst.jitsi_bruecke https://<jitsi>/<raum> [--name Kiwi] [--sichtbar]
+
+- Ein Chromium ohne Bildschirm (Playwright) tritt dem Raum bei. Die Raum-URL
+  bekommt Einstellungen im Hash: ohne Vorschaltseite, mit automatischem
+  Anklopfen an der Lobby, ohne Peer-to-Peer (sonst wechseln die Tonspuren
+  bei zwei Teilnehmern zwischen Bridge und Direktverbindung).
+- **Raum → Kiwi:** Das Seitenskript hängt sich vor dem Laden von Jitsi an
+  `RTCPeerConnection` und mischt jede eingehende Tonspur in einen
+  `AudioContext` mit 16 kHz; derselbe Worklet wie in `klient.html` schneidet
+  512er-Blöcke int16, die über eine Playwright-Bindung an `/audio` gehen.
+  Kiwis eigene Stimme kommt nicht zurück (Jitsi schickt einem Teilnehmer
+  seine Spur nicht).
+- **Kiwi → Raum:** `getUserMedia` ist ersetzt. Jitsi bekommt als Mikrofon den
+  Ausgang eines `MediaStreamDestination`, in den die Sprachausgabe
+  (Rate aus der `ton`-Nachricht) eingeplant wird wie in `klient.html`; als
+  Kamera ein Canvas mit dem Zustand (`phase`) und bei laufender Aufzeichnung
+  einem roten Balken „● AUFNAHME“.
+- Kiwi reagiert wie am Freisprecher nur auf das Aktivierungswort, gemischt
+  über alle Teilnehmer.
+- Die Brücke schaltet beim Start `mikro` an und beim Ende aus. Der Schalter
+  gilt für den ganzen Dienst, nicht je Sitzung; ein gleichzeitig verbundener
+  Laborklient ist davon mit betroffen.
+- Eingabeblöcke werden verworfen, wenn der Dienst mehr als 300 (≈10 s)
+  hinterherhängt -- lieber eine Silbe verpassen als dauerhaft zurückfallen.
+- Geprüft 01.11.2026 ohne Konferenz, per Rückkopplung zweier
+  `RTCPeerConnection` in der Seite: 440 Hz hinein kommen mit 31 Blöcken/s
+  und 441 Hz bei der Brücke an; 660 Hz als Sprachausgabe sind auf der
+  Mikrofonspur mit 656 Hz messbar.
+- Playwright läuft auf dem GX10 nativ (aarch64-Rad, Chromium headless shell).
+  `audioWorklet` gibt es nur im sicheren Kontext; auf der https-Seite von
+  Jitsi gegeben, auf `about:blank` nicht.
+
 ### Die Antworten gehören in die Aufzeichnung
 
 Die Fragen an Kiwi landen ohnehin im Mitschnitt — der Rekorder läuft unabhängig

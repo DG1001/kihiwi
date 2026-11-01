@@ -2468,3 +2468,16 @@ Jetzt gilt:
   Lesen. Acht Auszüge reichen für eine Einzelfrage, nicht für eine
   Zusammenfassung.
 - Gibt der Index nichts her, bekommt Hermes wenigstens den Pfad.
+
+## 01.11.2026: Kiwi in der Videokonferenz
+
+Fred wollte Kiwi in ein Jitsi-Meeting holen, erst nur mit Ton, später mit
+Avatar. Gewählt: eine Brücke als eigener Konferenzteilnehmer (Chromium ohne
+Bildschirm über Playwright) statt einer Anbindung an Jitsis Server-Komponenten
+(Jigasi). So braucht der Sprachdienst keine Änderung, die Brücke spricht
+dasselbe Protokoll wie `/klient`, und Jitsi sieht einen gewöhnlichen
+Browser-Teilnehmer, der durch die Lobby muss.
+
+Das Kachelbild zeigt den Zustand und eine laufende Aufzeichnung in Rot, weil
+in der Konferenz niemand den Laborbildschirm sieht und die Aufzeichnung auch
+dort per Zuruf startet. Der Avatar kommt in Stufe 2.

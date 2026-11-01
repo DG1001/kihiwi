@@ -98,6 +98,13 @@ Anforderungen:
 - **Festes Löschkonzept** mit Aufbewahrungsfrist.
 - **Datenschutzbeauftragte und Personalrat vor Inbetriebnahme**, nicht danach.
 
+**In einer Videokonferenz (Jitsi-Brücke)** hört Kiwi alle Teilnehmer. Die
+Sprachaufzeichnung lässt sich auch dort per Zuruf starten, ohne
+Aktivierungswort, und würde dann alle aufzeichnen, auch Gäste. Den großen
+Balken des Laborbildschirms sieht dort niemand; deshalb zeigt Kiwis Kachel bei
+laufender Aufzeichnung „● AUFNAHME“ in Rot. Die Einwilligung aller Beteiligten
+bleibt trotzdem Sache dessen, der Kiwi in den Raum holt.
+
 Stehende Auflage: **nichts verlässt das Netz.** Alle Modelle laufen lokal, es
 gibt keinen Cloud-Dienst im Pfad.
 

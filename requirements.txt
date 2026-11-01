@@ -28,3 +28,8 @@ sherpa-onnx>=1.13
 # fehlt fastembed, sucht kihiwi nur im Volltext (messbar schlechter bei
 # umschriebenen Fragen, aber nie kaputt).
 fastembed>=0.8
+
+# Jitsi-Bruecke (sprachdienst/jitsi_bruecke.py). Optional: nur noetig, wenn
+# Kiwi an Videokonferenzen teilnehmen soll. Danach einmal
+# `python -m playwright install chromium`.
+playwright>=1.64
