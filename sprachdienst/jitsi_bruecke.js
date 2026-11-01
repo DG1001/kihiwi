@@ -162,7 +162,29 @@ registerProcessor('sender', Sender);
   Object.setPrototypeOf(KiwiPC, EchtePC);  // statische Methoden (generateCertificate)
   window.RTCPeerConnection = KiwiPC;
 
+  // Jitsi startet Kiwi stumm und ohne Kamera (Mikrofon durchgestrichen,
+  // Buchstabe statt Kachelbild), obwohl beide Spuren laufen -- dann sieht
+  // niemand den Aufnahme-Balken. Einmal nach dem Beitritt beides einschalten,
+  // nur einmal, damit ein Moderator Kiwi danach weiter stumm schalten kann.
+  let entstummt = false;
+  window.kiwiEntstummen = () => {
+    if (entstummt || typeof APP === "undefined" || !APP.conference
+        || !APP.conference.isJoined || !APP.conference.isJoined()) return null;
+    entstummt = true;
+    const war = {ton: APP.conference.isLocalAudioMuted(),
+                 bild: APP.conference.isLocalVideoMuted()};
+    if (war.ton) APP.conference.muteAudio(false);
+    if (war.bild) APP.conference.muteVideo(false);
+    return war;
+  };
+
   window.kiwiStand = () => ({spuren: angehaengt.size,
                              eingang: einCtx ? einCtx.state : null,
-                             ausgang: ausCtx ? ausCtx.state : null});
+                             ausgang: ausCtx ? ausCtx.state : null,
+                             stumm: (typeof APP !== "undefined" && APP.conference
+                                     && APP.conference.isLocalAudioMuted)
+                                    ? APP.conference.isLocalAudioMuted() : null,
+                             kamera_aus: (typeof APP !== "undefined" && APP.conference
+                                          && APP.conference.isLocalVideoMuted)
+                                         ? APP.conference.isLocalVideoMuted() : null});
 })();

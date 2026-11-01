@@ -2481,3 +2481,11 @@ Browser-Teilnehmer, der durch die Lobby muss.
 Das Kachelbild zeigt den Zustand und eine laufende Aufzeichnung in Rot, weil
 in der Konferenz niemand den Laborbildschirm sieht und die Aufzeichnung auch
 dort per Zuruf startet. Der Avatar kommt in Stufe 2.
+
+Erster Test in einer echten Konferenz: Kiwi verstand und antwortete, war aber
+nicht zu hören -- Jitsi hatte ihn stumm und ohne Kamera gestartet. Die Brücke
+schaltet beides jetzt nach dem Beitritt einmal ein. Beim Neustart lief die
+alte Brücke weiter (von Hand gestartet, der falsche Prozess beendet): zwei
+Kiwis im Raum, und als sich die alte abmeldete, schaltete sie das Mikrofon
+des Dienstes für alle aus. Daher `./dienste.sh jitsi` mit PID-Datei und die
+Brücke, die das Mikrofon wieder einschaltet.

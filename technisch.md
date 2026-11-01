@@ -369,7 +369,12 @@ Testen ohne Hardware:
 Jitsi-Seite) machen Kiwi zu einem Konferenzteilnehmer. Für den Sprachdienst
 ist die Brücke ein Klient wie `/klient`.
 
+    ./dienste.sh jitsi start https://<jitsi>/<raum> [name]    # stop | log
     .venv/bin/python -m sprachdienst.jitsi_bruecke https://<jitsi>/<raum> [--name Kiwi] [--sichtbar]
+
+Über `dienste.sh` mit PID-Datei `logs/jitsi.pid` und Protokoll
+`logs/jitsi.log`; es läuft immer nur **eine** Brücke (zwei säßen als zwei
+Kiwis im Raum und antworteten beide). `status` zeigt sie mit Raum an.
 
 - Ein Chromium ohne Bildschirm (Playwright) tritt dem Raum bei. Die Raum-URL
   bekommt Einstellungen im Hash: ohne Vorschaltseite, mit automatischem
@@ -389,10 +394,23 @@ ist die Brücke ein Klient wie `/klient`.
 - Kiwi reagiert wie am Freisprecher nur auf das Aktivierungswort, gemischt
   über alle Teilnehmer.
 - Die Brücke schaltet beim Start `mikro` an und beim Ende aus. Der Schalter
-  gilt für den ganzen Dienst, nicht je Sitzung; ein gleichzeitig verbundener
-  Laborklient ist davon mit betroffen.
+  gilt für den ganzen Dienst, nicht je Sitzung: Meldet sich ein anderer
+  Klient ab, ist er für alle aus. Kiwi antwortet dann noch, verweigert aber
+  die Aufzeichnung („das Mikrofon ist aus“). Deshalb schaltet die Brücke ihn
+  wieder an, sobald ein `zustand` mit `mikro: false` kommt, solange sie
+  läuft. Ein gleichzeitig verbundener Laborklient ist davon mit betroffen.
+- **Jitsi startet Kiwi stumm und ohne Kamera** (durchgestrichenes Mikrofon,
+  Buchstabe statt Kachelbild), obwohl beide Spuren laufen; dann hört niemand
+  die Antworten und niemand sieht den Aufnahme-Balken. Die Brücke setzt
+  `startWithAudioMuted`/`startWithVideoMuted` im Hash und schaltet nach dem
+  Beitritt **einmal** beides ein (`APP.conference.muteAudio(false)`,
+  `muteVideo(false)`) -- nur einmal, damit ein Moderator Kiwi danach stumm
+  schalten kann.
 - Eingabeblöcke werden verworfen, wenn der Dienst mehr als 300 (≈10 s)
   hinterherhängt -- lieber eine Silbe verpassen als dauerhaft zurückfallen.
+- Getestet 01.11.2026 in einer echten Konferenz: Kiwi kommt durch die Lobby,
+  hört über alle Teilnehmer, antwortet hörbar, „Audioaufzeichnung
+  starten/stoppen“ wirkt und der rote Balken erscheint in der Kachel.
 - Geprüft 01.11.2026 ohne Konferenz, per Rückkopplung zweier
   `RTCPeerConnection` in der Seite: 440 Hz hinein kommen mit 31 Blöcken/s
   und 441 Hz bei der Brücke an; 660 Hz als Sprachausgabe sind auf der

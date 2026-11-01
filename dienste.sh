@@ -21,6 +21,8 @@
 #                                aufheben (laeuft taeglich per crontab)
 #   ./dienste.sh sprechermodelle laedt die Modelle der Sprechertrennung nach
 #                                (35 MB, liegen nicht im Repo)
+#   ./dienste.sh jitsi [...]     Kiwi als Teilnehmer einer Jitsi-Konferenz
+#                                (start <raum-url> [name] | stop | log)
 #
 # Die Dienste werden ueber ihren PORT gefunden, nicht ueber den Prozessnamen:
 # `pkill -f sprachdienst.gateway` bringt die eigene Shell um, weil das Muster in
@@ -237,6 +239,50 @@ waechter_start() {
     fi
 }
 
+# ------------------------------------------------------------ Jitsi-Bruecke
+# Kiwi als Konferenzteilnehmer (sprachdienst/jitsi_bruecke.py). Hat keinen
+# Port, deshalb PID-Datei wie beim Waechter. Immer nur EINE Bruecke: zwei
+# saessen als zwei Kiwis im Raum und antworteten beide.
+JITSI_PID="$LOGS/jitsi.pid"
+
+jitsi_laeuft() { [ -f "$JITSI_PID" ] && kill -0 "$(cat "$JITSI_PID")" 2>/dev/null; }
+
+jitsi_raum() { tr '\0' ' ' < "/proc/$(cat "$JITSI_PID")/cmdline" 2>/dev/null \
+                   | grep -oE 'https?://[^ ]+'; }
+
+jitsi_start() {
+    local url="${1:-}" name="${2:-Kiwi}"
+    [ -n "$url" ] || { fehl "Raum fehlt: ./dienste.sh jitsi start https://<jitsi>/<raum> [name]"; return 2; }
+    if jitsi_laeuft; then
+        warn "Bruecke laeuft bereits (PID $(cat "$JITSI_PID"), $(jitsi_raum))"
+        warn "  erst ./dienste.sh jitsi stop"; return 1
+    fi
+    belegt $P_SPRACH || { fehl "Sprachdienst laeuft nicht — erst ./dienste.sh start"; return 1; }
+    setsid --fork nohup "$VENV" -m sprachdienst.jitsi_bruecke "$url" --name "$name" \
+        </dev/null >>"$LOGS/jitsi.log" 2>&1
+    sleep 1
+    # Ueber das Muster suchen ist sicher: die eigene Shell traegt
+    # "sprachdienst.jitsi_bruecke" nicht in ihrer Kommandozeile.
+    pgrep -f -- "-m sprachdienst.jitsi_bruecke" | head -1 > "$JITSI_PID"
+    if [ -s "$JITSI_PID" ]; then
+        ok "Bruecke gestartet (PID $(cat "$JITSI_PID")) — im Raum als '$name' hereinlassen"
+    else
+        rm -f "$JITSI_PID"; fehl "Bruecke kam nicht hoch, siehe $LOGS/jitsi.log"; return 1
+    fi
+}
+
+jitsi_stopp() {
+    if ! jitsi_laeuft; then rm -f "$JITSI_PID"; info "Bruecke laeuft nicht"; return 0; fi
+    local pid; pid=$(cat "$JITSI_PID")
+    kill "$pid" 2>/dev/null
+    # Sie verlaesst den Raum und schaltet das Mikrofon des Dienstes ab; das
+    # dauert ein paar Sekunden.
+    for _ in $(seq 1 20); do kill -0 "$pid" 2>/dev/null || break; sleep 0.5; done
+    kill -0 "$pid" 2>/dev/null && { kill -9 "$pid" 2>/dev/null; warn "Bruecke musste hart beendet werden"; }
+    rm -f "$JITSI_PID"
+    ok "Bruecke beendet"
+}
+
 waechter_stopp() {
     if [ ! -f "$WAECHTER_PID" ]; then info "Waechter laeuft nicht"; return 0; fi
     kill "$(cat "$WAECHTER_PID")" 2>/dev/null
@@ -376,6 +422,7 @@ status() {
     zeile "Sprachmodell"   $P_VLLM    bereit_vllm    "$modell"
     zeile "whisper-server" $P_WHISPER bereit_whisper "large-v3-turbo, -l de"
     zeile "Sprachdienst"   $P_SPRACH  bereit_sprach  "Monitor: http://127.0.0.1:$P_SPRACH/"
+    if jitsi_laeuft; then ok "Jitsi-Bruecke    PID $(cat "$JITSI_PID")  $(jitsi_raum)"; fi
     echo
     free -h | awk 'NR==2{printf "  Speicher: %s frei von %s\n", $7, $2}'
 }
@@ -491,6 +538,13 @@ case "${1:-status}" in
         exec "$VENV" -c "import sys; sys.path.insert(0,'$WURZEL')
 from sprachdienst import sprecher
 print('  bereit:', sprecher.laden() is not None)" ;;
+    jitsi)
+        case "${2:-}" in
+            start) jitsi_start "${3:-}" "${4:-Kiwi}" ;;
+            stop)  jitsi_stopp ;;
+            log)   tail -n 30 -f "$LOGS/jitsi.log" ;;
+            *)     echo "jitsi start <raum-url> [name] | stop | log"; exit 2 ;;
+        esac ;;
     log)
         case "${2:-sprach}" in
             sprach)  tail -f "$LOGS/sprach.log" ;;

@@ -38,6 +38,10 @@ def raum_url(url: str, name: str) -> str:
         "config.prejoinConfig.enabled=false",
         "config.lobby.autoKnock=true",
         "config.p2p.enabled=false",
+        "config.startWithAudioMuted=false",
+        "config.startAudioMuted=null",
+        "config.startWithVideoMuted=false",
+        "config.startVideoMuted=null",
         "config.disableDeepLinking=true",
         "userInfo.displayName=" + quote(json.dumps(name)),
     ]
@@ -80,6 +84,13 @@ async def lauf(url: str, name: str, sichtbar: bool):
                 await ws.send(await nach_kiwi.get())
 
         async def runter():
+            # Der Schalter "mikro" gilt fuer den ganzen Dienst. Meldet sich ein
+            # anderer Klient ab (oder eine zweite Bruecke), schaltet er ihn fuer
+            # alle aus -- danach antwortet Kiwi zwar noch, verweigert aber die
+            # Aufzeichnung ("das Mikrofon ist aus", 01.11.2026). Solange die
+            # Bruecke im Raum ist, ist ihr Mikrofon an.
+            zuletzt_an = 0.0
+            aufnahme = False
             async for n in ws:
                 if isinstance(n, bytes):
                     await seite.evaluate("d => window.kiwiSpiel(d)",
@@ -90,18 +101,38 @@ async def lauf(url: str, name: str, sichtbar: bool):
                     await seite.evaluate("r => window.kiwiRate(r)", d["rate"])
                 elif d.get("typ") == "zustand":
                     await seite.evaluate("z => window.kiwiZustand(z)", d)
-                    if d.get("aufnahme"):
-                        log.warning("Aufnahme laeuft -- alle im Raum werden aufgezeichnet")
+                    if bool(d.get("aufnahme")) != aufnahme:
+                        aufnahme = bool(d.get("aufnahme"))
+                        if aufnahme:
+                            log.warning("Aufnahme gestartet -- alle im Raum werden aufgezeichnet")
+                        else:
+                            log.info("Aufnahme beendet")
+                    jetzt = asyncio.get_running_loop().time()
+                    if not d.get("mikro") and not ende.is_set() \
+                            and jetzt - zuletzt_an > 2:
+                        zuletzt_an = jetzt
+                        log.info("Mikrofon war aus (anderer Klient?), wieder an")
+                        await ws.send(json.dumps({"befehl": "mikro", "an": True}))
                 elif d.get("typ") == "text":
                     log.info("%s: %s", d.get("rolle", "?"), d.get("text", ""))
 
         async def stand():
-            # Alle 30 s ins Protokoll, wie viele Tonspuren ankommen -- die
-            # einzige Stelle, an der man von aussen sieht, ob Kiwi zuhoert.
+            # Nach dem Beitritt einmal das Mikrofon einschalten (siehe
+            # kiwiEntstummen), dann alle 30 s ins Protokoll, wie viele
+            # Tonspuren ankommen -- die einzige Stelle, an der man von aussen
+            # sieht, ob Kiwi zuhoert.
+            n = 0
             while True:
-                await asyncio.sleep(30)
+                await asyncio.sleep(2)
+                n += 1
                 try:
-                    log.info("Stand: %s", await seite.evaluate("window.kiwiStand()"))
+                    r = await seite.evaluate("window.kiwiEntstummen()")
+                    if r is not None:
+                        log.info("Beigetreten; Mikrofon %s, Kamera %s",
+                                 "eingeschaltet (war stumm)" if r["ton"] else "war an",
+                                 "eingeschaltet (war aus)" if r["bild"] else "war an")
+                    if n % 15 == 0:
+                        log.info("Stand: %s", await seite.evaluate("window.kiwiStand()"))
                 except Exception:
                     pass
 
