@@ -12,7 +12,12 @@ klopft Kiwi an und wartet, bis ein Moderator ihn hereinlaesst.
 
 Aufruf:
     .venv/bin/python -m sprachdienst.jitsi_bruecke https://<jitsi>/<raum>
-        [--name Kiwi] [--sichtbar]
+        [--name Kiwi] [--warten SEKUNDEN] [--sichtbar]
+
+Mit --warten beendet sich die Bruecke, wenn Kiwi nicht innerhalb dieser Zeit
+hereingelassen wird (Rueckgabe 3). Nach dem Beitritt endet sie, sobald Kiwi
+nicht mehr in der Konferenz ist (Konferenz vorbei, hinausgeworfen; Rueckgabe 0).
+Der Jitsi-Waechter (jitsi_waechter.py) verlaesst sich darauf.
 
 Einrichten: pip install playwright && python -m playwright install chromium
 """
@@ -48,7 +53,7 @@ def raum_url(url: str, name: str) -> str:
     return url.split("#")[0] + "#" + "&".join(einstellungen)
 
 
-async def lauf(url: str, name: str, sichtbar: bool):
+async def lauf(url: str, name: str, sichtbar: bool, warten: float | None = None) -> int:
     dienst = f"ws://{konfig.BIND}:{konfig.PORT}/audio"
     nach_kiwi: asyncio.Queue[bytes] = asyncio.Queue(maxsize=300)
 
@@ -122,15 +127,24 @@ async def lauf(url: str, name: str, sichtbar: bool):
             # Tonspuren ankommen -- die einzige Stelle, an der man von aussen
             # sieht, ob Kiwi zuhoert.
             n = 0
+            beigetreten = False
             while True:
                 await asyncio.sleep(2)
                 n += 1
                 try:
                     r = await seite.evaluate("window.kiwiEntstummen()")
                     if r is not None:
+                        beigetreten = True
                         log.info("Beigetreten; Mikrofon %s, Kamera %s",
                                  "eingeschaltet (war stumm)" if r["ton"] else "war an",
                                  "eingeschaltet (war aus)" if r["bild"] else "war an")
+                    drin = await seite.evaluate("window.kiwiDrin()")
+                    if beigetreten and not drin:
+                        log.info("Nicht mehr in der Konferenz (vorbei oder hinausgeworfen)")
+                        return 0
+                    if not beigetreten and warten and n * 2 >= warten:
+                        log.info("Nach %.0f s nicht hereingelassen, gebe auf", warten)
+                        return 3
                     if n % 15 == 0:
                         log.info("Stand: %s", await seite.evaluate("window.kiwiStand()"))
                 except Exception:
@@ -141,33 +155,42 @@ async def lauf(url: str, name: str, sichtbar: bool):
         for sig in (signal.SIGINT, signal.SIGTERM):
             asyncio.get_running_loop().add_signal_handler(sig, ende.set)
 
-        aufgaben = [asyncio.create_task(t) for t in
-                    (hoch(), runter(), stand(), ende.wait())]
+        staende = asyncio.create_task(stand())
+        aufgaben = [asyncio.create_task(t) for t in (hoch(), runter(), ende.wait())]
+        aufgaben.append(staende)
         fertig, offen = await asyncio.wait(aufgaben,
                                            return_when=asyncio.FIRST_COMPLETED)
         for t in offen:
             t.cancel()
+        rueckgabe = 0
         for t in fertig:
             if t.exception():
                 log.error("Bruecke beendet: %r", t.exception())
+                rueckgabe = 1
+            elif t is staende:
+                rueckgabe = t.result()
         try:
             await ws.send(json.dumps({"befehl": "mikro", "an": False}))
         except websockets.ConnectionClosed:
             pass
         await browser.close()
         log.info("Bruecke beendet")
+        return rueckgabe
 
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("url", help="Raum-URL, z. B. https://<jitsi>/<raum>")
     ap.add_argument("--name", default="Kiwi", help="Anzeigename im Raum")
+    ap.add_argument("--warten", type=float, default=None,
+                    help="aufgeben, wenn Kiwi nicht binnen so vieler Sekunden "
+                         "hereingelassen wird")
     ap.add_argument("--sichtbar", action="store_true",
                     help="Browserfenster zeigen (zur Fehlersuche)")
     a = ap.parse_args()
     logging.basicConfig(level=logging.INFO,
                         format="%(asctime)s %(levelname)s %(message)s")
-    asyncio.run(lauf(a.url, a.name, a.sichtbar))
+    raise SystemExit(asyncio.run(lauf(a.url, a.name, a.sichtbar, a.warten)))
 
 
 if __name__ == "__main__":

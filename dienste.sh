@@ -23,6 +23,9 @@
 #                                (35 MB, liegen nicht im Repo)
 #   ./dienste.sh jitsi [...]     Kiwi als Teilnehmer einer Jitsi-Konferenz
 #                                (start <raum-url> [name] | stop | log)
+#   ./dienste.sh jitsi auto [...] Waechter: Kiwi klopft bei den Konferenzen
+#                                eines Nutzers an (start | stop), Einstellungen
+#                                in zustand/jitsi.env (Muster jitsi.beispiel.env)
 #
 # Die Dienste werden ueber ihren PORT gefunden, nicht ueber den Prozessnamen:
 # `pkill -f sprachdienst.gateway` bringt die eigene Shell um, weil das Muster in
@@ -253,6 +256,10 @@ jitsi_raum() { tr '\0' ' ' < "/proc/$(cat "$JITSI_PID")/cmdline" 2>/dev/null \
 jitsi_start() {
     local url="${1:-}" name="${2:-Kiwi}"
     [ -n "$url" ] || { fehl "Raum fehlt: ./dienste.sh jitsi start https://<jitsi>/<raum> [name]"; return 2; }
+    if jitsi_auto_laeuft; then
+        warn "Der Waechter laeuft und schickt Kiwi selbst -- erst ./dienste.sh jitsi auto stop"
+        return 1
+    fi
     if jitsi_laeuft; then
         warn "Bruecke laeuft bereits (PID $(cat "$JITSI_PID"), $(jitsi_raum))"
         warn "  erst ./dienste.sh jitsi stop"; return 1
@@ -281,6 +288,41 @@ jitsi_stopp() {
     kill -0 "$pid" 2>/dev/null && { kill -9 "$pid" 2>/dev/null; warn "Bruecke musste hart beendet werden"; }
     rm -f "$JITSI_PID"
     ok "Bruecke beendet"
+}
+
+# Waechter fuer die Bruecke: schickt Kiwi in die Konferenzen eines Nutzers
+# (sprachdienst/jitsi_waechter.py). Startet die Bruecken selbst; deren PID
+# steht nicht in jitsi.pid.
+JITSI_AUTO_PID="$LOGS/jitsi-auto.pid"
+JITSI_ENV="$WURZEL/zustand/jitsi.env"
+
+jitsi_auto_laeuft() { [ -f "$JITSI_AUTO_PID" ] && kill -0 "$(cat "$JITSI_AUTO_PID")" 2>/dev/null; }
+
+jitsi_auto_start() {
+    if jitsi_auto_laeuft; then ok "Waechter laeuft bereits (PID $(cat "$JITSI_AUTO_PID"))"; return 0; fi
+    if jitsi_laeuft; then warn "Eine Bruecke laeuft von Hand — erst ./dienste.sh jitsi stop"; return 1; fi
+    [ -f "$JITSI_ENV" ] || { fehl "$JITSI_ENV fehlt (Muster: jitsi.beispiel.env)"; return 1; }
+    belegt $P_SPRACH || { fehl "Sprachdienst laeuft nicht — erst ./dienste.sh start"; return 1; }
+    ( set -a; . "$JITSI_ENV"; set +a
+      setsid --fork nohup "$VENV" -m sprachdienst.jitsi_waechter </dev/null >>"$LOGS/jitsi.log" 2>&1 )
+    sleep 1
+    pgrep -f -- "-m sprachdienst.jitsi_waechter" | head -1 > "$JITSI_AUTO_PID"
+    if [ -s "$JITSI_AUTO_PID" ]; then
+        ok "Waechter gestartet (PID $(cat "$JITSI_AUTO_PID")) — Kiwi klopft bei neuen Konferenzen an"
+    else
+        rm -f "$JITSI_AUTO_PID"; fehl "Waechter kam nicht hoch, siehe $LOGS/jitsi.log"; return 1
+    fi
+}
+
+jitsi_auto_stopp() {
+    if ! jitsi_auto_laeuft; then rm -f "$JITSI_AUTO_PID"; info "Waechter laeuft nicht"; return 0; fi
+    local pid; pid=$(cat "$JITSI_AUTO_PID")
+    kill "$pid" 2>/dev/null
+    # Er beendet zuerst eine laufende Bruecke (bis 15 s).
+    for _ in $(seq 1 40); do kill -0 "$pid" 2>/dev/null || break; sleep 0.5; done
+    kill -0 "$pid" 2>/dev/null && { kill -9 "$pid" 2>/dev/null; warn "Waechter musste hart beendet werden"; }
+    rm -f "$JITSI_AUTO_PID"
+    ok "Waechter beendet"
 }
 
 waechter_stopp() {
@@ -423,6 +465,7 @@ status() {
     zeile "whisper-server" $P_WHISPER bereit_whisper "large-v3-turbo, -l de"
     zeile "Sprachdienst"   $P_SPRACH  bereit_sprach  "Monitor: http://127.0.0.1:$P_SPRACH/"
     if jitsi_laeuft; then ok "Jitsi-Bruecke    PID $(cat "$JITSI_PID")  $(jitsi_raum)"; fi
+    if jitsi_auto_laeuft; then ok "Jitsi-Waechter   PID $(cat "$JITSI_AUTO_PID")  Kiwi klopft bei neuen Konferenzen an"; fi
     echo
     free -h | awk 'NR==2{printf "  Speicher: %s frei von %s\n", $7, $2}'
 }
@@ -543,7 +586,13 @@ print('  bereit:', sprecher.laden() is not None)" ;;
             start) jitsi_start "${3:-}" "${4:-Kiwi}" ;;
             stop)  jitsi_stopp ;;
             log)   tail -n 30 -f "$LOGS/jitsi.log" ;;
-            *)     echo "jitsi start <raum-url> [name] | stop | log"; exit 2 ;;
+            auto)
+                case "${3:-}" in
+                    start) jitsi_auto_start ;;
+                    stop)  jitsi_auto_stopp ;;
+                    *)     echo "jitsi auto start | stop"; exit 2 ;;
+                esac ;;
+            *)     echo "jitsi start <raum-url> [name] | stop | log | auto start|stop"; exit 2 ;;
         esac ;;
     log)
         case "${2:-sprach}" in

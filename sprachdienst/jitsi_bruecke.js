@@ -290,6 +290,9 @@ registerProcessor('sender', Sender);
     return war;
   };
 
+  window.kiwiDrin = () => typeof APP !== "undefined" && !!APP.conference
+                          && !!APP.conference.isJoined && APP.conference.isJoined();
+
   window.kiwiStand = () => ({spuren: angehaengt.size,
                              eingang: einCtx ? einCtx.state : null,
                              ausgang: ausCtx ? ausCtx.state : null,

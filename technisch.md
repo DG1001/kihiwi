@@ -430,6 +430,32 @@ Kiwis im Raum und antworteten beide). `status` zeigt sie mit Raum an.
   `audioWorklet` gibt es nur im sicheren Kontext; auf der https-Seite von
   Jitsi gegeben, auf `about:blank` nicht.
 
+#### Wächter: Kiwi klopft bei den eigenen Konferenzen an
+
+`sprachdienst/jitsi_waechter.py`, gestartet mit `./dienste.sh jitsi auto
+start` (Einstellungen in `zustand/jitsi.env`, Muster `jitsi.beispiel.env`).
+Fragt alle 10 s mit einem frei wählbaren Befehl (`KIHIWI_JITSI_RAEUME`), welche
+Konferenzen laufen und wer sie eröffnet hat, als JSON
+`[{"raum", "nutzer", "seit", "belegt"}]`. Läuft eine Konferenz von
+`KIHIWI_JITSI_NUTZER` mit mindestens einem Menschen (`belegt` ≥ 2, Jicofo
+zählt mit) und ist keine Brücke aktiv, startet er eine mit `--warten 180`.
+Kiwi klopft an; lässt ihn niemand herein, gibt die Brücke auf (Rückgabe 3),
+und der Wächter versucht es in dieser Konferenz nicht noch einmal (Schlüssel
+Raum + Eröffnungszeit). Nach dem Beitritt endet die Brücke, sobald Kiwi nicht
+mehr in der Konferenz ist. Immer nur eine Brücke; `jitsi start` von Hand
+verweigert, solange der Wächter läuft.
+
+**Nur die Konferenzen eines Nutzers**, nicht alle: Kiwi soll nicht bei
+fremden Meetings anklopfen. Wer eine Konferenz eröffnet hat, sieht man am
+Beitritt nicht -- angemeldete Nutzer treten bei Jitsi mit einer Gast-JID bei,
+die Anmeldung läuft nur kurz über eine eigene Verbindung, die Jicofo um die
+Konferenz bittet. Der Jitsi-Server braucht deshalb ein kleines Prosody-Modul,
+das diese Anfrage mitliest und Raum und Nutzer festhält (bei uns
+`mod_kiwi_raeume`, Teil der Server-Konfiguration, nicht dieses Repos).
+
+Geprüft 01.11.2026 mit nachgestellter Raumliste: startet nur für den
+richtigen Nutzer, gibt nach `--warten` auf, kein zweiter Versuch.
+
 ### Die Antworten gehören in die Aufzeichnung
 
 Die Fragen an Kiwi landen ohnehin im Mitschnitt — der Rekorder läuft unabhängig

@@ -2496,3 +2496,11 @@ werden bis heute lizenziert, und das Repo ist öffentlich. Aus drei Entwürfen
 (Cartoon, Kreide, geometrisch) wählte Fred den Cartoon. Zuhören: Nicken;
 Antworten: Mund nach dem gemessenen Pegel; Nachdenken: Blick nach oben mit
 drei Punkten. In der Konferenz getestet.
+
+Danach der Wunsch, dass Kiwi von selbst anklopft, sobald Fred eine Konferenz
+eröffnet, und Fred per Lobby entscheidet. Nur bei seinen Konferenzen: Jeder
+mit Konto kann Konferenzen eröffnen, und Kiwi soll nicht bei fremden Meetings
+zuhören. Jicofo gibt den Namen nicht preis, die Teilnehmer treten mit
+Gast-JIDs bei; erkennbar ist der Eröffner nur an der kurzen angemeldeten
+Anfrage an Jicofo. Deshalb ein Prosody-Modul auf dem Server und ein Wächter
+hier, der die Liste abfragt.
