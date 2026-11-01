@@ -2489,3 +2489,10 @@ alte Brücke weiter (von Hand gestartet, der falsche Prozess beendet): zwei
 Kiwis im Raum, und als sich die alte abmeldete, schaltete sie das Mikrofon
 des Dienstes für alle aus. Daher `./dienste.sh jitsi` mit PID-Datei und die
 Brücke, die das Mikrofon wieder einschaltet.
+
+Avatar: Fred wünschte sich eine Art stilisierten Einstein. Gezeichnet ist der
+Typus des zerstreuten Genies, kein Porträt -- Name und Bild der realen Person
+werden bis heute lizenziert, und das Repo ist öffentlich. Aus drei Entwürfen
+(Cartoon, Kreide, geometrisch) wählte Fred den Cartoon. Zuhören: Nicken;
+Antworten: Mund nach dem gemessenen Pegel; Nachdenken: Blick nach oben mit
+drei Punkten. In der Konferenz getestet.

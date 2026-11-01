@@ -388,9 +388,19 @@ Kiwis im Raum und antworteten beide). `status` zeigt sie mit Raum an.
   seine Spur nicht).
 - **Kiwi → Raum:** `getUserMedia` ist ersetzt. Jitsi bekommt als Mikrofon den
   Ausgang eines `MediaStreamDestination`, in den die Sprachausgabe
-  (Rate aus der `ton`-Nachricht) eingeplant wird wie in `klient.html`; als
-  Kamera ein Canvas mit dem Zustand (`phase`) und bei laufender Aufzeichnung
-  einem roten Balken „● AUFNAHME“.
+  (Rate aus der `ton`-Nachricht) eingeplant wird wie in `klient.html`.
+- **Avatar** (Kamera der Brücke): ein im Canvas gezeichneter Professor
+  (Typus „zerstreutes Genie“: Haarwolke, Brauen, Schnurrbart, bewusst kein
+  Porträt einer realen Person), 640×360, 25 Bilder/s per `setInterval`
+  (`requestAnimationFrame` steht ohne sichtbare Seite still). Je `phase`:
+  `hoeren` nickt, `denken` schaut nach oben mit drei Punkten, `bereit`
+  blinzelt ab und zu, `leerlauf` mit geschlossenen Augen und abgedunkelt.
+  Beim Sprechen folgt der Mund dem **gemessenen Pegel** der Sprachausgabe
+  (`AnalyserNode` parallel zum Ausgang, schnell auf, langsamer zu), nicht der
+  `phase` -- die endet, bevor der vorausgeplante Ton ausgespielt ist. Darunter
+  der Zustand als Text, oben bei laufender Aufzeichnung ein roter Balken
+  „● AUFNAHME“. `window.kiwiAvatarProbe(phase, pegel)` liefert ein Einzelbild
+  als PNG zum Prüfen.
 - Kiwi reagiert wie am Freisprecher nur auf das Aktivierungswort, gemischt
   über alle Teilnehmer.
 - Die Brücke schaltet beim Start `mikro` an und beim Ende aus. Der Schalter
@@ -410,7 +420,8 @@ Kiwis im Raum und antworteten beide). `status` zeigt sie mit Raum an.
   hinterherhängt -- lieber eine Silbe verpassen als dauerhaft zurückfallen.
 - Getestet 01.11.2026 in einer echten Konferenz: Kiwi kommt durch die Lobby,
   hört über alle Teilnehmer, antwortet hörbar, „Audioaufzeichnung
-  starten/stoppen“ wirkt und der rote Balken erscheint in der Kachel.
+  starten/stoppen“ wirkt und der rote Balken erscheint in der Kachel; der
+  Avatar nickt, denkt und spricht wie vorgesehen.
 - Geprüft 01.11.2026 ohne Konferenz, per Rückkopplung zweier
   `RTCPeerConnection` in der Seite: 440 Hz hinein kommen mit 31 Blöcken/s
   und 441 Hz bei der Brücke an; 660 Hz als Sprachausgabe sind auf der
