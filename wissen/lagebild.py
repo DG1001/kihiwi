@@ -20,14 +20,28 @@ Ablage unter zustand/lagebild/ (nicht im Repository):
 """
 from __future__ import annotations
 
+import fnmatch
 import json
 import re
+import sqlite3
+import subprocess
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
 from sprachdienst import konfig
 
 VERZ = konfig.WURZEL / "zustand" / "lagebild"
+
+# Welche Dateien eines Labors als Statusdokumente taugen, steht in der
+# Konfiguration, nicht im Code: die echten Dateinamen verraten, woran gearbeitet
+# wird, und das Repository ist oeffentlich. Ohne eigene Datei greift das Muster.
+KONFIG = (konfig.WURZEL / "wissen" / "lagebild.json"
+          if (konfig.WURZEL / "wissen" / "lagebild.json").exists()
+          else konfig.WURZEL / "wissen" / "lagebild.beispiel.json")
+VORGABEN = {"status": [], "vorzeigbar": [], "tage": 14, "commits_max": 80,
+            "eingabe_zeichen": 120_000, "dokument_zeichen": 12_000,
+            "modelle": ["qwen3.8-flash-next", "nemotron-3.5-super"],
+            "nachts_bis": "06:00"}
 
 # Reihenfolge und Ueberschriften sind fest: Erzeugung, Pruefung und Anzeige
 # richten sich danach.
@@ -221,3 +235,157 @@ def ganzes_lagebild(verz: Path = VERZ) -> dict | None:
         return None
     return {"typ": "lagebild", "titel": "Lagebild", "text": a["text"],
             "stand": _stand(a["datum"])}
+
+
+# --------------------------------------------------------- Eingaben
+
+def konfiguration() -> dict:
+    try:
+        eigen = json.loads(KONFIG.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        eigen = {}
+    return {**VORGABEN, **{k: v for k, v in eigen.items() if not k.startswith("_")}}
+
+
+def _passt(pfad: str, muster: list[str]) -> bool:
+    name = pfad.rsplit("/", 1)[-1].rsplit(":", 1)[-1].lower()
+    return any(fnmatch.fnmatch(pfad.lower(), m.lower()) or fnmatch.fnmatch(name, m.lower())
+               for m in muster)
+
+
+def _git_datum(repo: Path, rel: str) -> date | None:
+    r = subprocess.run(["git", "-C", str(repo), "log", "-1", "--format=%cs", "--", rel],
+                       capture_output=True, text=True, timeout=30)
+    try:
+        return date.fromisoformat(r.stdout.strip())
+    except ValueError:
+        return None
+
+
+def _dokument_datum(pfad: str, herkunft: str, repos: Path) -> date | None:
+    """Letzte Aenderung: bei Git-Quellen aus der Historie, sonst die Dateizeit.
+    None, wenn sich nichts feststellen laesst (etwa bei Nextcloud)."""
+    quelle, _, rel = pfad.partition(":")
+    if (repos / quelle / ".git").exists():
+        return _git_datum(repos / quelle, rel)
+    p = Path(herkunft) if herkunft else None
+    if p and p.is_file():
+        return date.fromtimestamp(p.stat().st_mtime)
+    return None
+
+
+def _dokument_text(c: sqlite3.Connection, pfad: str, zeichen: int) -> str:
+    zeilen = c.execute("SELECT text FROM abschnitte WHERE pfad=? "
+                       "ORDER BY CAST(nr AS INTEGER)", (pfad,)).fetchall()
+    return _kuerzen("\n\n".join(z[0] for z in zeilen), zeichen)
+
+
+def _commits(repo: Path, seit: datetime, anzahl: int) -> list[tuple[date, str, str]]:
+    r = subprocess.run(["git", "-C", str(repo), "log", "--no-merges",
+                        f"--since={seit.isoformat()}", f"-n{anzahl}",
+                        "--format=%cs%x1f%s%x1f%b%x1e"],
+                       capture_output=True, text=True, timeout=60)
+    aus = []
+    for satz in r.stdout.split("\x1e"):
+        teile = satz.strip("\n").split("\x1f")
+        if len(teile) == 3:
+            aus.append((date.fromisoformat(teile[0]), teile[1].strip(), teile[2].strip()[:500]))
+    return aus
+
+
+def _zusammenfassung(text: str) -> str:
+    """Abschnitt "## Zusammenfassung" eines Protokolls, ohne den Hinweiskasten."""
+    m = re.search(r"^## Zusammenfassung\s*$(.*?)(?=^## |\Z)", text, re.M | re.S)
+    if not m:
+        return ""
+    return "\n".join(z for z in m.group(1).splitlines()
+                     if not z.lstrip().startswith(">")).strip()
+
+
+def eingaben_sammeln(konf: dict, c: sqlite3.Connection, repos: Path, aufnahmen: Path,
+                     jetzt: datetime, verz: Path = VERZ) -> list[dict]:
+    """Alle Eingaben fuer ein Lagebild, deterministisch und mit Datum.
+
+    Korrekturen behalten ihre Kennung (K…), alles andere bekommt E1, E2, … in
+    der Reihenfolge Statusdokumente, Commits (neueste zuerst), Protokolle,
+    Vorzeigbares. Aktive Git-Quellen sind die, die im Index stehen -- inaktive
+    entfernt der Abgleich von dort, ihr Klon kann aber noch auf der Platte liegen.
+    """
+    aus = [{"id": k["id"], "art": "korrektur", "titel": "Korrektur",
+            "datum": datetime.fromisoformat(k["zeit"]).date(), "text": k["text"]}
+           for k in offene_korrekturen(jetzt, verz)]
+    weitere: list[dict] = []
+    dokumente = c.execute("SELECT pfad, titel, herkunft FROM dokumente ORDER BY pfad").fetchall()
+    gesehen = set()
+    status = konf.get("status", [])
+    for pfad, titel, herkunft in dokumente:
+        if status and _passt(pfad, status):
+            gesehen.add(pfad)
+            weitere.append({"art": "status", "titel": titel,
+                            "datum": _dokument_datum(pfad, herkunft, repos),
+                            "text": _dokument_text(c, pfad, konf["dokument_zeichen"])})
+
+    seit = jetzt - timedelta(days=konf["tage"])
+    quellen = sorted({q for (q,) in c.execute("SELECT DISTINCT quelle FROM dokumente")})
+    commits = []
+    for q in quellen:
+        if (repos / q / ".git").exists():
+            commits += _commits(repos / q, seit, konf["commits_max"])
+    commits.sort(key=lambda x: x[0], reverse=True)
+    for d, betreff, text in commits[:konf["commits_max"]]:
+        weitere.append({"art": "commit", "titel": betreff, "datum": d,
+                        "text": f"{betreff}\n{text}".strip()})
+
+    if aufnahmen.is_dir():
+        for p in sorted(aufnahmen.glob("*/protokoll.md"), reverse=True):
+            wann = datetime.fromtimestamp(p.stat().st_mtime).astimezone()
+            if wann < seit:
+                continue
+            z = _zusammenfassung(p.read_text(encoding="utf-8"))
+            if z:
+                weitere.append({"art": "protokoll", "titel": f"Gesprächsprotokoll {p.parent.name}",
+                                "datum": wann.date(), "text": z})
+
+    vz = konf.get("vorzeigbar", [])
+    if vz:
+        for pfad, titel, herkunft in dokumente:
+            if pfad not in gesehen and _passt(pfad, vz):
+                weitere.append({"art": "vorzeigbar", "titel": titel,
+                                "datum": _dokument_datum(pfad, herkunft, repos),
+                                "text": _dokument_text(c, pfad, 1500)})
+        try:
+            bilder = c.execute("SELECT pfad, rel, unterschrift FROM bilder ORDER BY pfad").fetchall()
+        except sqlite3.OperationalError:           # Bilderkatalog noch nicht angelegt
+            bilder = []
+        for pfad, rel, unterschrift in bilder:
+            if _passt(pfad, vz):
+                stamm = Path(rel).stem
+                weitere.append({"art": "vorzeigbar", "titel": Path(rel).name,
+                                "datum": _dokument_datum(pfad, "", repos),
+                                "text": f"{unterschrift or stamm}. Zeigen mit: Bildanzeige {stamm}"})
+
+    for i, e in enumerate(weitere, 1):
+        e["id"] = f"E{i}"
+    return aus + [{"id": e["id"], **{k: e[k] for k in ("art", "titel", "datum", "text")}}
+                  for e in weitere]
+
+
+def budget_einhalten(eingaben: list[dict], max_zeichen: int) -> list[dict]:
+    """Haelt die Eingaben unter max_zeichen: erst fallen die aeltesten Commits,
+    dann werden alle uebrigen Texte gleichmaessig gekuerzt. Korrekturen bleiben."""
+    def summe(liste):
+        return sum(len(x["text"]) for x in liste if x["art"] != "korrektur")
+    aus = [dict(x) for x in eingaben]
+    while summe(aus) > max_zeichen:
+        commits = [x for x in aus if x["art"] == "commit"]
+        if not commits:
+            break
+        aeltester = min(commits, key=lambda x: x["datum"])
+        aus.remove(aeltester)
+    gesamt = summe(aus)
+    if gesamt > max_zeichen:
+        anteil = max_zeichen / gesamt
+        for x in aus:
+            if x["art"] != "korrektur":
+                x["text"] = x["text"][:int(len(x["text"]) * anteil)]
+    return aus

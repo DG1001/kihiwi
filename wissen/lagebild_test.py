@@ -5,13 +5,18 @@
 Braucht weder Modell noch Dienst noch den echten Index: alles laeuft in einem
 Temp-Ordner.
 """
+import os
+import sqlite3
+import subprocess
 import tempfile
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
-from .lagebild import (abschnitt_fuer, aktuell, ganzes_lagebild, korrektur_hinzu,
-                       korrektur_zuruecknehmen, korrekturen_abloesen, lage_frage,
-                       offene_korrekturen, prompt_block)
+from . import index
+from .lagebild import (abschnitt_fuer, aktuell, budget_einhalten, eingaben_sammeln,
+                       ganzes_lagebild, korrektur_hinzu, korrektur_zuruecknehmen,
+                       korrekturen_abloesen, lage_frage, offene_korrekturen,
+                       prompt_block)
 
 LB = ("# Lagebild vom 01.11.2026\n\n> Automatisch abgeleitet, nicht geprüft.\n\n"
       "## Worum es geht\n- Ein kompaktes Mikroskop. [Projektbeschreibung, 12.10.2026]\n\n"
@@ -69,9 +74,79 @@ def ablage_und_korrekturen(v: Path):
     assert offene_korrekturen(jetzt, v) == []
 
 
+def _git(repo: Path, *args, datum: str | None = None):
+    env = {**os.environ, "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@example.org",
+           "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@example.org"}
+    if datum:
+        env["GIT_AUTHOR_DATE"] = env["GIT_COMMITTER_DATE"] = datum
+    subprocess.run(["git", "-C", str(repo), *args], check=True, env=env,
+                   capture_output=True)
+
+
+def _protokoll(aufnahmen: Path, name: str, text: str, wann: datetime):
+    d = aufnahmen / name
+    d.mkdir(parents=True)
+    (d / "protokoll.md").write_text(text)
+    os.utime(d / "protokoll.md", (wann.timestamp(), wann.timestamp()))
+
+
+def eingaben(t: Path):
+    jetzt = datetime(2026, 11, 2, 9, 0).astimezone()
+    v, repos, aufnahmen = t / "lb", t / "repos", t / "aufnahmen"
+    repo = repos / "probe"
+    repo.mkdir(parents=True)
+    _git(repo, "init", "-q")
+    (repo / "notiz.md").write_text("eins")
+    _git(repo, "add", "-A"); _git(repo, "commit", "-qm", "Erster", datum="2026-10-20T10:00:00")
+    (repo / "STAND.md").write_text("Der Teststand läuft.")
+    _git(repo, "add", "-A"); _git(repo, "commit", "-qm", "Zweiter", datum="2026-10-31T10:00:00")
+    (repo / "notiz.md").write_text("zwei")
+    _git(repo, "add", "-A"); _git(repo, "commit", "-qm", "Dritter", datum="2026-11-01T10:00:00")
+
+    c = sqlite3.connect(t / "i.db")
+    c.executescript(index.SCHEMA)
+    index.dokument_setzen(c, "probe", "probe:STAND.md", "STAND.md", "", "", "f1",
+                          [("Stand", "Der Teststand läuft. " * 30)])
+    index.dokument_setzen(c, "probe", "probe:notiz.md", "notiz.md", "", "", "f2",
+                          [("", "zwei")])
+    c.commit()
+
+    _protokoll(aufnahmen, "20261101T100000Z",
+               "# Protokoll\n\n## Zusammenfassung\n\nPumpe besprochen.\n\n## Wortlaut\n\nx",
+               datetime(2026, 11, 1, 11, 0))
+    _protokoll(aufnahmen, "20261030T100000Z", "# Protokoll\n\n## Wortlaut\n\nnur Text",
+               datetime(2026, 10, 30, 11, 0))
+    _protokoll(aufnahmen, "20261015T100000Z",
+               "# Protokoll\n\n## Zusammenfassung\n\nzu alt\n", datetime(2026, 10, 15, 11, 0))
+    korrektur_hinzu("Die Pumpe ist getauscht.", jetzt - timedelta(days=1), v)
+
+    konf = {"status": ["*STAND*"], "vorzeigbar": ["*vortrag*"], "tage": 7,
+            "commits_max": 80, "dokument_zeichen": 12000}
+    e = eingaben_sammeln(konf, c, repos, aufnahmen, jetzt, v)
+    arten = [x["art"] for x in e]
+    assert arten[0] == "korrektur" and e[0]["id"].startswith("K"), e[0]
+    assert e[0]["text"] == "Die Pumpe ist getauscht."
+    st = [x for x in e if x["art"] == "status"]
+    assert [x["titel"] for x in st] == ["STAND.md"] and st[0]["datum"] == date(2026, 10, 31)
+    assert [x["titel"] for x in e if x["art"] == "commit"] == ["Dritter", "Zweiter"]
+    pr = [x for x in e if x["art"] == "protokoll"]
+    assert len(pr) == 1 and pr[0]["text"].strip() == "Pumpe besprochen.", pr
+    assert all(isinstance(x["datum"], date) for x in e)
+    assert len({x["id"] for x in e}) == len(e)
+    assert all(x["id"].startswith("E") for x in e if x["art"] != "korrektur")
+
+    k = budget_einhalten(e, 300)
+    assert any(x["art"] == "korrektur" for x in k)
+    assert sum(len(x["text"]) for x in k if x["art"] != "korrektur") <= 300
+    assert not any(x["art"] == "commit" for x in k)       # Commits fallen zuerst
+    assert budget_einhalten(e, 10**6) == e
+
+
 def unit():
     with tempfile.TemporaryDirectory() as t:
         ablage_und_korrekturen(Path(t))
+    with tempfile.TemporaryDirectory() as t:
+        eingaben(Path(t))
 
 
 if __name__ == "__main__":
