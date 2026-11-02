@@ -104,6 +104,8 @@ def eingaben(t: Path):
     (repo / "notiz.md").write_text("eins")
     _git(repo, "add", "-A"); _git(repo, "commit", "-qm", "Erster", datum="2026-10-20T10:00:00")
     (repo / "STAND.md").write_text("Der Teststand läuft.")
+    (repo / "projekt").mkdir()
+    (repo / "projekt" / "Plan.md").write_text("Plan")
     _git(repo, "add", "-A"); _git(repo, "commit", "-qm", "Zweiter", datum="2026-10-31T10:00:00")
     (repo / "notiz.md").write_text("zwei")
     _git(repo, "add", "-A"); _git(repo, "commit", "-qm", "Dritter", datum="2026-11-01T10:00:00")
@@ -114,6 +116,14 @@ def eingaben(t: Path):
                           [("Stand", "Der Teststand läuft. " * 30)])
     index.dokument_setzen(c, "probe", "probe:notiz.md", "notiz.md", "", "", "f2",
                           [("", "zwei")])
+    # Ein Muster ohne "/" gilt nur fuer den Dateinamen: weder der Ordner
+    # "Altbestand" noch "abstand" im Namen sind ein Statusdokument.
+    index.dokument_setzen(c, "probe", "probe:Altbestand/werkzeug.py", "werkzeug.py",
+                          "", "", "f3", [("", "code")])
+    index.dokument_setzen(c, "probe", "probe:spalt_abstand.json", "spalt_abstand.json",
+                          "", "", "f4", [("", "{}")])
+    index.dokument_setzen(c, "probe", "probe:projekt/Plan.md", "Plan.md", "", "", "f5",
+                          [("", "Plan")])
     c.commit()
 
     _protokoll(aufnahmen, "20261101T100000Z",
@@ -125,14 +135,16 @@ def eingaben(t: Path):
                "# Protokoll\n\n## Zusammenfassung\n\nzu alt\n", datetime(2026, 10, 15, 11, 0))
     korrektur_hinzu("Die Pumpe ist getauscht.", jetzt - timedelta(days=1), v)
 
-    konf = {"status": ["*STAND*"], "vorzeigbar": ["*vortrag*"], "tage": 7,
+    konf = {"status": ["*STAND*.md", "*/projekt/*"], "vorzeigbar": ["*vortrag*"], "tage": 7,
             "commits_max": 80, "dokument_zeichen": 12000}
     e = eingaben_sammeln(konf, c, repos, aufnahmen, jetzt, v)
     arten = [x["art"] for x in e]
     assert arten[0] == "korrektur" and e[0]["id"].startswith("K"), e[0]
     assert e[0]["text"] == "Die Pumpe ist getauscht."
     st = [x for x in e if x["art"] == "status"]
-    assert [x["titel"] for x in st] == ["STAND.md"] and st[0]["datum"] == date(2026, 10, 31)
+    assert sorted(x["titel"] for x in st) == ["Plan.md", "STAND.md"], [x["titel"] for x in st]
+    st = [x for x in st if x["titel"] == "STAND.md"]
+    assert st[0]["datum"] == date(2026, 10, 31)
     assert [x["titel"] for x in e if x["art"] == "commit"] == ["Dritter", "Zweiter"]
     pr = [x for x in e if x["art"] == "protokoll"]
     assert len(pr) == 1 and pr[0]["text"].strip() == "Pumpe besprochen.", pr

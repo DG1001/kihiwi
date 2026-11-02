@@ -256,9 +256,12 @@ def konfiguration() -> dict:
 
 
 def _passt(pfad: str, muster: list[str]) -> bool:
-    name = pfad.rsplit("/", 1)[-1].rsplit(":", 1)[-1].lower()
-    return any(fnmatch.fnmatch(pfad.lower(), m.lower()) or fnmatch.fnmatch(name, m.lower())
-               for m in muster)
+    """Muster ohne "/" gelten fuer den Dateinamen, Muster mit "/" fuer den Pfad
+    in der Quelle (mit fuehrendem "/"). Gegen den ganzen Pfad traf "*STAND*"
+    jede Datei in einem Ordner "Altbestand" und "spalt_abstand.json"."""
+    rel = "/" + pfad.partition(":")[2].lower()
+    name = rel.rsplit("/", 1)[-1]
+    return any(fnmatch.fnmatch(rel if "/" in m else name, m.lower()) for m in muster)
 
 
 def _git_datum(repo: Path, rel: str) -> date | None:

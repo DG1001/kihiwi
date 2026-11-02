@@ -1,7 +1,7 @@
 {
-  "_hinweis": "Muster fuer wissen/lagebild.json (nicht im Repository). Die Muster gelten fuer den Pfad im Index (quelle:relativer/pfad) oder den Dateinamen, ohne Gross/Klein.",
-  "status": ["*STAND*", "*UEBERSICHT*", "*OFFEN*", "*PLAN*", "*STATUS*"],
-  "vorzeigbar": ["*vortrag*", "*praesentation*", "*/abbildungen/*", "*demo*"],
+  "_hinweis": "Muster fuer wissen/lagebild.json (nicht im Repository). Muster ohne / gelten fuer den Dateinamen, Muster mit / fuer den Pfad in der Quelle (mit fuehrendem /), ohne Gross/Klein.",
+  "status": ["*STAND*.md", "*UEBERSICHT*.md", "*OFFEN*.md", "*PLAN*.md", "*STATUS*.md"],
+  "vorzeigbar": ["*vortrag*", "*praesentation*", "*/abbildungen/*.png", "*/abbildungen/*.pdf"],
   "tage": 14,
   "commits_max": 80,
   "eingabe_zeichen": 120000,
