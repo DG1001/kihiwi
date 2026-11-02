@@ -130,9 +130,14 @@ _LAGE = {
         r"\b(?:welche|was sind|was fuer|gibt es)\b.{0,30}\b(?:probleme|herausforderungen|"
         r"baustellen|schwierigkeiten)\b(?:\s+(?:gibt es|haben wir))?"
         + _LAGE_PROJEKT + _LAGE_ZEIT + _LAGE_ENDE),
+    # Subjekt ich/wir/man, bei "zeigen" nur ich/wir: "Was kann das Mikroskop
+    # zeigen?" fragt nach dem Geraet, nicht nach dem Projekt.
     "vorzeigbar": re.compile(
-        r"\bwas (?:kann|koennen|koennten|laesst sich)\b.{0,15}\b(?:vorzeigen|herzeigen|"
-        r"vorfuehren|praesentieren|zeigen)\b" + _LAGE_ENDE),
+        r"\bwas (?:kann|koennen|koennten) (?:ich|wir|man)(?: \w+){0,2} (?:vorzeigen|"
+        r"herzeigen|vorfuehren|praesentieren)" + _LAGE_ENDE + "|"
+        r"\bwas (?:kann|koennen|koennten) (?:ich|wir)(?: \w+){0,2} zeigen" + _LAGE_ENDE + "|"
+        r"\bwas laesst sich(?: \w+)? (?:vorzeigen|herzeigen|vorfuehren|praesentieren)"
+        + _LAGE_ENDE),
 }
 
 
@@ -153,24 +158,46 @@ _NACHFRAGE = re.compile(r"\b(?:da|dabei|dazu|darueber|davon|daran|dafuer|damit|"
 
 
 def ist_nachfrage(text: str) -> bool:
-    return bool(_NACHFRAGE.search(_normal(text)))
+    """Nur kurze Rueckbezuege: eine lange Frage traegt ihr Thema selbst, die
+    Quellen der Lagebild-Antwort wuerden ihre Suche verwaessern. Und eine
+    Lagefrage bleibt eine Lagefrage, auch mit "da" darin."""
+    return (len(text) < 50 and lage_abschnitt(text) is None
+            and bool(_NACHFRAGE.search(_normal(text))))
 
 
-# Antwort auf eine Rueckfrage wie "Soll ich?". Nein zuerst: "nein, mach das
-# nicht" darf nicht als Ja durchgehen.
-_NEIN = re.compile(r"^(?:nein|nee|ne|noe|lieber nicht|nicht jetzt|spaeter|lass (?:es|das|mal)|"
-                   r"abbrechen|stopp?)\b")
+# Antwort auf eine Rueckfrage wie "Soll ich?". Ein Ja startet einen Lauf, der
+# Kiwi minutenlang blockiert -- deshalb gewinnt jede Verneinung irgendwo im
+# Satz ("Bitte nicht", "Ok, aber nicht jetzt"), und ein Ja gilt nur, wenn es
+# fast die ganze Aeusserung ist und keinen Vorbehalt traegt.
+_NEIN_ANFANG = re.compile(r"^(?:nein|nee|ne|noe|lass (?:es|das|mal)|vergiss|abbrechen|"
+                          r"stopp?|doch nicht|nichts)\b")
+_NEIN = re.compile(r"\b(?:nein|nicht|spaeter|lass (?:es|das|mal)|abbrechen|stopp?)\b")
 _JA = re.compile(r"^(?:ja|jawohl|jo|jep|klar|okay|ok|gerne?|bitte|mach(?:e)?(?: das| es| mal)?|"
                  r"leg los|los|einverstanden|passt)\b")
+_VORBEHALT = re.compile(r"\b(?:aber|erst|wenn|falls|nachher|morgen)\b")
 
 
 def zustimmung(text: str) -> bool | None:
+    if "?" in text and len(text.split()) > 1:
+        return None                          # eine Frage ist keine Antwort darauf
     t = _normal(text).strip(" ,.!?")
-    if _NEIN.match(t):
+    if _NEIN_ANFANG.match(t) or _NEIN.search(t):
         return False
-    if _JA.match(t):
+    if _JA.match(t) and len(t.split()) <= 4 and not _VORBEHALT.search(t):
         return True
     return None
+
+
+def korrektur_nachgereicht(text: str) -> str | None:
+    """Antwort auf "Was soll ich am Lagebild korrigieren?": der Inhalt,
+    wortgetreu. None bei Nein oder Abbruch, bei einem Ausloesewort und bei
+    einer Frage -- die werden ganz normal behandelt. "nicht" im Inhalt zaehlt
+    hier nicht als Nein: "Die Pumpe laeuft nicht mehr" ist eine Korrektur."""
+    t = text.strip(" ,.:;–—-")
+    if (not t or "?" in t or _NEIN_ANFANG.match(_normal(t).strip(" ,.!"))
+            or ausloeser(t)[0]):
+        return None
+    return t
 
 
 # --- Timer und Erinnerungen --------------------------------------------------
@@ -506,8 +533,11 @@ AUSLOESER = {
     # Lagebild: zusammengesetzt wie die uebrigen, damit es im Gespraech nicht
     # versehentlich faellt. Reihenfolge in ausloeser(): zuruecknehmen vor
     # korrektur vor erneuern vor dem blossen Wort.
-    "lagebild_zurueck": rf"lage{_}bild{_}korrektur\s*(?:zur(?:ü|ue)ck{_}nehmen|"
-                        rf"widerrufen|l(?:ö|oe)schen)",
+    # Zuruecknehmen nur, wenn danach nichts mehr kommt: "Lagebildkorrektur
+    # zurueck aus der Reparatur ist die Pumpe" ist eine Korrektur.
+    "lagebild_zurueck": rf"lage{_}bild{_}korrektur\s*(?:bitte\s+)?(?:zur(?:ü|ue)ck(?:{_}nehmen)?|"
+                        rf"widerrufen|l(?:ö|oe)schen)(?:\s*,?\s*bitte)?(?=\W*$)|"
+                        rf"nimm\b.{{0,25}}\blage{_}bild{_}korrektur\b.{{0,15}}\bzur(?:ü|ue)ck",
     "lagebildkorrektur": rf"lage{_}bild{_}korrektur",
     "lagebild_neu": rf"lage{_}bild\s+(?:erneuern|aktualisieren|neu\s+(?:erstellen|"
                     rf"erzeugen|machen))|lage{_}bild{_}erneuerung",

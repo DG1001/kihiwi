@@ -437,6 +437,8 @@ class Sitzung:
         # Quellen der letzten Lagebild-Antwort: eine Nachfrage ("was ist da
         # genau das Problem?") sucht mit ihnen in den Unterlagen weiter.
         self.lage_quellen: list[str] = []
+        # Ende der letzten Antwort: eine Nachfrage gilt nur im offenen Gespraech.
+        self.antwort_ende = 0.0
         # Offene Rueckfrage ("Soll ich?") mit Zeitpunkt; gilt im offenen Gespraech.
         self.ausstehend: tuple[str, float] | None = None
 
@@ -827,6 +829,15 @@ class Sitzung:
                 was, seit = self.ausstehend
                 self.ausstehend = None
                 if time.time() - seit < konfig.GESPRAECH_STILLE_S:
+                    # "Was soll ich am Lagebild korrigieren?" verlangt eine
+                    # Antwort; ohne diesen Zweig ging sie ans Modell, und das
+                    # sagte "Notiert", ohne dass etwas abgelegt war.
+                    if was == "lagebildkorrektur":
+                        inhalt = absicht_modul.korrektur_nachgereicht(text)
+                        if inhalt:
+                            wissen_lagebild.korrektur_hinzu(inhalt, datetime.now().astimezone())
+                            await self.melden(f"Notiert: {inhalt}")
+                            return
                     zu = absicht_modul.zustimmung(text)
                     if zu is True and was == "lagebild_neu":
                         await self.lagebild_erneuern()
@@ -838,7 +849,9 @@ class Sitzung:
             # Nachfrage nach einer Lagebild-Antwort: tiefer in die Unterlagen,
             # nicht noch einmal derselbe Abschnitt.
             lage_vorher, self.lage_quellen = self.lage_quellen, []
-            nachfrage = bool(lage_vorher) and absicht_modul.ist_nachfrage(text)
+            nachfrage = (bool(lage_vorher)
+                         and time.time() - self.antwort_ende < konfig.GESPRAECH_STILLE_S
+                         and absicht_modul.ist_nachfrage(text))
             if nachfrage and wofuer is absicht_modul.Absicht.LAGE:
                 wofuer = absicht_modul.Absicht.WISSEN
 
@@ -961,8 +974,10 @@ class Sitzung:
                 suchtext = text
                 if nachfrage:
                     # Die Quellen der Lagebild-Antwort tragen das Thema, das
-                    # die Nachfrage selbst nicht nennt.
-                    suchtext = f"{text} {' '.join(lage_vorher)}"
+                    # die Nachfrage selbst nicht nennt. Hoechstens drei: ein
+                    # Abschnitt hat bis zu einem Dutzend, viele davon
+                    # Commit-Betreffe, und die verwaesserten die Suche.
+                    suchtext = f"{text} {' '.join(lage_vorher[:3])}"
                 elif len(text) < 50:
                     vorige = next((n["content"] for n in reversed(self.verlauf)
                                    if n.get("role") == "user"), "")
@@ -1223,7 +1238,7 @@ class Sitzung:
         except Exception as e:                      # pragma: no cover
             log.exception("Antwort fehlgeschlagen: %s", e)
         finally:
-            self.letzte_ansprache = time.time()
+            self.letzte_ansprache = self.antwort_ende = time.time()
             if HALTER.z.phase in (Phase.DENKEN, Phase.ANTWORTEN):
                 HALTER.setzen(phase=Phase.BEREIT if HALTER.z.mikro else Phase.LEERLAUF)
 
@@ -1453,6 +1468,7 @@ class Sitzung:
             return True
         if art == "lagebildkorrektur":
             if not thema:
+                self.ausstehend = ("lagebildkorrektur", time.time())
                 await self.melden("Was soll ich am Lagebild korrigieren?")
                 return True
             wissen_lagebild.korrektur_hinzu(thema, datetime.now().astimezone())

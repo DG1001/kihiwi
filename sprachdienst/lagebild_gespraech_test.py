@@ -18,45 +18,55 @@ from wissen.lagebild import aktuell
 ADRESSE = f"ws://{konfig.BIND}:{konfig.PORT}/audio"
 
 
-async def _frage(text: str, ende_s: float = 90.0, ruhe_s: float = 4.0) -> dict:
+async def _frage(ws, text: str, ende_s: float = 90.0, ruhe_s: float = 4.0) -> dict:
     """Schickt text und sammelt bis der Dienst wieder bereit ist oder ruhe_s lang
     nichts mehr kommt, nachdem er etwas gesagt hat."""
     nachrichten, gesagt, erster_ton = [], [], None
-    async with websockets.connect(ADRESSE, max_size=2**22) as ws:
-        # Beim Verbinden spielt der Dienst die letzte Buehne erneut ab
-        # ("wieder": true) -- das ist nicht die Antwort auf diese Frage.
-        t0 = time.time()
-        await ws.send(json.dumps({"befehl": "text", "text": text}))
-        gefragt = False
-        while time.time() - t0 < ende_s:
-            try:
-                roh = await asyncio.wait_for(ws.recv(), timeout=ruhe_s)
-            except asyncio.TimeoutError:
-                if gesagt:
-                    break
-                continue
-            if isinstance(roh, bytes):
-                continue
-            m = json.loads(roh)
-            if m.get("wieder"):
-                continue
-            nachrichten.append(m)
-            if m.get("typ") == "ton" and erster_ton is None:
-                erster_ton = time.time() - t0
-            if m.get("typ") == "text" and m.get("rolle") == "assistent":
-                gesagt.append(m.get("text", ""))
-            if m.get("typ") == "zustand":
-                phase = m.get("phase")
-                if phase in ("denken", "antworten"):
-                    gefragt = True
-                elif gefragt and phase in ("bereit", "leerlauf") and gesagt:
-                    break
+    # Beim Verbinden spielt der Dienst die letzte Buehne erneut ab
+    # ("wieder": true) -- das ist nicht die Antwort auf diese Frage.
+    t0 = time.time()
+    await ws.send(json.dumps({"befehl": "text", "text": text}))
+    gefragt = False
+    while time.time() - t0 < ende_s:
+        try:
+            roh = await asyncio.wait_for(ws.recv(), timeout=ruhe_s)
+        except asyncio.TimeoutError:
+            if gesagt:
+                break
+            continue
+        if isinstance(roh, bytes):
+            continue
+        m = json.loads(roh)
+        if m.get("wieder"):
+            continue
+        nachrichten.append(m)
+        if m.get("typ") == "ton" and erster_ton is None:
+            erster_ton = time.time() - t0
+        if m.get("typ") == "text" and m.get("rolle") == "assistent":
+            gesagt.append(m.get("text", ""))
+        if m.get("typ") == "zustand":
+            phase = m.get("phase")
+            if phase in ("denken", "antworten"):
+                gefragt = True
+            elif gefragt and phase in ("bereit", "leerlauf") and gesagt:
+                break
     return {"nachrichten": nachrichten, "gesagt": " ".join(gesagt),
             "erster_ton_s": erster_ton}
 
 
+async def _folge(texte: tuple[str, ...]) -> list[dict]:
+    # Eine Verbindung ist eine Sitzung: Rueckfragen gelten nur innerhalb.
+    async with websockets.connect(ADRESSE, max_size=2**22) as ws:
+        return [await _frage(ws, t) for t in texte]
+
+
+def folge(*texte: str) -> list[dict]:
+    """Mehrere Aeusserungen nacheinander im selben Gespraech."""
+    return asyncio.run(_folge(texte))
+
+
 def frage(text: str) -> dict:
-    return asyncio.run(_frage(text))
+    return folge(text)[0]
 
 
 def gespraech():
@@ -67,8 +77,12 @@ def gespraech():
         assert any(m.get("typ") == "lagebild" for m in r["nachrichten"]), r["gesagt"]
     assert r["erster_ton_s"] is not None, r["gesagt"]
 
-    r = frage("Lagebildkorrektur")
-    assert "Was soll ich am Lagebild korrigieren?" in r["gesagt"], r["gesagt"]
+    # Die Rueckfrage nimmt die naechste Aeusserung als Inhalt auf
+    r1, r2, r3 = folge("Lagebildkorrektur", "Testeintrag aus dem Gesprächstest",
+                       "Nimm die Lagebildkorrektur zurück")
+    assert "Was soll ich am Lagebild korrigieren?" in r1["gesagt"], r1["gesagt"]
+    assert "Notiert: Testeintrag aus dem Gesprächstest" in r2["gesagt"], r2["gesagt"]
+    assert "Zurückgenommen: Testeintrag aus dem Gesprächstest" in r3["gesagt"], r3["gesagt"]
     r = frage("Lagebildkorrektur: Testeintrag bitte gleich zurücknehmen")
     assert "Notiert" in r["gesagt"], r["gesagt"]
     r = frage("Lagebildkorrektur zurücknehmen")
