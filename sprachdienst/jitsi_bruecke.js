@@ -293,7 +293,22 @@ registerProcessor('sender', Sender);
   window.kiwiDrin = () => typeof APP !== "undefined" && !!APP.conference
                           && !!APP.conference.isJoined && APP.conference.isJoined();
 
+  // Wie viele ausser Kiwi in der Konferenz sind (wer in der Lobby wartet,
+  // zaehlt nicht). null, wenn es sich nicht feststellen laesst -- dann bleibt
+  // Kiwi lieber, statt grundlos zu gehen.
+  window.kiwiAndere = () => {
+    if (!window.kiwiDrin()) return null;
+    try {
+      const n = APP.conference.membersCount;
+      if (typeof n === "number") return n - 1;
+      return APP.conference._room.getParticipants().length;
+    } catch (e) {
+      return null;
+    }
+  };
+
   window.kiwiStand = () => ({spuren: angehaengt.size,
+                             andere: window.kiwiAndere(),
                              eingang: einCtx ? einCtx.state : null,
                              ausgang: ausCtx ? ausCtx.state : null,
                              stumm: (typeof APP !== "undefined" && APP.conference

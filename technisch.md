@@ -442,8 +442,18 @@ zählt mit) und ist keine Brücke aktiv, startet er eine mit `--warten 180`.
 Kiwi klopft an; lässt ihn niemand herein, gibt die Brücke auf (Rückgabe 3),
 und der Wächter versucht es in dieser Konferenz nicht noch einmal (Schlüssel
 Raum + Eröffnungszeit). Nach dem Beitritt endet die Brücke, sobald Kiwi nicht
-mehr in der Konferenz ist. Immer nur eine Brücke; `jitsi start` von Hand
-verweigert, solange der Wächter läuft.
+mehr in der Konferenz ist oder seit `--allein` Sekunden (Vorgabe 120) niemand
+sonst darin war. Immer nur eine Brücke; `jitsi start` von Hand verweigert,
+solange der Wächter läuft.
+
+**Falle: Die Konferenz endet nicht, solange Kiwi drin ist.** Gehen alle
+anderen, bleibt Kiwi als einziger Teilnehmer, die Konferenz lebt weiter, und
+die Brücke wartet ewig. Weil der Wächter nur eine Brücke führt, klopft Kiwi
+dann bei keiner neuen Konferenz mehr an (02.11.2026: zwölf Stunden allein im
+Raum). Gezählt wird mit `APP.conference.membersCount − 1` (sichtbare
+Teilnehmer ohne Kiwi; wer in der Lobby wartet, zählt nicht). Lässt sich die
+Zahl nicht bestimmen, bleibt Kiwi. Das `Stand:`-Protokoll zeigt sie als
+`andere`.
 
 **Nur die Konferenzen eines Nutzers**, nicht alle: Kiwi soll nicht bei
 fremden Meetings anklopfen. Wer eine Konferenz eröffnet hat, sieht man am

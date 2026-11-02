@@ -12,12 +12,15 @@ klopft Kiwi an und wartet, bis ein Moderator ihn hereinlaesst.
 
 Aufruf:
     .venv/bin/python -m sprachdienst.jitsi_bruecke https://<jitsi>/<raum>
-        [--name Kiwi] [--warten SEKUNDEN] [--sichtbar]
+        [--name Kiwi] [--warten SEKUNDEN] [--allein SEKUNDEN] [--sichtbar]
 
 Mit --warten beendet sich die Bruecke, wenn Kiwi nicht innerhalb dieser Zeit
 hereingelassen wird (Rueckgabe 3). Nach dem Beitritt endet sie, sobald Kiwi
-nicht mehr in der Konferenz ist (Konferenz vorbei, hinausgeworfen; Rueckgabe 0).
-Der Jitsi-Waechter (jitsi_waechter.py) verlaesst sich darauf.
+nicht mehr in der Konferenz ist (hinausgeworfen; Rueckgabe 0) oder --allein
+Sekunden lang niemand sonst darin war (Rueckgabe 0). Ohne Letzteres bliebe
+Kiwi in einer Konferenz, die alle anderen verlassen haben -- sie endet ja
+nicht, solange er drin ist. Der Jitsi-Waechter (jitsi_waechter.py) startet
+erst wieder eine Bruecke, wenn die alte beendet ist.
 
 Einrichten: pip install playwright && python -m playwright install chromium
 """
@@ -53,7 +56,8 @@ def raum_url(url: str, name: str) -> str:
     return url.split("#")[0] + "#" + "&".join(einstellungen)
 
 
-async def lauf(url: str, name: str, sichtbar: bool, warten: float | None = None) -> int:
+async def lauf(url: str, name: str, sichtbar: bool, warten: float | None = None,
+               allein: float = 120) -> int:
     dienst = f"ws://{konfig.BIND}:{konfig.PORT}/audio"
     nach_kiwi: asyncio.Queue[bytes] = asyncio.Queue(maxsize=300)
 
@@ -128,6 +132,7 @@ async def lauf(url: str, name: str, sichtbar: bool, warten: float | None = None)
             # sieht, ob Kiwi zuhoert.
             n = 0
             beigetreten = False
+            allein_seit = None  # n, ab dem niemand ausser Kiwi im Raum war
             while True:
                 await asyncio.sleep(2)
                 n += 1
@@ -142,6 +147,15 @@ async def lauf(url: str, name: str, sichtbar: bool, warten: float | None = None)
                     if beigetreten and not drin:
                         log.info("Nicht mehr in der Konferenz (vorbei oder hinausgeworfen)")
                         return 0
+                    if beigetreten:
+                        andere = await seite.evaluate("window.kiwiAndere()")
+                        if andere == 0:
+                            allein_seit = allein_seit or n
+                            if (n - allein_seit) * 2 >= allein:
+                                log.info("Seit %.0f s allein in der Konferenz, gehe", allein)
+                                return 0
+                        else:
+                            allein_seit = None
                     if not beigetreten and warten and n * 2 >= warten:
                         log.info("Nach %.0f s nicht hereingelassen, gebe auf", warten)
                         return 3
@@ -185,12 +199,15 @@ def main():
     ap.add_argument("--warten", type=float, default=None,
                     help="aufgeben, wenn Kiwi nicht binnen so vieler Sekunden "
                          "hereingelassen wird")
+    ap.add_argument("--allein", type=float, default=120,
+                    help="gehen, wenn so viele Sekunden niemand sonst in der "
+                         "Konferenz war (Vorgabe 120)")
     ap.add_argument("--sichtbar", action="store_true",
                     help="Browserfenster zeigen (zur Fehlersuche)")
     a = ap.parse_args()
     logging.basicConfig(level=logging.INFO,
                         format="%(asctime)s %(levelname)s %(message)s")
-    raise SystemExit(asyncio.run(lauf(a.url, a.name, a.sichtbar, a.warten)))
+    raise SystemExit(asyncio.run(lauf(a.url, a.name, a.sichtbar, a.warten, a.allein)))
 
 
 if __name__ == "__main__":

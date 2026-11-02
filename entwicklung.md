@@ -2504,3 +2504,14 @@ zuhören. Jicofo gibt den Namen nicht preis, die Teilnehmer treten mit
 Gast-JIDs bei; erkennbar ist der Eröffner nur an der kurzen angemeldeten
 Anfrage an Jicofo. Deshalb ein Prosody-Modul auf dem Server und ein Wächter
 hier, der die Liste abfragt.
+
+## 02.11.2026: Kiwi blieb allein in der Konferenz
+
+Fred eröffnete eine Konferenz, Kiwi kam nicht. Die Brücke vom Vorabend saß
+noch im alten Raum, seit zwölf Stunden allein: Sie endete nur, wenn Kiwi
+nicht mehr in der Konferenz war, und eine Jitsi-Konferenz endet nicht,
+solange noch jemand drin ist -- auch wenn das nur Kiwi ist. Der Wächter
+führt immer nur eine Brücke und wartete auf ihr Ende. Alte Brücke beendet,
+Kiwi klopfte sofort an. Seitdem geht die Brücke, wenn zwei Minuten lang
+niemand sonst im Raum ist (`--allein`).
+
