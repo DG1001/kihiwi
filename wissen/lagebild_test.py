@@ -5,6 +5,9 @@
 Braucht weder Modell noch Dienst noch den echten Index: alles laeuft in einem
 Temp-Ordner.
 """
+import asyncio
+import inspect
+import json
 import os
 import sqlite3
 import subprocess
@@ -12,11 +15,12 @@ import tempfile
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
+from sprachdienst import llm
 from . import index
-from .lagebild import (abschnitt_fuer, aktuell, budget_einhalten, eingaben_sammeln,
-                       ganzes_lagebild, korrektur_hinzu, korrektur_zuruecknehmen,
-                       korrekturen_abloesen, lage_frage, offene_korrekturen,
-                       prompt_block)
+from .lagebild import (ablegen, abschnitt_fuer, aktuell, budget_einhalten,
+                       eingaben_sammeln, erzeugen, ganzes_lagebild, korrektur_hinzu,
+                       korrektur_zuruecknehmen, korrekturen_abloesen, lage_frage,
+                       offene_korrekturen, prompt_block, pruefen)
 
 LB = ("# Lagebild vom 01.11.2026\n\n> Automatisch abgeleitet, nicht geprüft.\n\n"
       "## Worum es geht\n- Ein kompaktes Mikroskop. [Projektbeschreibung, 12.10.2026]\n\n"
@@ -142,11 +146,62 @@ def eingaben(t: Path):
     assert budget_einhalten(e, 10**6) == e
 
 
+def erzeugung(v: Path):
+    jetzt = datetime(2026, 11, 2, 9, 0).astimezone()
+    assert inspect.signature(llm.antwort_text).parameters["timeout"].default == 60
+    eing = [{"id": "K1", "art": "korrektur", "titel": "Korrektur",
+             "datum": date(2026, 10, 30), "text": "x"},
+            {"id": "E1", "art": "status", "titel": "STAND.md",
+             "datum": date(2026, 10, 31), "text": "y"},
+            {"id": "E2", "art": "commit", "titel": "Umbau",
+             "datum": date(2026, 10, 29), "text": "z"},
+            {"id": "E3", "art": "status", "titel": "Notiz", "datum": None, "text": "w"}]
+    roh = ("**Worum es geht**\n- Mikroskop. [E1]\n\n## Stand\n- Läuft. [E1, K1]\n"
+           "- Erfunden. [E99]\n- Ohne Verweis.\n\n## Probleme und Herausforderungen\n"
+           "- Pumpe. [E2]\n- Unklar. [E3]\n\n## Korrekturen\nK1: abgelöst durch E1\n")
+    text, abl, entfernt = pruefen(roh, eing, jetzt)
+    assert "[STAND.md, 31.10.2026]" in text and "[E1" not in text, text
+    assert "[STAND.md, 31.10.2026; Korrektur, 30.10.2026]" in text
+    assert "[Notiz, Datum unbekannt]" in text
+    assert "Erfunden" not in text and "Ohne Verweis" not in text and entfernt == 2
+    assert "## Als Nächstes\nKeine Angaben in den Quellen." in text
+    assert "## Korrekturen" not in text
+    assert text.startswith("# Lagebild vom 02.11.2026\n\n> Automatisch abgeleitet, "
+                           "nicht geprüft. Erzeugt um 09:00 aus 4 Eingaben.")
+    assert abl == {"K1": "STAND.md, 31.10.2026"}
+    assert pruefen("## Stand\n- Nur Erfundenes. [E7]\n", eing, jetzt)[0] is None
+    # E2 ist aelter als die Korrektur, E3 ohne Datum: beide loesen nichts ab
+    abl2 = pruefen("## Stand\n- a [E2]\n## Korrekturen\nK1: abgelöst durch E2\n"
+                   "K1: abgelöst durch E3\n", eing, jetzt)[1]
+    assert abl2 == {}
+    # Zu lang: Punkte vom Ende des laengsten Abschnitts fallen
+    lang = "## Stand\n" + "".join(f"- Punkt {i} {'x' * 300}. [E1]\n" for i in range(60))
+    gekuerzt = pruefen(lang, eing, jetzt)[0]
+    assert len(gekuerzt) <= 10_000 and "Punkt 0 " in gekuerzt and "Punkt 59 " not in gekuerzt
+
+    gefragt = {}
+    async def fake(system, nutzer):
+        gefragt["s"], gefragt["n"] = system, nutzer
+        return roh
+    aus = asyncio.run(erzeugen(eing, "# Lagebild vom 01.11.2026 alt", fake))
+    assert "Mikroskop" in aus
+    assert "[K1]" in gefragt["n"] and "[E3]" in gefragt["n"] and "alt" in gefragt["n"]
+    assert "## Worum es geht" in gefragt["s"] and "## Korrekturen" in gefragt["s"]
+
+    p = ablegen(text, eing, entfernt, jetzt, v)
+    assert p.name == "2026-11-02T0900.md" and aktuell(v)["pfad"] == p
+    log = json.loads((v / "2026-11-02T0900.eingaben.json").read_text())
+    assert log["entfernt"] == 2 and [x["id"] for x in log["eingaben"]] == ["K1", "E1", "E2", "E3"]
+    assert "text" not in log["eingaben"][0]
+
+
 def unit():
     with tempfile.TemporaryDirectory() as t:
         ablage_und_korrekturen(Path(t))
     with tempfile.TemporaryDirectory() as t:
         eingaben(Path(t))
+    with tempfile.TemporaryDirectory() as t:
+        erzeugung(Path(t))
 
 
 if __name__ == "__main__":

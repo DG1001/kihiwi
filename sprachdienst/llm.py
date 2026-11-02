@@ -140,7 +140,7 @@ ERSTER_MIN = 25          # kuerzer klingt abgehackt
 ERSTER_MAX = 60          # laenger kostet unnoetig Zeit
 
 
-def _strom(nachrichten, max_tokens, temperatur, schieb, werkzeuge=None):
+def _strom(nachrichten, max_tokens, temperatur, schieb, werkzeuge=None, timeout=60):
     """schieb(x) legt x threadsicher in die asyncio.Queue des Aufrufers.
 
     Geschoben wird ("text", stueck) oder ("werkzeug", teilstueck). Werkzeug-
@@ -154,7 +154,7 @@ def _strom(nachrichten, max_tokens, temperatur, schieb, werkzeuge=None):
         if werkzeuge:
             rumpf["tools"] = werkzeuge
             rumpf["tool_choice"] = "auto"
-        for roh in _anfragen(rumpf, 60):
+        for roh in _anfragen(rumpf, timeout):
             zeile = roh.decode().strip()
             if not zeile.startswith("data: ") or zeile.endswith("[DONE]"):
                 continue
@@ -181,27 +181,32 @@ def _strom(nachrichten, max_tokens, temperatur, schieb, werkzeuge=None):
 
 
 async def antwort_text(system: str, frage: str, max_tokens: int = 400,
-                        temperatur: float = 0.2) -> str:
+                        temperatur: float = 0.2, timeout: int = 60) -> str:
     """Gibt die vollstaendige Antwort UNVERAENDERT zurueck.
 
     Fuer erzeugte Dokumente. antwort_saetze* zerlegt in Saetze -- das ist im
     Sprachpfad genau richtig und in Markdown falsch: beim Wiederzusammensetzen
     gehen Zeilenumbrueche verloren und Aufzaehlungen laufen auf eine Zeile.
+
+    timeout gilt je Lesevorgang. Bei langen Eingaben kommt das erste Byte erst,
+    wenn der Motor alles eingelesen hat -- beim Lagebild mit Qwen3.8-Flash
+    (rund 500 Token/s) dauert das Minuten.
     """
     teile = []
     async for stueck in _roh([{"role": "system", "content": system},
                               {"role": "user", "content": frage}],
-                             max_tokens, temperatur):
+                             max_tokens, temperatur, timeout):
         teile.append(stueck)
     return "".join(teile).strip()
 
 
-async def _roh(nachrichten, max_tokens, temperatur):
+async def _roh(nachrichten, max_tokens, temperatur, timeout=60):
     """Liefert die Token-Stuecke, wie sie kommen."""
     schleife = asyncio.get_running_loop()
     q: asyncio.Queue = asyncio.Queue()
     schieb = lambda x: schleife.call_soon_threadsafe(q.put_nowait, x)
-    threading.Thread(target=_strom, args=(nachrichten, max_tokens, temperatur, schieb),
+    threading.Thread(target=_strom, args=(nachrichten, max_tokens, temperatur, schieb,
+                                          None, timeout),
                      daemon=True).start()
     while True:
         stueck = await q.get()

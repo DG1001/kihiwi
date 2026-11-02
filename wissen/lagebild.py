@@ -63,6 +63,7 @@ _DATEI = re.compile(r"^(\d{4}-\d{2}-\d{2})T(\d{4})\.md$")
 _KLAMMER = re.compile(r"\[([^\[\]]+)\]")
 _DATUM = re.compile(r"\d{2}\.\d{2}\.\d{4}")
 KEINE_ANGABEN = "Keine Angaben in den Quellen."
+DATUM_UNBEKANNT = "Datum unbekannt"
 
 
 # --------------------------------------------------------- Lesen
@@ -115,7 +116,8 @@ def _quellen(text: str) -> list[str]:
     for klammer in _KLAMMER.findall(text):
         for teil in klammer.split(";"):
             name, _, datum = teil.strip().rpartition(",")
-            if name and _DATUM.fullmatch(datum.strip()) and name.strip() not in titel:
+            gueltig = _DATUM.fullmatch(datum.strip()) or datum.strip() == DATUM_UNBEKANNT
+            if name and gueltig and name.strip() not in titel:
                 titel.append(name.strip())
     return titel
 
@@ -389,3 +391,146 @@ def budget_einhalten(eingaben: list[dict], max_zeichen: int) -> list[dict]:
             if x["art"] != "korrektur":
                 x["text"] = x["text"][:int(len(x["text"]) * anteil)]
     return aus
+
+
+# --------------------------------------------------------- Erzeugen und pruefen
+
+SYSTEM_ERZEUGUNG = """Du schreibst das Lagebild eines Forschungsprojekts: eine knappe Zusammenfassung
+des aktuellen Stands für das Team. Grundlage sind NUR die Eingaben in der Nachricht.
+
+Gliederung, genau diese Überschriften in dieser Reihenfolge:
+## Worum es geht
+## Stand
+## Als Nächstes
+## Probleme und Herausforderungen
+## Vorzeigbar
+
+Regeln:
+- Je Abschnitt höchstens sechs Punkte, jeder als Zeile "- …", ein bis zwei Sätze.
+- "Worum es geht" erklärt in wenigen Punkten Ziel und Ansatz des Projekts.
+- "Stand" nennt, woran gearbeitet wird und was seit dem vorigen Lagebild fertig wurde.
+- Jeder Punkt endet mit den Kennungen der Eingaben, auf denen er beruht, z. B. [E3]
+  oder [E3, K1]. Ein Punkt ohne Kennung wird verworfen.
+- Schreibe nichts, was nicht in den Eingaben steht. Lieber ein Punkt weniger.
+- Korrekturen (Kennung K…) stammen vom Nutzer und gehen allem anderen vor.
+- Das vorige Lagebild dient nur zum Vergleich. Zitiere es nie.
+- Steht zu einem Abschnitt nichts in den Eingaben, schreibe darunter nur:
+  Keine Angaben in den Quellen.
+
+Zum Schluss ein Abschnitt
+## Korrekturen
+mit einer Zeile je Korrektur: "K1: abgelöst durch E7", wenn eine neuere Eingabe das
+Thema der Korrektur aufgreift, sonst "K1: gilt weiter"."""
+
+
+def _datum_text(d: date | None) -> str:
+    return _stand(d) if d else DATUM_UNBEKANNT
+
+
+async def erzeugen(eingaben: list[dict], vorher: str | None, fragen) -> str:
+    """Laesst das Modell das Lagebild schreiben. fragen(system, nutzer) -> str."""
+    teile = ["Eingaben:"]
+    for e in eingaben:
+        teile.append(f"[{e['id']}] {e['art']}: {e['titel']} ({_datum_text(e['datum'])})\n"
+                     f"{e['text']}")
+    if vorher:
+        teile.append("Voriges Lagebild, nur zum Vergleich, nicht zitieren:\n" + vorher)
+    return await fragen(SYSTEM_ERZEUGUNG, "\n\n".join(teile))
+
+
+_KOPF = re.compile(r"^\s*(?:#{1,6}\s*|\*\*)(.+?)(?:\*\*)?\s*:?\s*$")
+_PUNKT = re.compile(r"^\s*(?:[-*•]|\d+[.)])\s+(.*\S)\s*$")
+_IDS = re.compile(r"\[\s*([EK]\d+(?:\s*[,;]\s*[EK]\d+)*)\s*\]")
+_ABLOESUNG = re.compile(r"^\s*\[?(K\d+)\]?\s*:\s*abgel(?:ö|oe)st\s+durch\s*\[?(E\d+)\]?",
+                        re.I)
+
+
+def _abschnitt_von(titel: str) -> str | None:
+    t = titel.strip().lower().replace("ae", "ä")
+    for k, u in ABSCHNITTE:
+        if t == u.lower():
+            return k
+    return "korrekturen" if t == "korrekturen" else None
+
+
+def pruefen(roh: str, eingaben: list[dict], jetzt: datetime) -> tuple[str | None, dict[str, str], int]:
+    """Prueft die Modellausgabe im Code: (Lagebild oder None, Abloesungen, entfernt).
+
+    Gilt nur, was auf eine Eingabe verweist, die es gab. Kennungen werden durch
+    [Titel, Datum] ersetzt; Punkte ohne gueltigen Verweis fallen weg. Bleibt in
+    keinem Abschnitt etwas uebrig, ist das Ergebnis None, und das alte Lagebild
+    gilt weiter.
+    """
+    nach_id = {e["id"]: e for e in eingaben}
+    punkte: dict[str, list[str]] = {k: [] for k, _ in ABSCHNITTE}
+    abl: dict[str, str] = {}
+    entfernt, bei = 0, None
+    for zeile in roh.splitlines():
+        if not zeile.strip():
+            continue
+        m = _KOPF.match(zeile)
+        if m and _abschnitt_von(m.group(1)):
+            bei = _abschnitt_von(m.group(1))
+            continue
+        if bei == "korrekturen":
+            a = _ABLOESUNG.match(zeile)
+            if a:
+                k, e = nach_id.get(a.group(1)), nach_id.get(a.group(2))
+                if (k and e and k["art"] == "korrektur" and e["art"] != "korrektur"
+                        and e["datum"] and e["datum"] > k["datum"]):
+                    abl[k["id"]] = f"{e['titel']}, {_datum_text(e['datum'])}"
+            continue
+        if bei is None or zeile.strip() == KEINE_ANGABEN:
+            continue
+        p = _PUNKT.match(zeile)
+        if not p:
+            entfernt += 1                  # Fliesstext ohne Punkt: nicht pruefbar
+            continue
+        satz, gueltig = p.group(1), False
+
+        def ersetzen(mt):
+            nonlocal gueltig
+            ids = [i for i in re.split(r"\s*[,;]\s*", mt.group(1)) if i in nach_id]
+            if not ids:
+                return ""
+            gueltig = True
+            return "[" + "; ".join(f"{nach_id[i]['titel']}, {_datum_text(nach_id[i]['datum'])}"
+                                   for i in ids) + "]"
+        satz = _IDS.sub(ersetzen, satz).strip()
+        if gueltig:
+            punkte[bei].append(f"- {satz}")
+        else:
+            entfernt += 1
+    if not any(punkte.values()):
+        return None, {}, entfernt
+
+    kopf = (f"# Lagebild vom {_stand(jetzt.date())}\n\n> Automatisch abgeleitet, nicht "
+            f"geprüft. Erzeugt um {jetzt:%H:%M} aus {len(eingaben)} Eingaben.\n\n")
+
+    def bauen():
+        return kopf + "\n\n".join(
+            f"## {u}\n" + ("\n".join(punkte[k]) if punkte[k] else KEINE_ANGABEN)
+            for k, u in ABSCHNITTE) + "\n"
+    text = bauen()
+    while len(text) > LAGEBILD_ZEICHEN:
+        laengster = max(punkte, key=lambda k: sum(len(x) for x in punkte[k]))
+        punkte[laengster].pop()
+        entfernt += 1
+        text = bauen()
+    return text, abl, entfernt
+
+
+def ablegen(text: str, eingaben: list[dict], entfernt: int, jetzt: datetime,
+            verz: Path = VERZ) -> Path:
+    verz.mkdir(parents=True, exist_ok=True)
+    name = f"{jetzt:%Y-%m-%dT%H%M}"
+    p = verz / f"{name}.md"
+    p.write_text(text, encoding="utf-8")
+    # Ohne die Texte: nachvollziehbar, was eingeflossen ist, ohne die Unterlagen
+    # ein zweites Mal abzulegen.
+    (verz / f"{name}.eingaben.json").write_text(json.dumps({
+        "erzeugt": jetzt.isoformat(timespec="seconds"), "entfernt": entfernt,
+        "eingaben": [{"id": e["id"], "art": e["art"], "titel": e["titel"],
+                      "datum": e["datum"].isoformat() if e["datum"] else None}
+                     for e in eingaben]}, ensure_ascii=False, indent=1), encoding="utf-8")
+    return p
