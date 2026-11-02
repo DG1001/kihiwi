@@ -617,9 +617,17 @@ async def erneuern(abgleich: bool = True, nacht: bool = False, jetzt: datetime |
         return FALSCHES_MODELL
     bis = datetime.strptime(konf["nachts_bis"], "%H:%M").time()
     while True:
-        if belegung_frei(_status(), WER) and belegen(WER, os.environ.get(
-                "KIHIWI_PROFIL", "qwen38flash"), 3600) is not False:
-            break
+        status = _status()
+        if belegung_frei(status, WER):
+            # Mit dem GELADENEN Profil anmelden: mit einem anderen verlangt die
+            # Stelle einen Wechsel, und den macht dieser Lauf nie.
+            profil = ((status or {}).get("profil")
+                      or os.environ.get("KIHIWI_PROFIL", "qwen38flash"))
+            if belegen(WER, profil, 3600) is not False:
+                break
+            # Abgelehnt: trotzdem freigeben. Die Stelle traegt die Anmeldung
+            # unter Umstaenden schon ein, und sie sperrte dann eine Stunde lang.
+            freigeben(WER)
         if not nacht or datetime.now().time() >= bis:
             _protokollieren("belegt, kein Lagebild")
             return BELEGT

@@ -232,6 +232,16 @@ def lauf():
         lagebild.belegen = lambda *a: gerufen.append("belegt") or True
         assert asyncio.run(lagebild.erneuern(abgleich=False, nacht=False)) == lagebild.BELEGT
         assert "belegt" not in gerufen          # bei fremder Belegung nicht anmelden
+        # Anmelden mit dem GELADENEN Profil (sonst verlangt die Stelle einen
+        # Wechsel); eine abgelehnte Anmeldung wird wieder freigegeben -- am
+        # 03.11.2026 blieb sie eine Stunde lang stehen und sperrte alle anderen.
+        frei, profile = [], []
+        lagebild.freigeben = lambda wer: frei.append(wer)
+        lagebild._status = lambda: {"profil": "nemo35super", "belegt_von": []}
+        lagebild.belegen = lambda wer, profil, dauer: profile.append(profil) or False
+        assert asyncio.run(lagebild.erneuern(abgleich=False, nacht=False)) == lagebild.BELEGT
+        assert profile == ["nemo35super"], profile
+        assert frei == [lagebild.WER], frei
     finally:
         (lagebild._modell_auf_server, lagebild._status, lagebild.belegen,
          lagebild.freigeben, lagebild._protokollieren) = alt
