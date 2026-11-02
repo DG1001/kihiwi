@@ -8,6 +8,7 @@ Temp-Ordner.
 import asyncio
 import inspect
 import json
+import logging
 import os
 import sqlite3
 import subprocess
@@ -18,7 +19,7 @@ from pathlib import Path
 from sprachdienst import llm
 from . import index
 from . import lagebild
-from .lagebild import (ablegen, abschnitt_fuer, aktuell, budget_einhalten,
+from .lagebild import (ablegen, abschnitt_fuer, abschnitte, aktuell, budget_einhalten,
                        eingaben_sammeln, erzeugen, fehlschlag_ablegen,
                        ganzes_lagebild, korrektur_hinzu,
                        korrektur_zuruecknehmen, korrekturen_abloesen, lage_frage,
@@ -78,6 +79,48 @@ def ablage_und_korrekturen(v: Path):
     assert [x["text"] for x in offene_korrekturen(jetzt, v)] == ["Grenze."]
     korrekturen_abloesen({"K3": "Statusbericht, 03.11.2026"}, v)
     assert offene_korrekturen(jetzt, v) == []
+
+    # prompt_block steht im Pfad jeder Antwort: eine kaputte Datei darf Kiwi
+    # nicht stumm machen. Unlesbare Zeilen fallen weg, alles andere liefert "".
+    r = v / "robust"
+    r.mkdir()
+    logging.disable(logging.WARNING)             # die Warnungen sind hier gewollt
+    (r / "2026-11-01T1415.md").write_text(LB)
+    (r / "korrekturen.jsonl").write_text(
+        '{"id": "K1", "zeit": "2026-11-01T10:00:00+01:00", "text": "Gilt.", '
+        '"status": "offen", "durch": null}\n{"id": "K2", "zeit": "2026-1\n')
+    try:
+        assert [k["text"] for k in offene_korrekturen(jetzt, r)] == ["Gilt."]
+        assert "Gilt." in prompt_block(jetzt, r)
+    except BaseException:
+        logging.disable(logging.NOTSET)
+        raise
+    (r / "korrekturen.jsonl").write_text(
+        '{"id": "K1", "zeit": "2026-11-01T10:00:00", "text": "Ohne Zone.", '
+        '"status": "offen", "durch": null}\n')
+    try:
+        assert isinstance(prompt_block(jetzt, r), str)
+    finally:
+        logging.disable(logging.NOTSET)
+    # Schreiben ist atomar: scheitert das Ersetzen, bleibt die alte Datei ganz
+    vorher = (r / "korrekturen.jsonl").read_text()
+    ersetzen = lagebild.os.replace
+    lagebild.os.replace = lambda *a: (_ for _ in ()).throw(OSError("voll"))
+    try:
+        try:
+            korrektur_hinzu("Neu.", jetzt, r)
+            raise AssertionError("Ersetzen haette scheitern muessen")
+        except OSError:
+            pass
+        try:
+            ablegen(LB, [], 0, jetzt, r)
+            raise AssertionError("Ersetzen haette scheitern muessen")
+        except OSError:
+            pass
+    finally:
+        lagebild.os.replace = ersetzen
+    assert (r / "korrekturen.jsonl").read_text() == vorher
+    assert sorted(x.name for x in r.iterdir()) == ["2026-11-01T1415.md", "korrekturen.jsonl"]
 
 
 def _git(repo: Path, *args, datum: str | None = None):
@@ -195,6 +238,19 @@ def erzeugung(v: Path):
     lang = "## Stand\n" + "".join(f"- Punkt {i} {'x' * 300}. [E1]\n" for i in range(60))
     gekuerzt = pruefen(lang, eing, jetzt)[0]
     assert len(gekuerzt) <= 10_000 and "Punkt 0 " in gekuerzt and "Punkt 59 " not in gekuerzt
+    # Ueberschriften: Nummerierung, Doppelpunkt im Fetten und Kurzformen werden
+    # erkannt; eine unbekannte Ueberschrift beendet den vorigen Abschnitt, damit
+    # nichts in den Kern rutscht, der in jedem Prompt steht.
+    varianten = pruefen("## Worum es geht\n- Kern. [E1]\n## Offene Fragen\n- Fremd. [E1]\n"
+                        "## 3. Als Nächstes\n- Weiter. [E1]\n**Stand:**\n- Läuft. [E1]\n"
+                        "### Stand der Arbeiten\n- Auch. [E1]\n## Probleme\n- Pumpe. [E2]\n"
+                        "**Hinweis:** Fließtext.\n- Noch ein Problem. [E2]\n", eing, jetzt)
+    t, _, entf = varianten
+    ab = abschnitte(t)
+    assert "Fremd" not in t and entf == 2, (entf, t)
+    assert ab["worum"] == "- Kern. [STAND.md, 31.10.2026]", ab["worum"]
+    assert "Weiter" in ab["naechstes"] and "Läuft" in ab["stand"] and "Auch" in ab["stand"]
+    assert "Pumpe" in ab["probleme"] and "Noch ein Problem" in ab["probleme"], ab
 
     gefragt = {}
     async def fake(system, nutzer):
@@ -257,9 +313,20 @@ def lauf():
         assert asyncio.run(lagebild.erneuern(abgleich=False, nacht=False)) == lagebild.BELEGT
         assert profile == ["nemo35super"], profile
         assert frei == [lagebild.WER], frei
+        # Waehrend des Wartens wechselt ein fremder Lauf das Modell und gibt
+        # frei: nach dem Zuschlag wird erneut geprueft, erzeugt wird nicht.
+        modelle = iter(["qwen3.8-flash-next", "ein-anderes-modell"])
+        lagebild._modell_auf_server = lambda: next(modelle)
+        lagebild.belegen = lambda *a: True
+        lagebild.eingaben_sammeln = lambda *a: gerufen.append("gesammelt") or [][0]
+        frei.clear()
+        assert asyncio.run(lagebild.erneuern(abgleich=False, nacht=False)) == \
+            lagebild.FALSCHES_MODELL
+        assert "gesammelt" not in gerufen and frei == [lagebild.WER], (gerufen, frei)
     finally:
         (lagebild._modell_auf_server, lagebild._status, lagebild.belegen,
          lagebild.freigeben, lagebild._protokollieren) = alt
+        lagebild.eingaben_sammeln = eingaben_sammeln
 
 
 def unit():

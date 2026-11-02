@@ -23,6 +23,7 @@ from __future__ import annotations
 import asyncio
 import fnmatch
 import json
+import logging
 import os
 import re
 import sqlite3
@@ -35,6 +36,8 @@ from pathlib import Path
 
 from sprachdienst import konfig, llm
 from . import einlesen, index
+
+log = logging.getLogger("kihiwi.lagebild")
 
 VERZ = konfig.WURZEL / "zustand" / "lagebild"
 
@@ -134,17 +137,36 @@ def _stand(d: date) -> str:
 
 # --------------------------------------------------------- Korrekturen
 
+def _schreiben(p: Path, text: str) -> None:
+    """Ueber eine Zwischendatei: wer gleichzeitig liest -- der Sprachdienst bei
+    jeder Antwort --, sieht die alte oder die neue Fassung, nie eine halbe."""
+    tmp = p.with_name(p.name + ".tmp")
+    try:
+        tmp.write_text(text, encoding="utf-8")
+        os.replace(tmp, p)
+    finally:
+        tmp.unlink(missing_ok=True)
+
+
 def _korrekturen_lesen(verz: Path) -> list[dict]:
     p = verz / KORREKTUREN
     if not p.exists():
         return []
-    return [json.loads(z) for z in p.read_text(encoding="utf-8").splitlines() if z.strip()]
+    liste = []
+    for z in p.read_text(encoding="utf-8").splitlines():
+        if not z.strip():
+            continue
+        try:
+            liste.append(json.loads(z))
+        except ValueError:
+            log.warning("unlesbare Korrektur übersprungen: %.80s", z)
+    return liste
 
 
 def _korrekturen_schreiben(verz: Path, liste: list[dict]) -> None:
     verz.mkdir(parents=True, exist_ok=True)
-    (verz / KORREKTUREN).write_text(
-        "".join(json.dumps(k, ensure_ascii=False) + "\n" for k in liste), encoding="utf-8")
+    _schreiben(verz / KORREKTUREN,
+               "".join(json.dumps(k, ensure_ascii=False) + "\n" for k in liste))
 
 
 def korrektur_hinzu(text: str, jetzt: datetime, verz: Path = VERZ) -> dict:
@@ -196,7 +218,18 @@ def korrekturen_abloesen(abloesungen: dict[str, str], verz: Path = VERZ) -> None
 # --------------------------------------------------------- Fuers Gespraech
 
 def prompt_block(jetzt: datetime, verz: Path = VERZ) -> str:
-    """Der Kern fuer jeden Prompt der Schlussantwort; leer, wenn es nichts gibt."""
+    """Der Kern fuer jeden Prompt der Schlussantwort; leer, wenn es nichts gibt.
+
+    Steht im Pfad JEDER Antwort: was hier scheitert, darf nur den Kern kosten,
+    nicht die Antwort."""
+    try:
+        return _prompt_block(jetzt, verz)
+    except Exception as e:                       # noqa: BLE001
+        log.warning("Lagebild fuer den Prompt nicht lesbar: %r", e)
+        return ""
+
+
+def _prompt_block(jetzt: datetime, verz: Path) -> str:
     teile = []
     a = aktuell(verz)
     if a and a["abschnitte"].get("worum"):
@@ -459,7 +492,8 @@ async def erzeugen(eingaben: list[dict], vorher: str | None, fragen,
     return await fragen(SYSTEM_ERZEUGUNG, "\n\n".join(teile))
 
 
-_KOPF = re.compile(r"^\s*(?:#{1,6}\s*|\*\*)(.+?)(?:\*\*)?\s*:?\s*$")
+# Ueberschrift: "#"-Zeile oder eine Zeile nur aus Fettem ("**Stand:**").
+_KOPF = re.compile(r"^\s*(?:#{1,6}\s*(.+?)[\s#]*|\*\*([^*]+?)\*\*\s*:?)\s*$")
 _PUNKT = re.compile(r"^\s*(?:[-*•]|\d+[.)])\s+(.*\S)\s*$")
 _IDS = re.compile(r"\[\s*([EK]\d+(?:\s*[,;]\s*[EK]\d+)*)\s*\]")
 _ABLOESUNG = re.compile(r"^\s*\[?(K\d+)\]?\s*:\s*abgel(?:ö|oe)st\s+durch\s*\[?(E\d+)\]?",
@@ -467,11 +501,15 @@ _ABLOESUNG = re.compile(r"^\s*\[?(K\d+)\]?\s*:\s*abgel(?:ö|oe)st\s+durch\s*\[?(
 
 
 def _abschnitt_von(titel: str) -> str | None:
-    t = titel.strip().lower().replace("ae", "ä")
-    for k, u in ABSCHNITTE:
-        if t == u.lower():
+    """Abschnitt zu einer Ueberschrift, auch mit Nummer ("3. Als Nächstes"),
+    Doppelpunkt oder in Kurz- und Langform ("Probleme", "Stand der Arbeiten")."""
+    t = re.sub(r"^\d+[.)]\s*", "", titel.strip().rstrip(":").strip())
+    t = t.lower().replace("ae", "ä")
+    for k, u in ABSCHNITTE + [("korrekturen", "Korrekturen")]:
+        u = u.lower()
+        if t == u or t.startswith(u + " ") or u.startswith(t + " "):
             return k
-    return "korrekturen" if t == "korrekturen" else None
+    return None
 
 
 def pruefen(roh: str, eingaben: list[dict], jetzt: datetime) -> tuple[str | None, dict[str, str], int]:
@@ -490,8 +528,10 @@ def pruefen(roh: str, eingaben: list[dict], jetzt: datetime) -> tuple[str | None
         if not zeile.strip():
             continue
         m = _KOPF.match(zeile)
-        if m and _abschnitt_von(m.group(1)):
-            bei = _abschnitt_von(m.group(1))
+        if m:
+            # Eine unbekannte Ueberschrift beendet den Abschnitt: sonst landen
+            # ihre Punkte im vorigen, im schlimmsten Fall im Kern.
+            bei = _abschnitt_von(m.group(1) or m.group(2))
             continue
         if bei == "korrekturen":
             a = _ABLOESUNG.match(zeile)
@@ -501,7 +541,10 @@ def pruefen(roh: str, eingaben: list[dict], jetzt: datetime) -> tuple[str | None
                         and e["datum"] and e["datum"] > k["datum"]):
                     abl[k["id"]] = f"{e['titel']}, {_datum_text(e['datum'])}"
             continue
-        if bei is None or zeile.strip() == KEINE_ANGABEN:
+        if bei is None:
+            entfernt += bool(_PUNKT.match(zeile))
+            continue
+        if zeile.strip() == KEINE_ANGABEN:
             continue
         p = _PUNKT.match(zeile)
         if not p:
@@ -556,14 +599,14 @@ def ablegen(text: str, eingaben: list[dict], entfernt: int, jetzt: datetime,
     verz.mkdir(parents=True, exist_ok=True)
     name = f"{jetzt:%Y-%m-%dT%H%M}"
     p = verz / f"{name}.md"
-    p.write_text(text, encoding="utf-8")
+    _schreiben(p, text)
     # Ohne die Texte: nachvollziehbar, was eingeflossen ist, ohne die Unterlagen
     # ein zweites Mal abzulegen.
-    (verz / f"{name}.eingaben.json").write_text(json.dumps({
+    _schreiben(verz / f"{name}.eingaben.json", json.dumps({
         "erzeugt": jetzt.isoformat(timespec="seconds"), "entfernt": entfernt,
         "eingaben": [{"id": e["id"], "art": e["art"], "titel": e["titel"],
                       "datum": e["datum"].isoformat() if e["datum"] else None}
-                     for e in eingaben]}, ensure_ascii=False, indent=1), encoding="utf-8")
+                     for e in eingaben]}, ensure_ascii=False, indent=1))
     return p
 
 
@@ -655,6 +698,12 @@ async def erneuern(abgleich: bool = True, nacht: bool = False, jetzt: datetime |
             return BELEGT
         await asyncio.sleep(900)
     try:
+        # Waehrend des Wartens kann ein fremder Lauf das Modell gewechselt und
+        # freigegeben haben; erzeugt wird nur mit dem erwarteten.
+        modell = _modell_auf_server()
+        if modell not in konf["modelle"]:
+            _protokollieren("falsches Modell nach dem Warten:", modell)
+            return FALSCHES_MODELL
         if abgleich:
             await asyncio.to_thread(einlesen.alles)
         jetzt = jetzt or datetime.now().astimezone()
