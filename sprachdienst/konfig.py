@@ -119,6 +119,11 @@ WEB_SUCHE = os.environ.get("KIHIWI_WEB", "1") not in ("0", "aus", "nein")
 # sich gelegentlich auf; ohne Grenze bleibt der Assistent stumm stehen.
 ANTWORT_MAX_S = 45
 
+# Kern des Lagebilds auch im Prompt der Werkzeugrunde? Nur, wenn die Messung
+# zeigt, dass die Werkzeugaufrufe dadurch nicht seltener werden -- ein langer
+# Prompt hat sie schon einmal unterdrueckt (0 von 3 gegen 3 von 3).
+LAGEBILD_IN_WERKZEUGRUNDE = os.environ.get("KIHIWI_LAGEBILD_WERKZEUG", "0") in ("1", "ja", "an")
+
 # --- Dateien ----------------------------------------------------------------
 AUFNAHMEN  = Path(os.environ.get("KIHIWI_AUFNAHMEN", WURZEL / "aufnahmen"))
 # Nach der Transkription werden Aufnahmen zu Opus verdichtet: 110 MB je Stunde

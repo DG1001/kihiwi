@@ -12,7 +12,7 @@ Protokoll auf /audio
                                     der vorangehenden "ton"-Nachricht)
 Auf /monitor liegt nur der Zustand -- fuer den Bildschirm im Labor.
 """
-import asyncio, http, json, logging, re, shutil, signal, time
+import asyncio, http, json, logging, re, shutil, signal, sys, time
 from datetime import datetime
 from pathlib import Path
 import numpy as np
@@ -25,6 +25,7 @@ from wissen import bilder as wissen_bilder
 from wissen import einlesen as wissen_einlesen
 from wissen import erschliessen as wissen_erschliessen
 from wissen import index as wissen_index, recherche as wissen_recherche
+from wissen import lagebild as wissen_lagebild
 from wissen import web as wissen_web
 
 from . import protokoll as protokoll_modul
@@ -56,6 +57,15 @@ RECHERCHE = wissen_recherche.Recherche()
 # Ein Abgleich zur Zeit: zwei parallele Laeufe wuerden sich im Index
 # gegenseitig als "nicht mehr gesehen" aufraeumen.
 ABGLEICH = asyncio.Lock()
+LAGEBILD_LAUF = asyncio.Lock()
+KEIN_LAGEBILD = ("Es gibt noch kein Lagebild. Es entsteht nachts; mit ‚Lagebild "
+                 "erneuern‘ geht es auch jetzt.")
+LAGEBILD_ERGEBNIS = {
+    wissen_lagebild.OK: "Das Lagebild ist erneuert.",
+    wissen_lagebild.BELEGT: "Die Maschine ist gerade belegt, ich erneuere es heute Nacht.",
+    wissen_lagebild.FALSCHES_MODELL: "Das geladene Modell passt nicht, ich erneuere es heute Nacht.",
+    wissen_lagebild.FEHLER: "Das Erneuern ist gescheitert, es gilt das bisherige Lagebild.",
+}
 # Eigenes Schloss, nicht ABGLEICH: der Abgleich dauert Sekunden, das
 # Nachziehen Minuten. Zwei parallele Laeufe wuerden dieselben Abschnitte
 # doppelt durch das Modell schicken.
@@ -424,6 +434,11 @@ class Sitzung:
         # jemand tippt und nicht will, dass der Rechner im Raum antwortet.
         # Vorgabe an: der Assistent ist zuerst ein Sprachassistent.
         self.vorlesen = True
+        # Quellen der letzten Lagebild-Antwort: eine Nachfrage ("was ist da
+        # genau das Problem?") sucht mit ihnen in den Unterlagen weiter.
+        self.lage_quellen: list[str] = []
+        # Offene Rueckfrage ("Soll ich?") mit Zeitpunkt; gilt im offenen Gespraech.
+        self.ausstehend: tuple[str, float] | None = None
 
     async def schliessen(self):
         self.aufzeichnung_stoppen()
@@ -805,6 +820,28 @@ class Sitzung:
             self.web_benutzt = False
             wofuer = absicht_modul.erkennen(text)
 
+            # Offene Rueckfrage ("Lagebild erneuern -- Soll ich?"): Ja startet,
+            # Nein verwirft, alles andere laesst sie fallen und wird ganz normal
+            # beantwortet. Nur im offenen Gespraech, sonst gilt sie nicht mehr.
+            if self.ausstehend:
+                was, seit = self.ausstehend
+                self.ausstehend = None
+                if time.time() - seit < konfig.GESPRAECH_STILLE_S:
+                    zu = absicht_modul.zustimmung(text)
+                    if zu is True and was == "lagebild_neu":
+                        await self.lagebild_erneuern()
+                        return
+                    if zu is False:
+                        await self.melden("Gut, dann nicht.")
+                        return
+
+            # Nachfrage nach einer Lagebild-Antwort: tiefer in die Unterlagen,
+            # nicht noch einmal derselbe Abschnitt.
+            lage_vorher, self.lage_quellen = self.lage_quellen, []
+            nachfrage = bool(lage_vorher) and absicht_modul.ist_nachfrage(text)
+            if nachfrage and wofuer is absicht_modul.Absicht.LAGE:
+                wofuer = absicht_modul.Absicht.WISSEN
+
             # Ausloesewoerter: der Dienst handelt, das Modell wird nicht
             # gefragt. Es hat sich zu oft geweigert, obwohl das Werkzeug da war.
             art, thema = absicht_modul.ausloeser(text)
@@ -823,6 +860,20 @@ class Sitzung:
             if wofuer is absicht_modul.Absicht.PROTOKOLL:
                 await self.protokoll_zeigen()
                 return
+
+            # Projektstand: die Antwort steht im Lagebild. Der passende
+            # Abschnitt geht auf die Buehne und als einzige Grundlage an das
+            # Modell -- ohne Vorabsuche, deren Ausschnitte mit der Anweisung,
+            # sich daran zu halten, das Lagebild verdraengen wuerden.
+            lage_text = None
+            if wofuer is absicht_modul.Absicht.LAGE:
+                teil = wissen_lagebild.lage_frage(absicht_modul.lage_abschnitt(text), text,
+                                                  datetime.now().astimezone())
+                if teil is None:
+                    await self.melden(KEIN_LAGEBILD)
+                    return
+                buehne, lage_text, self.lage_quellen = teil
+                await self.zur_buehne(buehne)
 
             # Timer und Erinnerungen ebenfalls ohne das Modell: die
             # Zeitangabe ist deterministisch parsbar, und ein Timer, den das
@@ -908,7 +959,11 @@ class Sitzung:
                 # Die vorige Aeusserung davor genuegt; lange Fragen brauchen
                 # sie nicht und wuerden durch sie eher verwaessert.
                 suchtext = text
-                if len(text) < 50:
+                if nachfrage:
+                    # Die Quellen der Lagebild-Antwort tragen das Thema, das
+                    # die Nachfrage selbst nicht nennt.
+                    suchtext = f"{text} {' '.join(lage_vorher)}"
+                elif len(text) < 50:
                     vorige = next((n["content"] for n in reversed(self.verlauf)
                                    if n.get("role") == "user"), "")
                     if vorige:
@@ -940,6 +995,8 @@ class Sitzung:
                                  if w["function"]["name"] != "dokumente_suchen"]
                 else:
                     werkzeuge = []
+            if lage_text:
+                frage, werkzeuge = lage_text, []
             async for e in llm.antwort_mit_werkzeugen(
                     frage, self.verlauf, werkzeuge, self.werkzeug,
                     system=self.system_prompt(wofuer),
@@ -1171,8 +1228,13 @@ class Sitzung:
                 HALTER.setzen(phase=Phase.BEREIT if HALTER.z.mikro else Phase.LEERLAUF)
 
     def antwort_prompt(self) -> str:
-        """Sprechstil — NUR fuer die Schlussantwort, nie fuer die Werkzeugrunde."""
-        return konfig.SYSTEM_PROMPT + " " + _jetzt()
+        """Sprechstil — NUR fuer die Schlussantwort, nie fuer die Werkzeugrunde.
+
+        Dazu der Kern des Lagebilds und offene Korrekturen. Nur der Kern: der
+        Modellserver liest jeden Prompt neu ein, jedes Token kostet bei jeder
+        Antwort Zeit. Was sich je Zug aendert (Uhrzeit), steht danach."""
+        kern = wissen_lagebild.prompt_block(datetime.now().astimezone())
+        return konfig.SYSTEM_PROMPT + (f"\n\n{kern}\n\n" if kern else " ") + _jetzt()
 
     def system_prompt(self, wofuer=None) -> str:
         """Kurzer Prompt, zugeschnitten auf die erkannte Absicht.
@@ -1186,6 +1248,10 @@ class Sitzung:
         # unterdrueckt den Werkzeugaufruf (gemessen 0/3 gegen 3/3).
         teile = ["Du bist der Laborassistent eines KI-Labors und hast Werkzeuge. "
                  "Benutze sie, wenn sie passen.", _jetzt()]
+        if konfig.LAGEBILD_IN_WERKZEUGRUNDE:
+            kern = wissen_lagebild.prompt_block(datetime.now().astimezone())
+            if kern:
+                teile.insert(0, kern)
         lauft = "läuft gerade" if HALTER.z.aufnahme else "läuft gerade nicht"
         teile.append(f"Die Audioaufzeichnung des Laborgesprächs {lauft}.")
         if wofuer is not None:
@@ -1377,6 +1443,32 @@ class Sitzung:
 
     async def per_ausloeser(self, art: str, thema: str, ganzer_text: str) -> bool:
         """Handelt auf ein Ausloesewort hin. True, wenn erledigt."""
+        if art == "lagebild":
+            n = wissen_lagebild.ganzes_lagebild()
+            if not n:
+                await self.melden(KEIN_LAGEBILD)
+                return True
+            await self.zur_buehne(n)
+            await self.melden(f"Das Lagebild vom {n['stand']} steht auf der Bühne.")
+            return True
+        if art == "lagebildkorrektur":
+            if not thema:
+                await self.melden("Was soll ich am Lagebild korrigieren?")
+                return True
+            wissen_lagebild.korrektur_hinzu(thema, datetime.now().astimezone())
+            await self.melden(f"Notiert: {thema}")
+            return True
+        if art == "lagebild_zurueck":
+            k = wissen_lagebild.korrektur_zuruecknehmen()
+            await self.melden(f"Zurückgenommen: {k['text']}" if k
+                              else "Es gibt keine offene Korrektur.")
+            return True
+        if art == "lagebild_neu":
+            # Der Modellserver hat einen Slot: waehrend der Erzeugung ist Kiwi
+            # nicht nur langsamer, sondern blockiert. Deshalb erst fragen.
+            self.ausstehend = ("lagebild_neu", time.time())
+            await self.melden("Ich bin dann ein paar Minuten nicht ansprechbar. Soll ich?")
+            return True
         if art == "abgleich":
             if ABGLEICH.locked():
                 await self.melden("Der Abgleich läuft schon, das dauert noch "
@@ -1611,6 +1703,27 @@ class Sitzung:
             return True
 
         return False
+
+    async def lagebild_erneuern(self):
+        """Startet den Lauf im Hintergrund und meldet das Ergebnis. Nicht im
+        Antwortlauf selbst: der bricht nach ANTWORT_MAX_S ab, die Erzeugung
+        dauert Minuten."""
+        if LAGEBILD_LAUF.locked():
+            await self.melden("Das Lagebild wird schon erneuert.")
+            return
+        await self.melden("Ich erneuere das Lagebild und melde mich.")
+        asyncio.create_task(self._lagebild_lauf())
+
+    async def _lagebild_lauf(self):
+        async with LAGEBILD_LAUF:
+            p = await asyncio.create_subprocess_exec(
+                sys.executable, "-m", "wissen.lagebild", "erneuern", cwd=str(konfig.WURZEL))
+            rc = await p.wait()
+        log.info("  Lagebild erneuert, Rueckgabe %s", rc)
+        try:
+            await self.melden(LAGEBILD_ERGEBNIS.get(rc, LAGEBILD_ERGEBNIS[wissen_lagebild.FEHLER]))
+        except websockets.ConnectionClosed:
+            pass
 
     async def protokoll_zeigen(self):
         """Neuestes Laborprotokoll: Zusammenfassung sprechen, alles anzeigen."""

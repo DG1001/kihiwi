@@ -797,6 +797,11 @@ function verbinden() {
                                   wannZusatz(d));
       zeigen();
       if (!d.wieder) merker("Hilfe", zeigen);
+    } else if (d.typ === "lagebild") {
+      const zeigen = () => buehne("Lagebild", `${d.titel} (Stand ${d.stand})`,
+                                  alsHtml(d.text), wannZusatz(d));
+      zeigen();
+      if (!d.wieder) merker(`Lagebild: ${d.titel}`, zeigen);
     } else if (d.typ === "protokoll") {
       // Nicht mehr in den Verlauf: ein volles Protokoll schob dort alles
       // andere aus dem Bild. Gesprochen wird die Zusammenfassung, hier liegt
