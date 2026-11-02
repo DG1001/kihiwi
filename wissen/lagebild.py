@@ -20,15 +20,21 @@ Ablage unter zustand/lagebild/ (nicht im Repository):
 """
 from __future__ import annotations
 
+import asyncio
 import fnmatch
 import json
+import os
 import re
 import sqlite3
 import subprocess
+import sys
+import time
+import urllib.request
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
-from sprachdienst import konfig
+from sprachdienst import konfig, llm
+from . import einlesen, index
 
 VERZ = konfig.WURZEL / "zustand" / "lagebild"
 
@@ -534,3 +540,129 @@ def ablegen(text: str, eingaben: list[dict], entfernt: int, jetzt: datetime,
                       "datum": e["datum"].isoformat() if e["datum"] else None}
                      for e in eingaben]}, ensure_ascii=False, indent=1), encoding="utf-8")
     return p
+
+
+# --------------------------------------------------------- Lauf
+
+OK, FEHLER, BELEGT, FALSCHES_MODELL = 0, 1, 3, 4
+WER = "kihiwi-lagebild"
+BELEGUNG_URL = os.environ.get("BELEGUNG_URL", "http://127.0.0.1:8930")
+LOG = konfig.WURZEL / "logs" / "lagebild.log"
+
+
+def belegung_frei(status: dict | None, wer: str) -> bool:
+    """Streng: haelt jemand anderes eine EXKLUSIVE Belegung -- gleich fuer welches
+    Modell --, wird gewartet. Nicht erreichbar heisst nicht verboten, wie beim
+    Modell-Waechter: ein Ausfall der Buchfuehrung soll nichts lahmlegen."""
+    if status is None:
+        return True
+    return not any(b.get("art") == "exklusiv" and b.get("wer") != wer
+                   for b in status.get("belegt_von", []))
+
+
+def _anfrage(pfad: str, daten: dict | None = None, timeout: float = 5) -> dict | None:
+    rumpf = json.dumps(daten).encode() if daten is not None else None
+    req = urllib.request.Request(BELEGUNG_URL + pfad, data=rumpf,
+                                 headers={"Content-Type": "application/json"})
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as a:
+            return json.load(a)
+    except (OSError, ValueError):
+        return None
+
+
+def _status() -> dict | None:
+    return _anfrage("/status")
+
+
+def belegen(wer: str, profil: str, dauer: int) -> bool | None:
+    """True bei Zuschlag, False wenn belegt, None wenn die Stelle fehlt."""
+    a = _anfrage("/belegen", {"wer": wer, "profil": profil, "art": "exklusiv",
+                              "dauer": dauer, "zweck": "Lagebild"})
+    if a is None:
+        return None
+    return bool(a.get("zuschlag")) and not a.get("wechsel_noetig")
+
+
+def freigeben(wer: str) -> None:
+    _anfrage("/freigeben", {"wer": wer})
+
+
+def _modell_auf_server() -> str | None:
+    try:
+        with urllib.request.urlopen(konfig.LLM_URL.rstrip("/") + "/models", timeout=5) as a:
+            return json.load(a)["data"][0]["id"]
+    except (OSError, ValueError, KeyError, IndexError):
+        return None
+
+
+def _protokollieren(*teile) -> None:
+    LOG.parent.mkdir(parents=True, exist_ok=True)
+    with LOG.open("a", encoding="utf-8") as f:
+        f.write(f"{datetime.now():%F %T} " + " ".join(str(t) for t in teile) + "\n")
+
+
+async def erneuern(abgleich: bool = True, nacht: bool = False, jetzt: datetime | None = None,
+                   verz: Path = VERZ) -> int:
+    """Ein Lagebild erzeugen. Nachts wird bei Belegung gewartet (alle 15 min bis
+    nachts_bis), tags gibt der Lauf sofort auf. Ein Modell wechselt er nie."""
+    konf = konfiguration()
+    t0 = time.time()
+    modell = _modell_auf_server()
+    if modell not in konf["modelle"]:
+        _protokollieren("falsches Modell:", modell)
+        return FALSCHES_MODELL
+    bis = datetime.strptime(konf["nachts_bis"], "%H:%M").time()
+    while True:
+        if belegung_frei(_status(), WER) and belegen(WER, os.environ.get(
+                "KIHIWI_PROFIL", "qwen38flash"), 3600) is not False:
+            break
+        if not nacht or datetime.now().time() >= bis:
+            _protokollieren("belegt, kein Lagebild")
+            return BELEGT
+        await asyncio.sleep(900)
+    try:
+        if abgleich:
+            await asyncio.to_thread(einlesen.alles)
+        jetzt = jetzt or datetime.now().astimezone()
+        c = index.lesen()
+        try:
+            eingaben = eingaben_sammeln(konf, c, einlesen.REPOS, konfig.AUFNAHMEN, jetzt, verz)
+        finally:
+            c.close()
+        eingaben = budget_einhalten(eingaben, konf["eingabe_zeichen"])
+        vorher = aktuell(verz)
+        roh = await erzeugen(eingaben, vorher["text"] if vorher else None,
+                             lambda sy, nu: llm.antwort_text(sy, nu, max_tokens=3500,
+                                                             temperatur=0.2, timeout=900))
+        text, abl, entfernt = pruefen(roh, eingaben, jetzt)
+        if text is None:
+            _protokollieren("gescheitert: kein gueltiger Punkt", len(eingaben), "Eingaben")
+            return FEHLER
+        ablegen(text, eingaben, entfernt, jetzt, verz)
+        korrekturen_abloesen(abl, verz)
+        _protokollieren("ok:", len(eingaben), "Eingaben,", entfernt, "entfernt,",
+                        len(abl), "Korrekturen abgeloest,", f"{time.time() - t0:.0f} s")
+        return OK
+    except Exception as e:                       # noqa: BLE001 -- Nachtlauf, nie haengen
+        _protokollieren("gescheitert:", repr(e))
+        return FEHLER
+    finally:
+        freigeben(WER)
+
+
+def main(argv: list[str]) -> int:
+    befehl = argv[0] if argv else "zeigen"
+    if befehl == "erneuern":
+        return asyncio.run(erneuern(abgleich="--ohne-abgleich" not in argv,
+                                    nacht="--nacht" in argv))
+    if befehl == "zeigen":
+        a = aktuell()
+        print(a["text"] if a else "Noch kein Lagebild.")
+        return OK
+    print("./dienste.sh lagebild [erneuern [--ohne-abgleich] [--nacht] | zeigen]")
+    return FEHLER
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

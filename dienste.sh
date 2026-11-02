@@ -14,6 +14,9 @@
 #                                (einlesen | erschliessen | vektoren |
 #                                 katalog | ueberblick | status | suchen ...
 #                                 | web ...)
+#   ./dienste.sh lagebild [...]  Projektstand fuers Gespraech (erneuern
+#                                [--ohne-abgleich] [--nacht] | zeigen);
+#                                nachts per crontab, siehe technisch.md
 #   ./dienste.sh abschrift [...]  eine einzelne Audiodatei abschreiben
 #                                (<datei> [--fach] [--zeiten] [--nach <ziel>])
 #   ./dienste.sh namen           sucht Namen, die nirgends definiert sind
@@ -554,6 +557,9 @@ case "${1:-status}" in
     wissen)
         shift
         exec "$VENV" -m wissen "$@" ;;
+    lagebild)
+        shift
+        exec "$VENV" -m wissen.lagebild "$@" ;;
     sprechermodelle)
         # Die einzige Stelle, die etwas aus dem Netz holt, und sie laeuft nur
         # auf ausdrueckliche Anweisung. Zur Laufzeit geht nichts hinaus.

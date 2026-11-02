@@ -17,6 +17,7 @@ from pathlib import Path
 
 from sprachdienst import llm
 from . import index
+from . import lagebild
 from .lagebild import (ablegen, abschnitt_fuer, aktuell, budget_einhalten,
                        eingaben_sammeln, erzeugen, ganzes_lagebild, korrektur_hinzu,
                        korrektur_zuruecknehmen, korrekturen_abloesen, lage_frage,
@@ -195,6 +196,35 @@ def erzeugung(v: Path):
     assert "text" not in log["eingaben"][0]
 
 
+def lauf():
+    st = {"belegt_von": [{"wer": "andere-anwendung", "art": "exklusiv"}]}
+    assert lagebild.belegung_frei(st, "kihiwi-lagebild") is False
+    assert lagebild.belegung_frei({"belegt_von": [{"wer": "kihiwi-waechter", "art": "mit"}]},
+                                  "kihiwi-lagebild")
+    assert lagebild.belegung_frei({"belegt_von": [{"wer": "kihiwi-lagebild",
+                                                   "art": "exklusiv"}]}, "kihiwi-lagebild")
+    assert lagebild.belegung_frei(None, "kihiwi-lagebild") is True   # nicht erreichbar
+
+    # Fruehe Ausstiege von erneuern(), ohne Netz: die Anbindungen sind ersetzt.
+    alt = (lagebild._modell_auf_server, lagebild._status, lagebild.belegen,
+           lagebild.freigeben, lagebild._protokollieren)
+    gerufen = []
+    try:
+        lagebild._protokollieren = lambda *a: None
+        lagebild.freigeben = lambda wer: gerufen.append("frei")
+        lagebild._modell_auf_server = lambda: "ein-anderes-modell"
+        assert asyncio.run(lagebild.erneuern(abgleich=False, nacht=False)) == \
+            lagebild.FALSCHES_MODELL
+        lagebild._modell_auf_server = lambda: "qwen3.8-flash-next"
+        lagebild._status = lambda: st
+        lagebild.belegen = lambda *a: gerufen.append("belegt") or True
+        assert asyncio.run(lagebild.erneuern(abgleich=False, nacht=False)) == lagebild.BELEGT
+        assert "belegt" not in gerufen          # bei fremder Belegung nicht anmelden
+    finally:
+        (lagebild._modell_auf_server, lagebild._status, lagebild.belegen,
+         lagebild.freigeben, lagebild._protokollieren) = alt
+
+
 def unit():
     with tempfile.TemporaryDirectory() as t:
         ablage_und_korrekturen(Path(t))
@@ -202,6 +232,7 @@ def unit():
         eingaben(Path(t))
     with tempfile.TemporaryDirectory() as t:
         erzeugung(Path(t))
+    lauf()
 
 
 if __name__ == "__main__":
