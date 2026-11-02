@@ -555,11 +555,19 @@ Suchbegriff tragen.
 
 **Katalog (`wissen katalog`, `wissen ueberblick`).** Drei Sätze je Dokument.
 Beim ersten Lauf 179 Stück in 95 s, zusammen 71.713 Zeichen ≈ **19k Token** —
-damals passte der ganze Bestand in ein Siebtel des Kontexts. Am 02.11.2026 waren
-es 706 Dokumente und 280.672 Zeichen; das Werkzeug schneidet bei 120.000
-Zeichen ab (`ueberblick(max_zeichen)`), das Modell sieht also weniger als die
-Hälfte. Abrufbar über das Werkzeug `unterlagen_ueberblick`, **nicht** im
-Systemprompt: Zehntausende Token in jedem Sprachzug wären Sekunden je Antwort. Die Kurzfassungen sind ausdrücklich als
+damals passte der ganze Bestand in ein Siebtel des Kontexts.
+
+**Das Werkzeug `unterlagen_ueberblick` zeigt seit 02.11.2026 nur die Titel**,
+nach Quelle und Ordner gruppiert, ohne Kurzfassungen. Mit Kurzfassungen waren
+es bei 706 Dokumenten 280.672 Zeichen oder 67.008 Token (Qwen3.8-Flash), und
+das Werkzeug schnitt bei 120.000 Zeichen ab — weniger als die Hälfte des
+Bestands. Qwen3.8-Flash liest auf llama.cpp nur rund **480 Token/s** ein
+(gemessen: 28.696 Token in 59 s, 67.008 in 141 s); schon die gekürzte Fassung
+lag damit über dem Antwortlimit von 45 s, zumal das Werkzeugergebnis bei der
+Schlussantwort ein zweites Mal eingelesen wird. Nur die Titel: 21.800 Zeichen,
+8.631 Token, rund 18 s, und vollständig. Für Inhalte gibt es
+`dokumente_suchen`. Die lange Fassung bleibt auf der Kommandozeile:
+`./dienste.sh wissen ueberblick --lang`. Nie im Systemprompt. Die Kurzfassungen sind ausdrücklich als
 erschlossen gekennzeichnet und nie zitierfähig.
 
 **Umlaute in beiden Schreibweisen.** Der Index faltet sie weg

@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import time
 import urllib.error
 import urllib.request
@@ -337,25 +338,57 @@ async def kurzfassungen(neu_bauen: bool = False) -> dict:
             "sekunden": time.time() - t0}
 
 
-def ueberblick(max_zeichen: int = 120_000) -> str:
-    """Die ganze Landkarte als Text, nach Quelle gruppiert.
+def ueberblick(max_zeichen: int = 60_000, kurzfassungen: bool = False) -> str:
+    """Die ganze Landkarte als Text: jedes Dokument mit Titel, nach Quelle und
+    Ordner gruppiert.
 
-    Fuer ein Werkzeug, nicht fuer jeden Sprachzug: schon 179 Eintraege waren
-    rund 19k Token Vorlauf (heute ueber 700, siehe max_zeichen), und der
-    Sprachpfad lebt von Sekundenbruchteilen.
+    Fuer ein Werkzeug, nicht fuer jeden Sprachzug. Bis 02.11.2026 stand hier
+    zu jedem Dokument die Kurzfassung. Bei 706 Dokumenten waren das 67.000
+    Token, und der Sprachdienst schnitt bei 120.000 Zeichen ab, also nach
+    weniger als der Haelfte. Qwen3.8-Flash liest auf llama.cpp rund 480 Token/s
+    ein: schon die gekuerzte Fassung brauchte 59 s, laenger als das
+    Antwortlimit von 45 s. Nur die Titel sind 6.800 Token (rund 14 s) und
+    trotzdem vollstaendig; fuer Inhalte gibt es dokumente_suchen.
+
+    kurzfassungen=True liefert die alte Fassung mit drei Saetzen je Dokument,
+    fuer die Kommandozeile (wissen ueberblick --lang).
     """
     c = index.lesen()
     zeilen = c.execute("""
         SELECT d.quelle, d.titel, d.pfad, k.text
         FROM dokumente d LEFT JOIN kurzfassung k ON k.pfad = d.pfad
-        ORDER BY d.quelle, d.titel""").fetchall()
+        ORDER BY d.quelle, d.pfad""").fetchall()
     c.close()
-    aus, quelle, laenge = [], None, 0
+    # Ordner relativ zum gemeinsamen Anfang der Quelle, damit nicht in jeder
+    # Zeile der Ablageort auf dieser Maschine steht.
+    ordner_je_quelle = {}
+    for q, _, pfad, _ in zeilen:
+        ordner_je_quelle.setdefault(q, []).append(os.path.dirname(pfad))
+    wurzel = {}
+    for q, o in ordner_je_quelle.items():
+        try:
+            wurzel[q] = os.path.commonpath([x for x in o if x]) if any(o) else ""
+        except ValueError:  # absolute und relative Pfade gemischt
+            wurzel[q] = ""
+
+    def ordner_von(q, pfad):
+        d = os.path.dirname(pfad)
+        if not d:
+            return "."
+        return os.path.relpath(d, wurzel[q]) if wurzel[q] else d
+
+    aus, quelle, ordner, laenge = [], None, None, 0
     for q, titel, pfad, kurz in zeilen:
         if q != quelle:
-            quelle = q
+            quelle, ordner = q, None
             aus.append(f"\n## {q}")
-        z = f"- **{titel}** — {kurz or '(noch keine Kurzfassung)'}"
+        o = ordner_von(q, pfad)
+        if o != ordner:
+            ordner = o
+            aus.append(f"### {'(oberste Ebene)' if o == '.' else o}")
+        z = f"- {titel}"
+        if kurzfassungen:
+            z = f"- **{titel}** — {kurz or '(noch keine Kurzfassung)'}"
         laenge += len(z)
         if laenge > max_zeichen:
             aus.append(f"- … gekürzt, {len(zeilen)} Dokumente insgesamt")

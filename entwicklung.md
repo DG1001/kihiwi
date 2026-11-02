@@ -2541,3 +2541,11 @@ Nebenbei gemessen: Der Überblick über die Unterlagen ist mit 706 Dokumenten
 280.672 Zeichen lang. `unterlagen_ueberblick` schneidet bei 120.000 ab, das
 Modell sieht also weniger als die Hälfte. Offen, ob die Grenze steigen oder der
 Überblick je Quelle kürzer werden soll.
+
+Entschieden am selben Tag: Das Werkzeug zeigt nur noch die Titel, nach Quelle
+und Ordner, dafür alle. Die Grenze nur anzuheben hätte nicht geholfen:
+Qwen3.8-Flash liest auf llama.cpp rund 480 Token/s ein, der volle Überblick mit
+Kurzfassungen (67.008 Token) brauchte 141 s, schon die gekürzte Fassung 59 s —
+beides über dem Antwortlimit von 45 s. Nur Titel: 8.631 Token, rund 18 s.
+Am laufenden Sprachdienst noch nicht gemessen; bei zwei Einlesevorgängen je
+Antwort liegt Flash damit nahe am Limit.

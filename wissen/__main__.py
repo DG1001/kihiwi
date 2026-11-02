@@ -77,9 +77,12 @@ def main(argv):
         if e["gescheitert"]:
             return 1
     elif befehl == "ueberblick":
-        t = erschliessen.ueberblick()
+        # Ohne Zusatz genau das, was das Werkzeug unterlagen_ueberblick dem
+        # Modell gibt; mit --lang die Fassung mit Kurzfassungen.
+        lang = "--lang" in sys.argv
+        t = erschliessen.ueberblick(10**9 if lang else 60_000, kurzfassungen=lang)
         print(t)
-        print(f"\n({len(t)} Zeichen, rund {len(t)/3.7/1000:.0f}k Token)")
+        print(f"\n({len(t)} Zeichen)")
     elif befehl == "status":
         s = index.stand()
         print(f"Index: {s['dokumente']} Dokumente, {s['abschnitte']} Abschnitte")

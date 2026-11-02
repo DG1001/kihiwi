@@ -354,12 +354,12 @@ WERKZEUGE = [{
     "type": "function",
     "function": {
         # Bewusst ein eigenes Werkzeug und NICHT im Systemprompt: der
-        # Ueberblick sind Zehntausende Token, die jeden Sprachzug um Sekunden
+        # Ueberblick sind einige tausend Token, die jeden Sprachzug um Sekunden
         # verlaengern wuerden. Gezogen wird er nur, wenn die Frage nach
         # Orientierung klingt statt nach einer Stelle.
         "name": "unterlagen_ueberblick",
-        "description": ("Listet ALLE vorhandenen Unterlagen mit einer Kurzfassung "
-                        "je Dokument. Benutzen, wenn gefragt wird, WAS es überhaupt "
+        "description": ("Listet ALLE vorhandenen Unterlagen mit Titel, nach Quelle "
+                        "und Ordner geordnet. Benutzen, wenn gefragt wird, WAS es überhaupt "
                         "gibt, WO etwas stehen könnte oder ob zu einem Thema etwas "
                         "vorliegt — nicht für eine einzelne Tatsache, dafür ist "
                         "dokumente_suchen da."),
@@ -1237,11 +1237,10 @@ class Sitzung:
             t = await asyncio.to_thread(wissen_erschliessen.ueberblick)
             if not t.strip():
                 return "Es sind noch keine Unterlagen eingelesen."
-            # Ausdruecklich als abgeleitet gekennzeichnet: die Kurzfassungen
-            # stammen vom Modell, nicht aus den Dokumenten. Sie taugen zur
-            # Orientierung, nie als Beleg fuer eine Zahl.
-            return ("Übersicht der Unterlagen. Die Kurzfassungen sind "
-                    "ERSCHLOSSEN, nicht zitierfähig — für Werte immer "
+            # Nur Titel und Ablageort: zur Orientierung, nie als Beleg. Fuer
+            # Inhalte und Werte gibt es dokumente_suchen.
+            return ("Übersicht der Unterlagen: alle Dokumente mit Titel, nach "
+                    "Quelle und Ordner. Für Inhalte und Werte immer "
                     "dokumente_suchen benutzen.\n\n" + t)
 
         if name == "web_suchen":

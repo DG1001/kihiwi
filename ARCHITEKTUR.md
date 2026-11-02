@@ -172,8 +172,10 @@ flowchart LR
 - **Schlagwörter hängen am Inhalt**, nicht an der Datei (Schlüssel ist ein Hash
   des Abschnitts). Wird eine Datei neu eingelesen, bleiben die Schlagwörter
   unveränderter Abschnitte erhalten.
-- **Kurzfassungen** gehen nie in den System-Prompt. Das Modell bekommt sie nur
-  über das Werkzeug `unterlagen_ueberblick`, als Überblick und nicht zitierbar.
+- **Der Überblick für das Modell** (`unterlagen_ueberblick`) listet alle
+  Dokumente nur mit Titel, nach Quelle und Ordner — vollständig und in wenigen
+  Sekunden eingelesen. Die Kurzfassungen stehen im Index und auf der
+  Kommandozeile (`wissen ueberblick --lang`), nie im System-Prompt.
 
 ### Eine Suche
 
