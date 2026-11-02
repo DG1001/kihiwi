@@ -132,6 +132,7 @@ Modellgröße. Bandbreite schlägt Kapazität: ein dichtes 27B-Modell kam auf
 
 | Datei | Inhalt |
 |---|---|
+| [ARCHITEKTUR.md](ARCHITEKTUR.md) | Übersicht mit Grafiken: Dienste, Ablauf einer Frage, Wissensverarbeitung |
 | [fachlich.md](fachlich.md) | Was der Assistent leisten soll, Sprache, Recht, Betrieb |
 | [technisch.md](technisch.md) | Maschine, Modelle, Dienste, Architektur, Messwerte |
 | [entwicklung.md](entwicklung.md) | Protokoll: Entscheidungen, Probleme, Fehlschläge |

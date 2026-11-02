@@ -2515,3 +2515,13 @@ führt immer nur eine Brücke und wartete auf ihr Ende. Alte Brücke beendet,
 Kiwi klopfte sofort an. Seitdem geht die Brücke, wenn zwei Minuten lang
 niemand sonst im Raum ist (`--allein`).
 
+
+## 02.11.2026: Architekturübersicht mit Grafiken
+
+`ARCHITEKTUR.md` als Einstieg vor `technisch.md`: Dienste und Ports, der Weg
+einer Frage durch den Sprachdienst, die Wissensverarbeitung vom Abgleich bis
+zur Suche, Aufzeichnung und Protokolle, die Jitsi-Brücke. Die Grafiken sind
+Mermaid, damit sie versioniert werden und GitHub sie zeichnet; vor dem Commit
+einmal mit Mermaid 11 gerendert, alle sechs fehlerfrei. Die Fakten stammen aus
+dem Code, wo `technisch.md` veraltet ist (Stimme, Zahl der Werkzeuge,
+Vorgabemodell, „kein Vektorindex“).

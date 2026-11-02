@@ -9,6 +9,7 @@ GX10. Überblick in [README.md](README.md).
 
 | Frage | Datei |
 |---|---|
+| Überblick mit Grafiken: was wie angebunden ist | [ARCHITEKTUR.md](ARCHITEKTUR.md) |
 | Was soll der Assistent leisten? Sprache, Recht, Betrieb | [fachlich.md](fachlich.md) |
 | Maschine, Modelle, Dienste, Architektur, Messwerte | [technisch.md](technisch.md) |
 | Was wurde wann entschieden, was ging schief | [entwicklung.md](entwicklung.md) |

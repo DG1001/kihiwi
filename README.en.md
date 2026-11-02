@@ -93,7 +93,9 @@ the repository. This is not legal advice.
 
 ## Documentation
 
-The three documents are German. `technisch.md` holds the architecture and every
+The documents are German. [ARCHITEKTUR.md](ARCHITEKTUR.md) is the overview with
+diagrams (services, the path of one question, knowledge processing) and reads
+well even through a translator. `technisch.md` holds the details and every
 measured number; `entwicklung.md` is a development log that records the failures
 too — the synthetic test that was really testing the speech synthesis, the two
 lookbehinds that check the same position, the summary that reported "everything
