@@ -183,6 +183,9 @@ def erzeugung(v: Path):
                            "nicht geprüft. Erzeugt um 09:00 aus 4 Eingaben.")
     assert abl == {"K1": "STAND.md, 31.10.2026"}
     assert pruefen("## Stand\n- Nur Erfundenes. [E7]\n", eing, jetzt)[0] is None
+    # Doppelte Kennung in einer Klammer erscheint nur einmal
+    doppelt = pruefen("## Stand\n- Zweimal. [E1, E1]\n", eing, jetzt)[0]
+    assert "[STAND.md, 31.10.2026]" in doppelt and "; STAND.md" not in doppelt
     # E2 ist aelter als die Korrektur, E3 ohne Datum: beide loesen nichts ab
     abl2 = pruefen("## Stand\n- a [E2]\n## Korrekturen\nK1: abgelöst durch E2\n"
                    "K1: abgelöst durch E3\n", eing, jetzt)[1]
@@ -196,10 +199,14 @@ def erzeugung(v: Path):
     async def fake(system, nutzer):
         gefragt["s"], gefragt["n"] = system, nutzer
         return roh
-    aus = asyncio.run(erzeugen(eing, "# Lagebild vom 01.11.2026 alt", fake))
+    aus = asyncio.run(erzeugen(eing, "# Lagebild vom 01.11.2026 alt", fake,
+                               heute=date(2026, 11, 2)))
     assert "Mikroskop" in aus
     assert "[K1]" in gefragt["n"] and "[E3]" in gefragt["n"] and "alt" in gefragt["n"]
     assert "## Worum es geht" in gefragt["s"] and "## Korrekturen" in gefragt["s"]
+    # Ueberholte Plaene: das Modell kennt das heutige Datum und die Regel dazu
+    assert gefragt["n"].startswith("Heute ist der 02.11.2026.")
+    assert "hätte geschehen sollen" in gefragt["s"]
 
     p = ablegen(text, eing, entfernt, jetzt, v)
     assert p.name == "2026-11-02T0900.md" and aktuell(v)["pfad"] == p

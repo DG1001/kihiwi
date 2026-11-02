@@ -423,6 +423,10 @@ Regeln:
 - Schreibe nichts, was nicht in den Eingaben steht. Lieber ein Punkt weniger.
 - Korrekturen (Kennung K…) stammen vom Nutzer und gehen allem anderen vor.
 - Das vorige Lagebild dient nur zum Vergleich. Zitiere es nie.
+- Das heutige Datum steht am Anfang der Nachricht. Pläne veralten: Was laut einem
+  Plan bis heute hätte geschehen sollen, gehört nicht unter "Als Nächstes". Sagt
+  eine Quelle, dass es noch aussteht, nenne es unter "Probleme und
+  Herausforderungen" als verzögert.
 - Steht zu einem Abschnitt nichts in den Eingaben, schreibe darunter nur:
   Keine Angaben in den Quellen.
 
@@ -436,9 +440,13 @@ def _datum_text(d: date | None) -> str:
     return _stand(d) if d else DATUM_UNBEKANNT
 
 
-async def erzeugen(eingaben: list[dict], vorher: str | None, fragen) -> str:
-    """Laesst das Modell das Lagebild schreiben. fragen(system, nutzer) -> str."""
-    teile = ["Eingaben:"]
+async def erzeugen(eingaben: list[dict], vorher: str | None, fragen,
+                   heute: date | None = None) -> str:
+    """Laesst das Modell das Lagebild schreiben. fragen(system, nutzer) -> str.
+
+    Mit heute: das erste Lagebild fuehrte unter "Als Nächstes" Termine aus
+    alten Plaenen, die laengst verstrichen waren."""
+    teile = ([f"Heute ist der {_stand(heute)}."] if heute else []) + ["Eingaben:"]
     for e in eingaben:
         teile.append(f"[{e['id']}] {e['art']}: {e['titel']} ({_datum_text(e['datum'])})\n"
                      f"{e['text']}")
@@ -499,7 +507,8 @@ def pruefen(roh: str, eingaben: list[dict], jetzt: datetime) -> tuple[str | None
 
         def ersetzen(mt):
             nonlocal gueltig
-            ids = [i for i in re.split(r"\s*[,;]\s*", mt.group(1)) if i in nach_id]
+            ids = list(dict.fromkeys(i for i in re.split(r"\s*[,;]\s*", mt.group(1))
+                                     if i in nach_id))
             if not ids:
                 return ""
             gueltig = True
@@ -645,7 +654,8 @@ async def erneuern(abgleich: bool = True, nacht: bool = False, jetzt: datetime |
         vorher = aktuell(verz)
         roh = await erzeugen(eingaben, vorher["text"] if vorher else None,
                              lambda sy, nu: llm.antwort_text(sy, nu, max_tokens=3500,
-                                                             temperatur=0.2, timeout=900))
+                                                             temperatur=0.2, timeout=900),
+                             heute=jetzt.date())
         text, abl, entfernt = pruefen(roh, eingaben, jetzt)
         if text is None:
             _protokollieren("gescheitert: kein gueltiger Punkt", len(eingaben), "Eingaben")
