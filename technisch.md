@@ -959,9 +959,10 @@ Herausforderungen, Vorzeigbar), jeder Punkt mit `[Titel, Datum]`.
 **Eingaben** wählt der Code aus, nicht ein Agent. Welche Dateien
 Statusdokumente sind, steht in `wissen/lagebild.json` (nicht im Repo, Muster
 `wissen/lagebild.beispiel.json`). Muster ohne `/` gelten für den Dateinamen,
-mit `/` für den Pfad in der Quelle: gegen den ganzen Pfad traf `*STAND*` jeden
-Ordner wie `Altbestand/` und Dateien wie `spalt_abstand.json`; mit dem Beispiel kamen so
-dreimal so viele Statusdokumente zusammen wie gemeint, und das Budget strich alle Commits.
+mit `/` für den Pfad in der Quelle: gegen den ganzen Pfad traf `*STAND*` auch
+Ordner wie `Altbestand/` und Dateien wie `spalt_abstand.json` (erfundene
+Beispiele); mit dem Beispiel kamen so dreimal so viele Statusdokumente zusammen
+wie gemeint, und das Budget strich alle Commits.
 
 **Erzeugen und prüfen.** Das Modell bekommt die Eingaben mit Kennungen
 (`E3`, Korrekturen `K1`) und muss jeden Punkt damit belegen. Der Code ersetzt
@@ -977,17 +978,27 @@ Termine aus alten Plänen unter „Als Nächstes“.
 der Schlussantwort und, seit der Messung, auch der Werkzeugrunde
 (`KIHIWI_LAGEBILD_WERKZEUG`, Vorgabe an). Bei den vier Fragen (Absicht `LAGE`)
 kommt der passende Abschnitt dazu, ohne Vorabsuche und ohne Werkzeuge; die
-Bühne zeigt ihn. Eine Nachfrage danach („was ist da genau das Problem?“) geht in
-die Wissenssuche, mit den Quellen der Antwort im Suchtext. Mehr gehört nicht in
+Bühne zeigt ihn. Eine kurze Nachfrage danach („was ist da genau das Problem?“,
+unter 50 Zeichen, im offenen Gespräch) geht in die Wissenssuche, mit bis zu drei
+Quellen der Antwort im Suchtext; mehr verwässerten die Suche, viele sind
+Commit-Betreffe. Mehr gehört nicht in
 den Prompt: der Modellserver hat einen Slot und liest jeden Prompt praktisch
 neu ein (im Serverprotokoll: 30–50 % gleicher Anfang, trotzdem Tausende Token
 neu), jedes Token kostet also bei jeder Antwort Zeit.
 
-**Korrekturen per Stimme** („Lagebildkorrektur: …“) gelten sofort, stehen im
+**Korrekturen per Stimme** („Lagebildkorrektur: …“; „Lagebildkorrektur“ allein
+fragt nach, und die nächste Äußerung ist der Inhalt) gelten sofort, stehen im
 Prompt unter dem Kern und gehen in jedes folgende Lagebild mit Vorrang ein, bis
 eine neuere Quelle das Thema aufgreift (das Modell schlägt es vor, der Code
 prüft Kennung und Datum), höchstens 14 Tage. Ablage
-`zustand/lagebild/korrekturen.jsonl`.
+`zustand/lagebild/korrekturen.jsonl`, geschrieben über eine Zwischendatei
+(`os.replace`), weil der Sprachdienst sie bei jeder Antwort liest; scheitert
+das Lesen, fehlt nur der Kern, nicht die Antwort.
+
+**Rückfragen** („Soll ich?“): Ein Ja gilt nur, wenn es fast die ganze Äußerung
+ist (höchstens vier Wörter, ohne „aber“, „erst“, „wenn“); jede Verneinung im
+Satz gewinnt („Bitte nicht“, „Ok, aber nicht jetzt“), eine Frage ist keine
+Antwort.
 
 **Nachts** per Crontab, wie die Log-Rotation ein Eintrag der Maschine:
 
@@ -1329,7 +1340,7 @@ sofort — wie bei „Kiwi" selbst:
 | `Hermesaufgabe`, `Hermesauftrag` | Anweisung **unverändert** an Hermes durchreichen, davor Auszüge aus den Unterlagen und ihr Pfad |
 | `Lagebild` | das ganze aktuelle Lagebild auf die Bühne |
 | `Lagebildkorrektur …` | Korrektur am Lagebild, gilt sofort |
-| `Lagebildkorrektur zurücknehmen` | nimmt die jüngste offene Korrektur zurück |
+| `Lagebildkorrektur zurücknehmen`, `Nimm die Lagebildkorrektur zurück` | nimmt die jüngste offene Korrektur zurück; nur am Satzende, „Lagebildkorrektur zurück aus der Reparatur …“ ist eine Korrektur |
 | `Lagebild erneuern` | erzeugt das Lagebild jetzt neu, nach Rückfrage (Minuten, Kiwi blockiert) |
 | `Kiwihilfe`, `Befehlsliste`, `was kannst du` | Liste der Auslösewörter — gesprochen kurz, angezeigt vollständig |
 

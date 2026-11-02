@@ -291,7 +291,7 @@ def konfiguration() -> dict:
 def _passt(pfad: str, muster: list[str]) -> bool:
     """Muster ohne "/" gelten fuer den Dateinamen, Muster mit "/" fuer den Pfad
     in der Quelle (mit fuehrendem "/"). Gegen den ganzen Pfad traf "*STAND*"
-    jede Datei in einem Ordner "Altbestand" und "spalt_abstand.json"."""
+    auch Ordner wie "Altbestand" und Dateien wie "spalt_abstand.json"."""
     rel = "/" + pfad.partition(":")[2].lower()
     name = rel.rsplit("/", 1)[-1]
     return any(fnmatch.fnmatch(rel if "/" in m else name, m.lower()) for m in muster)

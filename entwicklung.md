@@ -2568,8 +2568,9 @@ weil es mit anderen geteilt ist.
 
 Beim ersten echten Lauf drei Fehler:
 - Die Beispielmuster trafen über den ganzen Pfad viel zu viel (`*STAND*` auch
-  in Ordnernamen und in Wörtern wie `abstand`): dreimal so viele Statusdokumente, das Budget strich alle
-  Commits. Seitdem gelten Muster ohne `/` nur für den Dateinamen.
+  in Ordnernamen und in Wörtern wie `abstand`): dreimal so viele
+  Statusdokumente wie gemeint, das Budget strich alle Commits. Seitdem gelten
+  Muster ohne `/` nur für den Dateinamen.
 - Der Lauf meldete sich mit dem Vorgabeprofil an; die Belegungsstelle
   verlangte einen Wechsel, der Lauf wertete das als belegt und ließ seine
   Anmeldung eine Stunde stehen. Jetzt das geladene Profil und Freigabe bei
@@ -2582,4 +2583,25 @@ Beim ersten echten Lauf drei Fehler:
 Abnahme: Kern kostet 0,0–0,2 s je Antwort, die vier Fragen kommen 0,9–1,4 s
 nach einer Plauderfrage; Werkzeugaufrufe mit und ohne Kern 36/36 auf beiden
 Modellen; zehn von zehn geprüften Punkten stehen wörtlich in ihren Quellen.
+
+Die Schlussprüfung des ganzen Zweigs fand keine kritischen, aber neun wichtige
+Punkte, alle mit Test behoben:
+- Eine unbekannte Überschrift („## Stand der Arbeiten“) ließ ihre Punkte im
+  vorigen Abschnitt landen, im schlimmsten Fall im Kern, der in jedem Prompt
+  steht; „**Stand:**“ wurde gar nicht erkannt. Jetzt beendet jede unbekannte
+  Überschrift den Abschnitt, Nummern und Kurzformen werden erkannt.
+- `zustimmung` nahm „Bitte nicht“ und „Ok, aber nicht jetzt“ als Ja und hätte
+  damit einen Lauf gestartet, der Kiwi minutenlang blockiert.
+- „Was kann das Mikroskop zeigen?“ landete beim Abschnitt „Vorzeigbar“.
+- „Nimm die Lagebildkorrektur zurück“ legte die Korrektur „zurück“ an.
+- Auf „Was soll ich am Lagebild korrigieren?“ nahm niemand die Antwort auf;
+  das Modell sagte dann „Notiert“, ohne dass etwas abgelegt war. Der
+  Gesprächstest öffnet dafür jetzt eine Verbindung für mehrere Äußerungen, denn
+  eine Verbindung ist eine Sitzung.
+- Die Nachfrage-Suche griff auch bei langen Fragen und hängte alle Quellen an.
+- Nach dem Warten auf die Belegung wurde das Modell nicht neu geprüft.
+- `prompt_block` lag ungeschützt im Pfad jeder Antwort; eine kaputte
+  Korrekturzeile hätte Kiwi bei jeder Frage stumm gemacht.
+- Zwei Beispielnamen in Code, Test und Doku stammten aus echten Unterlagen;
+  ersetzt durch erfundene.
 
