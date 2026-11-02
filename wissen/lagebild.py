@@ -451,7 +451,11 @@ async def erzeugen(eingaben: list[dict], vorher: str | None, fragen,
         teile.append(f"[{e['id']}] {e['art']}: {e['titel']} ({_datum_text(e['datum'])})\n"
                      f"{e['text']}")
     if vorher:
-        teile.append("Voriges Lagebild, nur zum Vergleich, nicht zitieren:\n" + vorher)
+        # Ohne Verweise: mit ihnen uebernahm das Modell das Format [Titel,
+        # Datum] statt der Kennungen, und kein einziger Punkt bestand die
+        # Pruefung. Zitierbar ist das vorige Lagebild ohnehin nicht.
+        ohne = re.sub(r"[ \t]*\[[^\[\]\n]*\]", "", vorher)
+        teile.append("Voriges Lagebild, nur zum Vergleich, nicht zitieren:\n" + ohne)
     return await fragen(SYSTEM_ERZEUGUNG, "\n\n".join(teile))
 
 
@@ -536,6 +540,15 @@ def pruefen(roh: str, eingaben: list[dict], jetzt: datetime) -> tuple[str | None
         entfernt += 1
         text = bauen()
     return text, abl, entfernt
+
+
+def fehlschlag_ablegen(roh: str, jetzt: datetime, verz: Path = VERZ) -> Path:
+    """Die rohe Modellausgabe eines gescheiterten Laufs, zur Fehlersuche. Zaehlt
+    nicht als Lagebild."""
+    verz.mkdir(parents=True, exist_ok=True)
+    p = verz / f"{jetzt:%Y-%m-%dT%H%M}.fehlschlag.txt"
+    p.write_text(roh, encoding="utf-8")
+    return p
 
 
 def ablegen(text: str, eingaben: list[dict], entfernt: int, jetzt: datetime,
@@ -658,7 +671,9 @@ async def erneuern(abgleich: bool = True, nacht: bool = False, jetzt: datetime |
                              heute=jetzt.date())
         text, abl, entfernt = pruefen(roh, eingaben, jetzt)
         if text is None:
-            _protokollieren("gescheitert: kein gueltiger Punkt", len(eingaben), "Eingaben")
+            p = fehlschlag_ablegen(roh, jetzt, verz)
+            _protokollieren("gescheitert: kein gueltiger Punkt", len(eingaben), "Eingaben,",
+                            "roh in", p.name)
             return FEHLER
         ablegen(text, eingaben, entfernt, jetzt, verz)
         korrekturen_abloesen(abl, verz)

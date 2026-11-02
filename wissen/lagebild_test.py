@@ -19,7 +19,8 @@ from sprachdienst import llm
 from . import index
 from . import lagebild
 from .lagebild import (ablegen, abschnitt_fuer, aktuell, budget_einhalten,
-                       eingaben_sammeln, erzeugen, ganzes_lagebild, korrektur_hinzu,
+                       eingaben_sammeln, erzeugen, fehlschlag_ablegen,
+                       ganzes_lagebild, korrektur_hinzu,
                        korrektur_zuruecknehmen, korrekturen_abloesen, lage_frage,
                        offene_korrekturen, prompt_block, pruefen)
 
@@ -199,15 +200,22 @@ def erzeugung(v: Path):
     async def fake(system, nutzer):
         gefragt["s"], gefragt["n"] = system, nutzer
         return roh
-    aus = asyncio.run(erzeugen(eing, "# Lagebild vom 01.11.2026 alt", fake,
+    aus = asyncio.run(erzeugen(eing, "# Lagebild vom 01.11.2026 alt\n- Punkt. "
+                               "[STAND.md, 31.10.2026; Notiz, Datum unbekannt]", fake,
                                heute=date(2026, 11, 2)))
     assert "Mikroskop" in aus
     assert "[K1]" in gefragt["n"] and "[E3]" in gefragt["n"] and "alt" in gefragt["n"]
+    # Das vorige Lagebild geht OHNE Verweise hinein: mit ihnen uebernahm das
+    # Modell das Format [Titel, Datum] statt der Kennungen, und kein Punkt galt.
+    assert "- Punkt." in gefragt["n"] and "[STAND.md" not in gefragt["n"]
     assert "## Worum es geht" in gefragt["s"] and "## Korrekturen" in gefragt["s"]
     # Ueberholte Plaene: das Modell kennt das heutige Datum und die Regel dazu
     assert gefragt["n"].startswith("Heute ist der 02.11.2026.")
     assert "hätte geschehen sollen" in gefragt["s"]
 
+    f = fehlschlag_ablegen("roh ohne Punkte", jetzt, v)
+    assert f.name == "2026-11-02T0900.fehlschlag.txt" and f.read_text() == "roh ohne Punkte"
+    assert aktuell(v) is None                     # zaehlt nicht als Lagebild
     p = ablegen(text, eing, entfernt, jetzt, v)
     assert p.name == "2026-11-02T0900.md" and aktuell(v)["pfad"] == p
     log = json.loads((v / "2026-11-02T0900.eingaben.json").read_text())
