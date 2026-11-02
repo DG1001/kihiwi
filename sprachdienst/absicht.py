@@ -30,6 +30,7 @@ class Absicht(str, Enum):
     ZEIT         = "zeit"           # Datum oder Uhrzeit
     WECKER       = "wecker"         # Timer oder Erinnerung stellen/abfragen
     WISSEN       = "wissen"         # in den Unterlagen nachschlagen
+    LAGE         = "lage"           # Projektstand aus dem Lagebild
     PLAUDEREI    = "plauderei"      # kein Werkzeug nötig
 
 
@@ -102,6 +103,74 @@ _FRAGE = re.compile(r"^(wie|was|wo|wer|wann|warum|weshalb|welche\w*|wieviel\w*|"
 _PLAUDER = re.compile(r"^(danke|dankeschoen|hallo|hi|guten (morgen|tag|abend)|"
                       r"alles klar|ok|okay|passt|gut|super|prima|"
                       r"wie geht|was machst du)\b")
+
+
+# --- Lagebild ----------------------------------------------------------------
+# Die vier Fragen nach dem Projekt im Ganzen. Bewusst eng: "Wie ist der Stand der
+# Technik bei ..." und "Welche Probleme gibt es mit der Hochspannung?" fragen
+# nach einer Sache, nicht nach dem Projekt -- die gehoeren in die Wissenssuche.
+# Deshalb muss nach dem Kernwort die Aeusserung enden; erlaubt sind nur ein
+# Bezug aufs Projekt und Zeitwoerter wie "gerade".
+_LAGE_ZEIT = r"(?:\s+(?:gerade|jetzt|aktuell|derzeit|momentan|insgesamt|im moment|zur zeit))?"
+_LAGE_PROJEKT = r"(?:\s+(?:des|vom|beim|im|fuers?|fuer das)\s+projekt\w*|\s+der dinge)?"
+_LAGE_ENDE = r"\s*[?.!]*$"
+_LAGE = {
+    "stand": re.compile(
+        r"\bwo stehen wir\b" + _LAGE_ZEIT + _LAGE_ENDE + "|"
+        r"\bwie weit sind wir\b" + _LAGE_ZEIT + _LAGE_ENDE + "|"
+        r"\b(?:wie ist|was ist|wie sieht)\b.{0,15}\bstand\b"
+        + _LAGE_PROJEKT + _LAGE_ZEIT + r"(?:\s+aus)?" + _LAGE_ENDE),
+    "naechstes": re.compile(
+        r"\bwas (?:steht|kommt|ist|machen wir|tun wir)\b.{0,12}\bals naechstes\b"
+        r"(?:\s+an)?" + _LAGE_PROJEKT + _LAGE_ENDE + "|"
+        r"\bnaechsten schritte\b" + _LAGE_PROJEKT + _LAGE_ENDE + "|"
+        r"^was steht" + _LAGE_ZEIT + r"\s+an" + _LAGE_ENDE),
+    "probleme": re.compile(
+        r"\bwo hakt es\b" + _LAGE_ZEIT + _LAGE_ENDE + "|"
+        r"\b(?:welche|was sind|was fuer|gibt es)\b.{0,30}\b(?:probleme|herausforderungen|"
+        r"baustellen|schwierigkeiten)\b(?:\s+(?:gibt es|haben wir))?"
+        + _LAGE_PROJEKT + _LAGE_ZEIT + _LAGE_ENDE),
+    "vorzeigbar": re.compile(
+        r"\bwas (?:kann|koennen|koennten|laesst sich)\b.{0,15}\b(?:vorzeigen|herzeigen|"
+        r"vorfuehren|praesentieren|zeigen)\b" + _LAGE_ENDE),
+}
+
+
+def lage_abschnitt(text: str) -> str | None:
+    """Welcher Abschnitt des Lagebilds die Frage beantwortet, sonst None."""
+    t = _normal(text).strip()
+    for art, muster in _LAGE.items():
+        if muster.search(t):
+            return art
+    return None
+
+
+# Rueckbezug auf die vorige Antwort ("Was ist da genau das Problem?"). Nach
+# einer Lagebild-Antwort geht so eine Nachfrage in die Wissenssuche -- sie will
+# tiefer, nicht noch einmal den Abschnitt.
+_NACHFRAGE = re.compile(r"\b(?:da|dabei|dazu|darueber|davon|daran|dafuer|damit|"
+                        r"genauer|naeheres|wieso|warum|weshalb)\b|\bwas heisst das\b")
+
+
+def ist_nachfrage(text: str) -> bool:
+    return bool(_NACHFRAGE.search(_normal(text)))
+
+
+# Antwort auf eine Rueckfrage wie "Soll ich?". Nein zuerst: "nein, mach das
+# nicht" darf nicht als Ja durchgehen.
+_NEIN = re.compile(r"^(?:nein|nee|ne|noe|lieber nicht|nicht jetzt|spaeter|lass (?:es|das|mal)|"
+                   r"abbrechen|stopp?)\b")
+_JA = re.compile(r"^(?:ja|jawohl|jo|jep|klar|okay|ok|gerne?|bitte|mach(?:e)?(?: das| es| mal)?|"
+                 r"leg los|los|einverstanden|passt)\b")
+
+
+def zustimmung(text: str) -> bool | None:
+    t = _normal(text).strip(" ,.!?")
+    if _NEIN.match(t):
+        return False
+    if _JA.match(t):
+        return True
+    return None
 
 
 # --- Timer und Erinnerungen --------------------------------------------------
@@ -311,6 +380,8 @@ def erkennen(text: str) -> Absicht:
         return Absicht.RECHERCHE
     if _WEB.search(t):
         return Absicht.WEB
+    if lage_abschnitt(text):
+        return Absicht.LAGE
     if _PLAUDER.match(t) and len(t.split()) <= 6:
         return Absicht.PLAUDEREI
     if _FRAGE.search(t):
@@ -332,6 +403,8 @@ WERKZEUGE_JE_ABSICHT = {
     # waere sie nur ein teurer Umweg.
     Absicht.WISSEN:       ["dokumente_suchen", "unterlagen_ueberblick", "web_suchen"],
     Absicht.PLAUDEREI:    [],
+    # Die Antwort steht im Lagebild-Abschnitt, den der Dienst mitgibt.
+    Absicht.LAGE:         [],
 }
 
 # Kurzer Zusatz je Absicht statt eines langen Alleskoenner-Prompts.
@@ -430,6 +503,15 @@ AUSLOESER = {
                  rf"{_}?(?:abbrechen|abbruch|stoppen|stopp|beenden|abblasen)|"
                  rf"(?:brich|stoppe|beende)\s+(?:die\s+|den\s+)?"
                  rf"(?:recherche|auftrag)(?:\s+ab)?",
+    # Lagebild: zusammengesetzt wie die uebrigen, damit es im Gespraech nicht
+    # versehentlich faellt. Reihenfolge in ausloeser(): zuruecknehmen vor
+    # korrektur vor erneuern vor dem blossen Wort.
+    "lagebild_zurueck": rf"lage{_}bild{_}korrektur\s*(?:zur(?:ü|ue)ck{_}nehmen|"
+                        rf"widerrufen|l(?:ö|oe)schen)",
+    "lagebildkorrektur": rf"lage{_}bild{_}korrektur",
+    "lagebild_neu": rf"lage{_}bild\s+(?:erneuern|aktualisieren|neu\s+(?:erstellen|"
+                    rf"erzeugen|machen))|lage{_}bild{_}erneuerung",
+    "lagebild":  rf"lage{_}bild",
 }
 # "Hilfe" allein faellt im Labor staendig ("ich brauche Hilfe beim Mikroskop").
 # Das liess sich zwar mit Stellungsregeln abfangen, aber solche Waechter sind
@@ -457,6 +539,10 @@ BESCHREIBUNG = {
     "anzeige":   ("Anzeigetafel", "Messwerte einblenden: GPU, CPU, Speicher, Platte"),
     "bild":      ("Bildanzeige", "ein Bild oder PDF aus den Unterlagen zeigen"),
     "nachziehen": ("Wissen nachziehen", "Schlagwörter und Vektoren nachholen, dauert Minuten"),
+    "lagebild":  ("Lagebild", "den Projektstand zeigen: Stand, Nächstes, Probleme, Vorzeigbares"),
+    "lagebildkorrektur": ("Lagebildkorrektur …", "einen Punkt im Lagebild berichtigen, gilt sofort"),
+    "lagebild_zurueck": ("Lagebildkorrektur zurücknehmen", "die letzte Korrektur zurücknehmen"),
+    "lagebild_neu": ("Lagebild erneuern", "das Lagebild jetzt neu erzeugen, dauert Minuten"),
     "hilfe":     ("Kiwihilfe", "diese Liste"),
 }
 
@@ -483,11 +569,17 @@ def ausloeser(text: str):
         return "hilfe", ""
 
     # abbruch vor recherche: "Recherche abbrechen" darf keine neue starten.
-    for art in ("hilfe", "abbruch", "bild", "anzeige", "nachziehen", "abgleich",
-                "hermes", "dokumente", "websuche", "recherche"):
+    for art in ("hilfe", "abbruch", "lagebild_zurueck", "lagebildkorrektur",
+                "lagebild_neu", "lagebild", "bild", "anzeige", "nachziehen",
+                "abgleich", "hermes", "dokumente", "websuche", "recherche"):
         m = _AUSLOESER_RE[art].search(text)
         if not m:
             continue
+        # Eine Korrektur gilt wortgetreu: _thema raeumte "der", "die", "zum"
+        # vorne ab, und aus "die Pumpe ist getauscht" wuerde "Pumpe ist
+        # getauscht" -- harmlos, aber nicht mehr das, was gesagt wurde.
+        if art == "lagebildkorrektur":
+            return art, text[m.end():].strip(" ,.:;–—-")
         return art, _thema(text, m)
     return None, ""
 
