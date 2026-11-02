@@ -273,7 +273,7 @@ Konfiguration und Stand legt der Befehl selbst in `logs/` ab.
 
 | Dienst | Adresse | Anmerkung |
 |---|---|---|
-| vLLM | `127.0.0.1:8889` | Container `vllm-model` |
+| Modellserver | `127.0.0.1:8889` | je nach Profil llama.cpp (Vorgabe `qwen38flash`) oder vLLM-Container `vllm-model` |
 | whisper-server | `127.0.0.1:8910` | large-v3-turbo, `-l de` |
 | Sprachdienst | `127.0.0.1:8920` | Monitor unter `http://127.0.0.1:8920/` |
 | ds4-server | `127.0.0.1:8888` | manuell zu starten |
@@ -318,7 +318,7 @@ auf die CPU zurück. Erfolgskontrolle im Startbanner: `ARCHS = 1210` und
 ## Aufbau des Sprachdienstes
 
 `sprachdienst/` — bewusst **ein** Dienst mit schmaler Schnittstelle, getrennt vom
-Agenten. Der Agent (heute Ornith direkt, später vielleicht Hermes) hängt hinten
+Agenten. Der Agent (heute das Modell auf :8889 direkt, für Aufträge Hermes) hängt hinten
 dran und ist austauschbar, ohne dass Turn-Taking und Audio neu gebaut werden.
 
 | Datei | Rolle |
@@ -553,11 +553,13 @@ ausgeschriebene Form und umgekehrt. Sie liegen in einer eigenen FTS-Spalte
 bleibt** — mehr bringt fünf Brückentreffer und kostet vier Auszüge, die den
 Suchbegriff tragen.
 
-**Katalog (`wissen katalog`, `wissen ueberblick`).** Drei Sätze je Dokument,
-179 Stück in 95 s, zusammen 71.713 Zeichen ≈ **19k Token** — der ganze Bestand
-passt in ein Siebtel des Kontexts. Abrufbar über das Werkzeug
-`unterlagen_ueberblick`, **nicht** im Systemprompt: 19k Token in jedem
-Sprachzug wären Sekunden je Antwort. Die Kurzfassungen sind ausdrücklich als
+**Katalog (`wissen katalog`, `wissen ueberblick`).** Drei Sätze je Dokument.
+Beim ersten Lauf 179 Stück in 95 s, zusammen 71.713 Zeichen ≈ **19k Token** —
+damals passte der ganze Bestand in ein Siebtel des Kontexts. Am 02.11.2026 waren
+es 706 Dokumente und 280.672 Zeichen; das Werkzeug schneidet bei 120.000
+Zeichen ab (`ueberblick(max_zeichen)`), das Modell sieht also weniger als die
+Hälfte. Abrufbar über das Werkzeug `unterlagen_ueberblick`, **nicht** im
+Systemprompt: Zehntausende Token in jedem Sprachzug wären Sekunden je Antwort. Die Kurzfassungen sind ausdrücklich als
 erschlossen gekennzeichnet und nie zitierfähig.
 
 **Umlaute in beiden Schreibweisen.** Der Index faltet sie weg
@@ -707,10 +709,13 @@ vorherige These gepasst hätte. Aufgefallen ist es nur, weil 0/60 bei wörtliche
 Fragen unmöglich ist. Seitdem prüft `vektor.einbetten()` bei jedem Aufruf auf
 NaN.
 
-**SQLite FTS5, kein Vektorindex.** Eingebaut in Python, kein Embedding-Modell,
-kein GPU-Speicher (den Ornith belegt), kein zusätzlicher Dienst. Für Fachtexte
-ist Stichwortsuche stark — gefragt wird nach „Siliziumnitrid", „JEOL",
-Typbezeichnungen. Semantische Suche wäre der nächste Schritt, nicht der erste.
+**Angefangen mit SQLite FTS5 allein, ohne Vektorindex.** Eingebaut in Python,
+kein Embedding-Modell, kein GPU-Speicher, kein zusätzlicher Dienst. Für
+Fachtexte ist Stichwortsuche stark — gefragt wird nach „Siliziumnitrid",
+„JEOL", Typbezeichnungen. Bei umschriebenen Fragen reichte das nicht; seitdem
+kommen Vektoren dazu und beide Listen werden gemischt (siehe „Volltext und
+Vektoren gemischt“ oben). Der Volltext bleibt der Rückfall, wenn die
+Vektorsuche ausfällt.
 
 Quellen in `wissen/quellen.json`: `lokal` (Ordner), `git` (klont/pullt nach
 `wissen/repos/`), `nextcloud` (WebDAV, **nur lesend**: PROPFIND und GET, kein
@@ -1005,8 +1010,9 @@ statt geraten zu werden. Roh-Audio bleibt liegen.
 Gemessen: 65 s Audio mit 11 Äußerungen → 11 Abschnitte, komplett in **13 s**;
 vier echte Aufnahmen (zusammen 65 s) in 22 s.
 
-Ein Längenwächter davor fängt grobe Ausreißer ab: weicht der korrigierte Text um
-mehr als 40 % von der Rohlänge ab, hat das Modell umformuliert statt korrigiert.
+Ein Längenwächter davor fängt grobe Ausreißer ab: ist der korrigierte Text kürzer
+als 60 % oder länger als 160 % der Rohlänge, hat das Modell umformuliert statt
+korrigiert, und der Rohtext bleibt.
 
 ### Verdächtige Wörter aufklären
 
@@ -1330,10 +1336,22 @@ Mitschnitt ist sichtbar, ein fälschlich gestoppter nicht.
 
 ### Werkzeuge
 
-Ornith läuft mit `--enable-auto-tool-choice --tool-call-parser qwen3_xml`.
-Definiert in `gateway.WERKZEUGE`, ausgeführt von `Sitzung.werkzeug`. Derzeit
-eines: `aufzeichnung(an: bool)`. Der **Zustand** steht im System-Prompt, nicht in
-einem Werkzeug — sonst fragt das Modell erst nach, bevor es handelt.
+Definiert in `gateway.WERKZEUGE`, ausgeführt von `Sitzung.werkzeug`. Fünf
+Werkzeuge, angeboten je Absicht (`absicht.WERKZEUGE_JE_ABSICHT`):
+
+| Werkzeug | Angeboten bei |
+|---|---|
+| `dokumente_suchen` | Wissen |
+| `unterlagen_ueberblick` | Wissen |
+| `web_suchen` | Wissen, Websuche |
+| `rechercheauftrag` | Recherche |
+| `aufzeichnung(an: bool)` | Aufzeichnung |
+
+Bei einer Wissensfrage mit Treffern aus der Vorabsuche bekommt das Modell gar
+keine Werkzeuge (siehe „Bei einer Frage an die Unterlagen sucht der Dienst“).
+vLLM-Profile laufen dafür mit `--enable-auto-tool-choice` und dem passenden
+Parser. Der **Zustand** steht im System-Prompt, nicht in einem Werkzeug — sonst
+fragt das Modell erst nach, bevor es handelt.
 
 **Die Werkzeugansage gehört NICHT in den Gesprächsverlauf.** `melden()`
 schreibt sonst alles Gesprochene hinein — bei der Ansage war das eine
@@ -1401,11 +1419,13 @@ Punkt statt davor.
 der erste *sprechbare* Brocken. Piper braucht einen Teilsatz, also 10–25 Token.
 Eine Budgetrechnung mit TTFT ist um den Faktor fünf zu optimistisch.
 
-**Stimme:** `de_DE-thorsten_emotional-medium` mit acht Sprechweisen im selben
-Modell (`amused`, `angry`, `disgusted`, `drunk`, `neutral`, `sleepy`,
-`surprised`, `whisper`). Gewählt über `konfig.STIMM_ART` bzw.
-`$KIHIWI_STIMM_ART`, Standard `neutral` — ohne Auswahl nimmt Piper die erste
-(`amused`), was für einen Laborassistenten nicht passt. Alle Proben unter
+**Stimme:** `de_DE-thorsten-medium` (`konfig.STIMME`). Verglichen wurden
+`-high` (für das Ohr gleich, aber 305 statt 83 ms je Satz) und
+`thorsten_emotional` (ebenso schnell, ebenso ununterscheidbar, dazu acht
+Sprechweisen, die niemand braucht). Die Auswahl der Sprechweise
+(`konfig.STIMM_ART` bzw. `$KIHIWI_STIMM_ART`, Standard `neutral`) bleibt in
+`tts.py`, falls doch einmal ein Modell mit mehreren Sprechern kommt — ohne
+Auswahl nähme Piper dort die erste (`amused`). Alle Proben unter
 `http://127.0.0.1:8920/stimmen`.
 
 Der Dienst protokolliert beim Start, welche Stimme und Sprechweise geladen

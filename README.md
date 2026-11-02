@@ -29,12 +29,16 @@ Sekunden nichts kommt.
 
 | Wort | Wirkung |
 |---|---|
-| **Internetsuche** | eine Sache schnell nachsehen (2–3 s) |
+| **Internetsuche** | eine Sache schnell im Netz nachsehen (erster Ton nach rund 1 s) |
 | **Internetrecherche** | gründlich, Ergebnis kommt nach (30–40 s) |
 | **Dokumentenrecherche** | in den eigenen Unterlagen suchen |
-| **Wissensabgleich** | neue Stände aus Repo und Cloud holen |
 | **Hermesaufgabe** | Anweisung unverändert an den Rechercheagenten, mit Auszügen aus den eigenen Unterlagen |
-| **Kiwihilfe** | die Liste, gesprochen und auf dem Monitor |
+| **Wissensabgleich** | neue Stände aus Repo und Cloud holen |
+| **Wissen nachziehen** | Schlagwörter und Vektoren nachholen, dauert Minuten |
+| **Recherche abbrechen** | einen laufenden Auftrag beenden |
+| **Anzeigetafel** | Messwerte einblenden: GPU, CPU, Speicher, Platte |
+| **Bildanzeige** | ein Bild oder PDF aus den Unterlagen zeigen |
+| **Kiwihilfe** | diese Liste, gesprochen und auf dem Monitor |
 
 **Ohne Aktivierungswort:** „Sprachaufzeichnung starten", „Audioaufnahme
 starten", „Tonaufzeichnung stoppen" — und dieselben mit „… stoppen" — wirken

@@ -34,10 +34,13 @@ verworfen. Wer beides durch dieselbe Pipeline zwingt, macht beides mittelmäßig
 
 ## Sprecher und Sprache
 
-**Meist eine Person**, deshalb ist keine Sprecher-Trennung nötig. Weil „meist"
-nicht „immer" heißt — Besuch, Kollege, Telefonat im Raum — wird das **Roh-Audio
-behalten**, nicht nur das Transkript. Damit bleibt die Entscheidung gegen
-Diarisierung umkehrbar und ein abgeleitetes Protokoll gegen seine Quelle prüfbar.
+**Meist eine Person**, deshalb war Sprecher-Trennung anfangs nicht nötig. Weil
+„meist" nicht „immer" heißt — Besuch, Kollege, Telefonat im Raum, später auch
+Videokonferenzen — wurde das **Roh-Audio behalten**, nicht nur das Transkript.
+So blieb die Entscheidung umkehrbar, und ein abgeleitetes Protokoll bleibt gegen
+seine Quelle prüfbar. Inzwischen gibt es eine optionale Sprecher-Trennung in der
+Nachbereitung (sherpa-onnx, `sprachdienst/sprecher.py`); Kiwis eigene Beiträge
+erkennt sie an den mitgeschriebenen Zeiten, nicht am Klang.
 
 **Das Audio bleibt dauerhaft liegen, aber verdichtet.** Nach der Transkription
 wird es zu Opus umgewandelt: statt 110 MB je Stunde nur noch 10,5 MB — bei vier
@@ -126,9 +129,9 @@ listet Protokolle und Recherchen, neueste zuerst, zum Anklicken.
 
 ## Stimme
 
-`thorsten_emotional` mit acht Sprechweisen, eingestellt auf **neutral**.
-Umstellen über `KIHIWI_STIMM_ART`, Proben zum Vergleich unter
-`http://<gx10>:8920/stimmen`.
+`thorsten-medium`. Die Varianten `-high` und `thorsten_emotional` klangen im
+Vergleich nicht hörbar besser, `-high` ist dazu fast viermal so langsam. Proben
+zum Vergleich unter `http://<gx10>:8920/stimmen`.
 
 ## Auslösewörter
 

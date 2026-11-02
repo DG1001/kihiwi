@@ -340,8 +340,9 @@ async def kurzfassungen(neu_bauen: bool = False) -> dict:
 def ueberblick(max_zeichen: int = 120_000) -> str:
     """Die ganze Landkarte als Text, nach Quelle gruppiert.
 
-    Fuer ein Werkzeug, nicht fuer jeden Sprachzug: 179 Eintraege sind rund
-    27k Token Vorlauf, und der Sprachpfad lebt von Sekundenbruchteilen.
+    Fuer ein Werkzeug, nicht fuer jeden Sprachzug: schon 179 Eintraege waren
+    rund 19k Token Vorlauf (heute ueber 700, siehe max_zeichen), und der
+    Sprachpfad lebt von Sekundenbruchteilen.
     """
     c = index.lesen()
     zeilen = c.execute("""

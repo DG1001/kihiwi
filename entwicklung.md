@@ -2525,3 +2525,19 @@ Mermaid, damit sie versioniert werden und GitHub sie zeichnet; vor dem Commit
 einmal mit Mermaid 11 gerendert, alle sechs fehlerfrei. Die Fakten stammen aus
 dem Code, wo `technisch.md` veraltet ist (Stimme, Zahl der Werkzeuge,
 Vorgabemodell, „kein Vektorindex“).
+
+## 02.11.2026: Doku an den Code angeglichen
+
+Beim Schreiben von `ARCHITEKTUR.md` fiel auf, wo `technisch.md`, `fachlich.md`
+und Docstrings hinter dem Code zurücklagen: die Stimme (`thorsten-medium`,
+nicht `thorsten_emotional`), „FTS5, kein Vektorindex“ (längst gemischt mit
+Vektoren), ein Werkzeug statt fünf, „Ornith“ als Agent und vLLM als einziger
+Modellserver, der Längenwächter (60–160 %, nicht 40 %), die fehlende
+Sprecher-Trennung und eine unvollständige Tabelle der Auslösewörter im README.
+Ein Kommentar in `gateway.py` zitierte eine vorgelesene Aufgabentabelle mit
+Namen; er beschreibt den Fall jetzt ohne Zitat.
+
+Nebenbei gemessen: Der Überblick über die Unterlagen ist mit 706 Dokumenten
+280.672 Zeichen lang. `unterlagen_ueberblick` schneidet bei 120.000 ab, das
+Modell sieht also weniger als die Hälfte. Offen, ob die Grenze steigen oder der
+Überblick je Quelle kürzer werden soll.

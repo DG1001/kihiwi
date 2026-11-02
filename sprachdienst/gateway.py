@@ -1,7 +1,7 @@
 """Der Sprachdienst: nimmt Audio vom Client, gibt Sprache und Zustand zurueck.
 
 Bewusst EIN Dienst mit schmaler Schnittstelle, getrennt vom Agenten. Der
-Agent (heute Ornith direkt, spaeter vielleicht Hermes) haengt hinten dran und
+Agent (heute das Modell auf :8889 direkt, fuer Auftraege Hermes) haengt hinten dran und
 ist austauschbar, ohne dass Turn-Taking und Audio neu gebaut werden muessen.
 
 Protokoll auf /audio
@@ -298,9 +298,8 @@ def _ohne_struktur(text: str) -> str:
 
     Eine Markdown-Tabelle hat keine Satzzeichen. Die Kurzfassung nimmt die
     ersten Saetze, und ohne Punkt ist die ganze Tabelle ein Satz: gesprochen
-    wurde einmal "F1b An welchem Geraet finden die Fenstertests statt Krug
-    Ralph Frederik Beschaffung Fensterhalter Tor T2 ..." -- minutenlang und
-    unbrauchbar. Auf der Buehne steht die Tabelle richtig gesetzt; vorgelesen
+    wurde einmal eine ganze Aufgabentabelle Zelle fuer Zelle, Nummern, Fragen,
+    Namen und Termine ohne Pause -- minutenlang und unbrauchbar. Auf der Buehne steht die Tabelle richtig gesetzt; vorgelesen
     gehoert sie nicht.
     """
     text = re.sub(r"```.*?```", " ", text, flags=re.S)
@@ -355,7 +354,7 @@ WERKZEUGE = [{
     "type": "function",
     "function": {
         # Bewusst ein eigenes Werkzeug und NICHT im Systemprompt: der
-        # Ueberblick sind rund 27k Token, die jeden Sprachzug um Sekunden
+        # Ueberblick sind Zehntausende Token, die jeden Sprachzug um Sekunden
         # verlaengern wuerden. Gezogen wird er nur, wenn die Frage nach
         # Orientierung klingt statt nach einer Stelle.
         "name": "unterlagen_ueberblick",

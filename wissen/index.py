@@ -1,10 +1,11 @@
-"""Volltextindex über die Laborunterlagen.
+"""Index über die Laborunterlagen: Volltext (SQLite FTS5) und Vektoren.
 
-**SQLite FTS5, kein Vektorindex.** Bewusst: FTS5 ist in Python eingebaut, braucht
-kein Embedding-Modell, keinen GPU-Speicher (den Ornith ohnehin belegt) und keinen
-zusätzlichen Dienst. Für Fachtexte ist Stichwortsuche stark -- gefragt wird nach
-"Siliziumnitrid", "JEOL", Typbezeichnungen und Messgrößen, also nach exakten
-Begriffen. Semantische Suche wäre der nächste Schritt, nicht der erste.
+Angefangen hat er als reiner FTS5-Index -- eingebaut in Python, ohne
+Embedding-Modell und ohne zusätzlichen Dienst. Für Fachtexte ist Stichwortsuche
+stark: gefragt wird nach "Siliziumnitrid", "JEOL", Typbezeichnungen und
+Messgrößen. Bei umschriebenen Fragen reichte das nicht; deshalb mischt suchen()
+heute Volltext und Vektoren (wissen/vektor.py) per Reciprocal Rank Fusion und
+fällt auf den Volltext allein zurück, wenn die Vektoren fehlen.
 
 Ein Treffer ist immer ein ABSCHNITT mit Quellenangabe, nie ein ganzes Dokument:
 das Modell soll zitieren können, was es benutzt hat.
