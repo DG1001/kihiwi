@@ -159,7 +159,7 @@ entfernen lassen.
 
 ### Browser-Client statt Software auf dem Notebook
 
-Für den ersten Test mit echtem Mikrofon soll das Jabra an Freds Notebook hängen.
+Für den ersten Test mit echtem Mikrofon soll das Jabra an einem Notebook hängen.
 Statt dort etwas zu installieren liefert der Dienst jetzt unter `/klient` eine
 Seite, die Mikrofon und Lautsprecher des aufrufenden Rechners benutzt.
 
@@ -292,14 +292,14 @@ fachliches Artefakt, kein Testmaterial.
 
 ### „IO-Rasterelektronenmikroskop" aufgeklärt
 
-Fred wies darauf hin, dass „IO" eine Fehlerkennung war — er hatte das so nicht
-gesagt. Drei Läufe ergaben drei Varianten desselben Lauts: „IO", „Yo", „Jeove".
+Im Test stellte sich heraus, dass „IO" eine Fehlerkennung war — so war es nicht
+gesagt worden. Drei Läufe ergaben drei Varianten desselben Lauts: „IO", „Yo", „Jeove".
 Letzteres klang nach **JEOL**, einem REM-Hersteller.
 
 **Prüfung per Kandidatentest:** JEOL, Zeiss, Hitachi und Tescan einzeln in den
 Prompt. Nur JEOL rastete ein, die anderen drei ließen die Stelle unverändert —
-damit war ausgeschlossen, dass der Prompt die Antwort bloß erzwingt. Fred hat
-bestätigt: es ist ein JEOL.
+damit war ausgeschlossen, dass der Prompt die Antwort bloß erzwingt. Bestätigt
+im Labor: es ist ein JEOL.
 
 Die Methode ist übernommen worden: Kandidaten einzeln testen, und die
 **Nicht**-Treffer sind der eigentliche Beleg.
@@ -314,7 +314,7 @@ deutsches Wort bräuchte eigenes Training. Stattdessen wird der Text benutzt, de
 die Spracherkennung ohnehin liefert — die lexikalische Endpoint-Prüfung
 transkribiert bereits mitten im Satz, das Erkennen kostet also fast nichts.
 
-Fred schlug „Kiwi" statt „Hiwi" vor (aus KI-Hiwi). Phonetisch die bessere Wahl:
+Vorgeschlagen wurde „Kiwi" statt „Hiwi" (aus KI-Hiwi). Phonetisch die bessere Wahl:
 zwei klare Silben, fällt im Labor sonst nicht.
 
 **Falle 1: „Der Hiwi hat das gemacht" galt als Ansprache.** Mit Schwelle 0,75
@@ -346,7 +346,7 @@ den Aufruf macht — prüfen, ob er stattgefunden hat, und ihn andernfalls erzwi
 
 ### Umbenannt: aihiwi → kihiwi
 
-Fred fand `kihiwi` stimmiger (KI-Hiwi), passend auch zum Aktivierungswort
+`kihiwi` erschien stimmiger (KI-Hiwi), passend auch zum Aktivierungswort
 „Kiwi". Umbenannt wurde vollständig, nicht nur der Ordner:
 
 - Verzeichnis `~/Developer/github.com/aihiwi` → `kihiwi` (Git-Historie zieht mit)
@@ -368,7 +368,7 @@ betroffen — sie liegen bewusst im Home-Scope.
 
 ### Gesprächsmodus und Beimischung der Antworten
 
-Fred wollte zweierlei: „Kiwi" nur zum Eröffnen, danach Rückfragen ohne
+Gewünscht war zweierlei: „Kiwi" nur zum Eröffnen, danach Rückfragen ohne
 Aktivierungswort bis zu „Danke, Kiwi" — und die Zwiegespräche in der
 Aufzeichnung.
 
@@ -429,7 +429,7 @@ und das dagegen eingebaute Nachfassen greift aus ungeklärtem Grund nicht.
 
 ### Rechercheaufträge an Hermes
 
-Freds Idee, aufwendige Anfragen an einen anderen Agenten zu geben, ist umgesetzt
+Die Idee, aufwendige Anfragen an einen anderen Agenten zu geben, ist umgesetzt
 — aber als **zweite Stufe**, nicht als Weiterleitung. Einschrittiges
 Nachschlagen bleibt inline bei 3 s; nur Vergleiche und mehrschrittige Recherche
 gehen an Hermes.
@@ -455,7 +455,7 @@ Recherche — brachte es dazu, `rechercheauftrag` zu wählen.
 
 ### Der Assistent sagt an, welchen Weg er nimmt
 
-Fred hatte eine Recherche erwartet und gewartet — tatsächlich hatte Kiwi seine
+Im Test wurde eine Recherche erwartet und abgewartet — tatsächlich hatte Kiwi die
 Frage („recherchiere in unseren Unterlagen…") korrekt als Dokumentensuche
 behandelt und längst geantwortet. Richtig entschieden, aber von aussen nicht
 unterscheidbar.
@@ -476,7 +476,7 @@ Ansage folgt. Er wartet jetzt auf Ruhe statt auf das erste Tonende.
 
 ### Intent-Router — und der eigentliche Grund für die Werkzeug-Aussetzer
 
-Fred fragte, ob Ornith generell zu schwach ist. Die Messung sagt: nein, aber an
+Offen war, ob Ornith generell zu schwach ist. Die Messung sagt: nein, aber an
 einer Stelle schon. Mit vier Werkzeugen und vollem Prompt rief es kein Werkzeug,
 mit einem und kurzem Prompt zuverlässig — also wurde ein Regel-Router gebaut,
 der vorher entscheidet und nur die passenden Werkzeuge weiterreicht.
@@ -523,12 +523,12 @@ wirklich meint — hier: war der Context angehalten.
 
 ### Transkripte über Kiwi abrufbar
 
-Fred fragte, ob er sein Transkript über Kiwi abrufen kann. Der eleganteste Weg
+Gefragt war, ob sich das eigene Transkript über Kiwi abrufen lässt. Der eleganteste Weg
 war, `aufnahmen/` schlicht als Wissensquelle einzutragen — dann findet die
 vorhandene Dokumentensuche die Protokolle mit. „Was habe ich vorhin über das
 Rasterelektronenmikroskop gesagt?" wird jetzt daraus beantwortet.
 
-**Zeitstempel absolut, nicht nur relativ** (Freds Hinweis): `[00:01]` sagt nicht,
+**Zeitstempel absolut, nicht nur relativ** (Hinweis aus dem Test): `[00:01]` sagt nicht,
 WANN etwas gesagt wurde. Das Protokoll trägt jetzt beides — Ortszeit für die
 Orientierung, Versatz zum Wiederfinden im Audio.
 
@@ -563,7 +563,7 @@ Gemessen: Stopp bei +5,4 s, Protokoll fertig bei +8,8 s, danach über
 
 ### Die Aufzeichnung ließ sich nicht mehr steuern
 
-Fred meldete: „Ich kann keine Aufzeichnung starten, das liegt außerhalb meiner
+Gemeldet aus dem Test: „Ich kann keine Aufzeichnung starten, das liegt außerhalb meiner
 Möglichkeiten" — auf jeden Befehl.
 
 **Die Diagnose war lehrreich.** Der Router arbeitete richtig, das Werkzeug wurde
@@ -588,7 +588,7 @@ und wird zur Vorlage für die nächste.
 
 ### Kanalaufteilung: Blättern gehört auf den Bildschirm
 
-Fred stellte den Ansatz in Frage — ob wir vom Sprachkanal nicht zu viel
+In Frage stand der Ansatz — ob wir vom Sprachkanal nicht zu viel
 verlangen. Das trifft zu, und das Muster des Abends belegt es: **alles, was
 deterministisch gemacht wurde, funktioniert; alles, was dem Modell überlassen
 blieb, war fragil.** Aufzeichnung steuern, Statusfrage, Protokoll zeigen — jedes
@@ -608,7 +608,7 @@ Sprachpfad war da, also wurde alles hineingelegt.
 
 ### Auslösewörter statt Überredung
 
-Fred schlug vor, „Internetrecherche" wie ein zweites Aktivierungswort zu
+Vorgeschlagen wurde, „Internetrecherche" wie ein zweites Aktivierungswort zu
 behandeln — und das ist genau die Verallgemeinerung des Musters, das an diesem
 Projekt durchgehend funktioniert: **wo die Handlung eindeutig ist, entscheidet
 der Dienst, nicht das Modell.**
@@ -632,7 +632,7 @@ weitergibt.
 
 ### Internetsuche und Internetrecherche trennen
 
-Fred fragte, ob die Internetsuche immer über Hermes läuft. Tut sie nicht: es gibt
+Gefragt war, ob die Internetsuche immer über Hermes läuft. Tut sie nicht: es gibt
 den direkten Weg über SearXNG (1–3 s, sofortige Antwort, sieht nur
 Trefferschnipsel) und den über Hermes (30–40 s, kann Suchen verketten und Seiten
 lesen).
@@ -647,7 +647,7 @@ ersten Ton, mit Quellenhinweis.
 
 ### Auslösewörter müssen zusammengesetzt sein
 
-Fred stellte auch „Hilfe" in Frage — zu Recht, und aus demselben Grund wie bei
+Auch „Hilfe" stand in Frage — zu Recht, und aus demselben Grund wie bei
 „Hermes": ein Wort, das im Labor natürlich vorkommt, braucht Wächter, und
 Wächter sind Näherungen. „Ich brauche Hilfe beim Mikroskop" liess sich mit einer
 Stellungsregel abfangen, aber die kostete schon zwei Anläufe (erst in Zeichen
@@ -673,7 +673,7 @@ Behoben in `turn.py`: solange nur das Aktivierungswort dasteht, liefert die
 Prüfung 0 und es wird weitergehört. Wer nur ruft und wartet, bekommt die
 Quittung über die Decke.
 
-Fred beschrieb dabei sein tatsächliches Bedienmuster: erst „Kiwi" sagen, auf
+Das tatsächliche Bedienmuster im Labor: erst „Kiwi" sagen, auf
 „Ja?" warten, dann sprechen. Das ist der verlässlichere Weg und funktioniert
 durchgehend — verifiziert: Quittung nach 2,2 s, die folgende Anweisung wird
 ohne erneutes Aktivierungswort angenommen. Es steht jetzt so in fachlich.md,
@@ -700,7 +700,7 @@ Ergebnis: „Rasterelektronenmikroskopauflösung" findet Wikipedia,
 
 ### Aufnahmen verdichten, Stimme verbessern
 
-Zwei Fragen von Fred, beide mit Messungen beantwortet.
+Zwei Fragen aus dem Labor, beide mit Messungen beantwortet.
 
 **Platz:** 110 MB je Stunde, also 107 GB im Jahr bei vier Stunden täglich —
 gegen 415 GB frei reicht das ein paar Jahre, wächst aber stetig. Opus mit
@@ -738,7 +738,7 @@ wurde. Die Quelle `kihiwi` schrumpfte damit von 16 auf 5 Dokumente.
 
 ### Stimme: viel gemessen, nichts gewonnen
 
-Fred wollte die Sprachausgabe verbessern. Ergebnis nach dem Vergleich aller
+Gewünscht war eine bessere Sprachausgabe. Ergebnis nach dem Vergleich aller
 sieben deutschen Stimmen: **kein hörbarer Gewinn.** `thorsten-high` ist derselbe
 Sprecher bei gleicher Abtastrate und kostet 305 statt 83 ms je Satz;
 `thorsten_emotional` (neutral) ist mit 80 ms sogar am schnellsten, klingt aber
@@ -756,7 +756,7 @@ verfälscht an, weil ich Rohbytes durch eine Textschnittstelle geschickt hatte.
 
 ### Datum und Uhrzeit
 
-Fred merkte an, dass der Assistent das Datum nicht kennt, und vermutete ein
+Aufgefallen war, dass der Assistent das Datum nicht kennt; naheliegend schien ein
 Werkzeug. Nach diesem Tag lag die andere Antwort näher: **in den Prompt damit.**
 Ein Werkzeug wäre wieder etwas, das das Modell aufrufen kann oder eben nicht —
 ohne Aufruf erfindet es die Zeit. Reine Zeitfragen beantwortet der Dienst
@@ -764,8 +764,8 @@ zusätzlich direkt, weil er sonst erst in den Unterlagen und dann im Netz suchte
 
 ### Satzteiler trennte Ordnungszahlen
 
-Fred meldete „Heute ist Freitag, der 28." / „August 2026." als zwei Ausgaben —
-und fragte zu Recht, warum überhaupt geschnitten wird. Antwort: damit die
+Gemeldet wurde „Heute ist Freitag, der 28." / „August 2026." als zwei Ausgaben —
+dazu die berechtigte Frage, warum überhaupt geschnitten wird. Antwort: damit die
 Sprachausgabe beginnt, während das Modell noch schreibt; feste Antworten werden
 nicht geschnitten.
 
@@ -774,7 +774,7 @@ Der erste Korrekturversuch `(?<![0-9])(?<=[.!?])\s+` griff nicht, weil **beide
 Rückblicke dieselbe Stelle prüfen**: hinter dem Punkt steht kein Ziffer, sondern
 der Punkt selbst. Richtig ist ein Rückblick über zwei Zeichen: `(?<![0-9]\.)`.
 
-Freds konkreter Fall war ohnehin schon behoben — die Zeit-Absicht antwortet
+Der gemeldete Fall war ohnehin schon behoben — die Zeit-Absicht antwortet
 seither ohne Modell und damit ohne Teiler. Der Fehler betraf aber jede
 Modellantwort mit einem Datum.
 
@@ -891,7 +891,7 @@ gezeigt haette:
    das „t" stehen. Kiwi sagte daraufhin „erinnere ich dich daran, t mich daran,
    die Pumpe abzuschalten". Die Verben stehen jetzt mit `\w*`.
 
-3. **Verb am Satzende.** Aus dem laufenden Betrieb gemeldet (Fred testete
+3. **Verb am Satzende.** Aus dem laufenden Betrieb gemeldet (getestet wurde
    nebenher im Browser): „Timer eine Minute setzen" machte „setzen" zum
    Erinnerungstext. Das Verb wird nur noch gestrichen, wenn sonst nichts uebrig
    bleibt -- der erste Versuch strich es blind am Satzende und machte aus „die
@@ -902,7 +902,7 @@ zusammen mit dem Substantiv schluckt; „die Pumpe abzuschalten" wurde dann zu
 „Pumpe abzuschalten". Beim dritten Mal als eigene, kommentierte Gruppe gesetzt.
 
 Nicht optimiert wurde auf „Tanne" -- so verstand die Erkennung Piper's „Timer"
-in einem spaeteren Lauf. Freds eigener Test im Log zeigt „Timer 1 Minute
+in einem spaeteren Lauf. Der Test aus dem Labor im Log zeigt „Timer 1 Minute
 setzen." korrekt; das ist ein Artefakt der synthetischen Stimme, und genau
 dieser Fehlschluss steht weiter oben schon einmal.
 
@@ -934,7 +934,7 @@ herausnehmen zu koennen.
 
 **Gemessen statt geschaetzt.** Die eigenen Aufnahmen tragen eine brauchbare
 Wahrheit in sich: Kiwis Ansagen sind ein fester Satzvorrat, alles andere ist
-Fred. Ueber sechs Sitzungen und 54 Transkriptzeilen kamen 89-91 % sauber heraus,
+der Mensch im Raum. Ueber sechs Sitzungen und 54 Transkriptzeilen kamen 89-91 % sauber heraus,
 und der Schwellenwert 0,7 fand meist genau zwei Cluster statt vier. Die Zahl
 gilt aber fuer den LEICHTEN Fall, Mensch gegen synthetische Stimme; zwei
 Menschen an einem Mikrofon sind schwerer. Das gehoert dazugesagt.
@@ -1001,7 +1001,7 @@ sich. In `DRITTANBIETER.md` vermerkt.
 Der Arbeitsstand war entschaerft, die Historie nicht. Beides ist jetzt erledigt
 -- aber nicht per Force-Push, sondern ueber ein frisches Repository.
 
-**Warum nicht Force-Push.** Fred fragte nach, ob die alten Commits danach nicht
+**Warum nicht Force-Push.** Gefragt war, ob die alten Commits danach nicht
 weiter auffindbar sind. Sie sind es: GitHub loescht unreferenzierte Objekte
 nicht zuverlaessig, sie bleiben unter `/commit/<sha>` abrufbar, und die eigene
 Dokumentation verweist fuer eine wirkliche Entfernung auf den Support. Truffle
@@ -1023,9 +1023,9 @@ Geprueft wurde am Ende nicht der lokale Stand, sondern ein frischer Klon des
 oeffentlichen Repositorys: 52 Commits, keines der elf Muster in Dateien,
 Nachrichten oder Metadaten, und der Klon laeuft mit den Beispieldateien.
 
-**Ein Suchausdruck schlug falschen Alarm:** "frederik" fand 52 Treffer -- den
-neuen Autorennamen, nicht den alten Tailnet-Namen. Gezielt auf `e034` und
-`.frederik` geprueft: null.
+**Ein Suchausdruck schlug falschen Alarm:** die Suche nach dem Tailnet-Namen fand
+52 Treffer -- den neuen Autorennamen, nicht den alten Tailnet-Namen. Gezielt auf
+den Rechnernamen und die Tailnet-Endung geprueft: null.
 
 ## Modellwechsel: Qwen3.8-27B gegen Ornith
 
@@ -1123,8 +1123,8 @@ Namen an, der nicht in seiner `models:`-Liste steht.
 **Die Lehre ist nicht der Tippfehler, sondern die Bauart:** ein Umschalter, der
 nur einen Teil der Kette erreicht, sieht im Test genau so lange richtig aus, wie
 man den anderen Teil nicht anfasst. Meine vier Probefragen liefen alle ueber den
-Sprachpfad -- die Luecke haette ich damit nie gefunden. Fred fand sie im ersten
-eigenen Versuch.
+Sprachpfad -- die Luecke haette ich damit nie gefunden. Gefunden wurde sie im ersten
+Versuch im Labor.
 
 Die leere Hermes-Sitzungskennung in den Recherchenotizen ist davon unberuehrt:
 sie fehlt in allen 21 aelteren Notizen ebenso und ist ein eigener, kosmetischer
@@ -1156,7 +1156,7 @@ Form von Fehler wie beim Hermes-Modellnamen, nur eine Ebene hoeher.
 
 Ein Rechercheauftrag hinterliess `elektronenmikroskopie-uebersicht.html`, 20 KB,
 in der Repo-Wurzel. **Der Agent erbt das Arbeitsverzeichnis des Sprachdienstes**
--- und das ist das Repo. Fred hat es gesehen, bevor es jemand committet hat; mein
+-- und das ist das Repo. Es fiel auf, bevor es jemand committet hat; mein
 eigenes `git add -A` haette es beim naechsten Mal eingesammelt.
 
 Unangenehmer als die Unordnung ist die Reichweite: dasselbe Verzeichnis enthaelt
@@ -1183,7 +1183,7 @@ Aufruf lief ja fehlerfrei durch. Gesehen habe ich es nur, weil ich danach
 
 ### Die Buehne ueberlebt jetzt den Neustart
 
-Fred vermisste ein Rechercheergebnis auf der Buehne. Nachgestellt mit einem
+Vermisst wurde ein Rechercheergebnis auf der Buehne. Nachgestellt mit einem
 Mithoerer, der jede Nachricht mitschreibt: der Dienst liefert `typ: recherche`
 korrekt aus, der Klient legt es korrekt auf die Buehne. **Die Kette war nie
 kaputt.**
@@ -1237,7 +1237,7 @@ den Ausschlag gab** -- ausser dort, wo sie in einen Abbruch umschlug.
 
 ### Der Dienst hat sich selbst vergiftet
 
-Fred schickte einen Gespraechsmitschnitt: dreimal hintereinander nur "Ich schaue
+Ein Gespraechsmitschnitt aus dem Labor zeigte: dreimal hintereinander nur "Ich schaue
 in den Unterlagen nach.", ohne Antwort. Dazwischen, mitten im Fachgespraech,
 "Es laeuft gerade kein Timer."
 
@@ -1257,7 +1257,7 @@ Eine Schleife, die sich mit jedem Zug festzog.
 
 Behoben an drei Stellen: `in_verlauf=False` fuer die Ansage, dieselbe Ansage nur
 einmal je Zug, und wenn das Netz greift, fallen die Ankuendigungssaetze aus der
-Antwort -- sie sind dann eingeloest. Nachgestellt mit Freds eigener
+Antwort -- sie sind dann eingeloest. Nachgestellt mit derselben
 Gespraechsfolge: die Wiederholung ist weg, jeder Zug endet mit Inhalt.
 
 **Nemotron hat den Fehler nur sichtbar gemacht, nicht verursacht.** Ein
@@ -1282,8 +1282,8 @@ Sprechertrennung galt.
 
 ### Ein fremder Motor: Qwen3.8-Flash-Next ueber llama-server
 
-Fred hatte das Modell in einer anderen Sitzung zum Laufen gebracht (llama.cpp
-kann `qwen4exp` jetzt) und wollte es als Sprachmodell probieren. Damit haengt
+Das Modell lief inzwischen aus einer anderen Sitzung heraus (llama.cpp
+kann `qwen4exp` jetzt) und sollte als Sprachmodell probiert werden. Damit haengt
 erstmals **kein vLLM** an 8889.
 
 Drei Dinge vorher geprueft, nicht nachher: `--jinja` ist gesetzt und
@@ -1461,7 +1461,7 @@ der Grenze.**
 geaendert", weil der Fingerabdruck den Inhalt abdeckt und nicht die Zerlegung.
 `ZERLEGER_FASSUNG` geht jetzt in den Fingerabdruck ein.
 
-**Fred wollte Quelltext durch Zusammenfassungen ersetzen.** Dagegen sprach ein
+**Vorschlag: Quelltext durch Zusammenfassungen ersetzen.** Dagegen sprach ein
 konkreter Fall: `FENSTER_NM = 50.0` steht ausschliesslich in
 `saeulen_auslegung.py` -- genau der Wert, wegen dem das Trefferlimit von 4 auf 8
 stieg. Eine Zusammenfassung im Sinne von "was wird wie gemacht" enthaelt keine
@@ -1489,8 +1489,8 @@ laut, statt zehn Minuten auf `ep_poll` zu warten.
 ### Der Embedding-Vergleich -- und wo ich falsch lag
 
 Ich hatte argumentiert, ein Vektorindex bringe hier wenig: die gefundenen Fehler
-laegen in der Aufbereitung, und die Fragen seien lexikalisch. Fred wollte es
-gemessen haben. Zu Recht.
+laegen in der Aufbereitung, und die Fragen seien lexikalisch. Verlangt war
+eine Messung. Zu Recht.
 
 60 Fragenpaare, vom Modell aus zufaellig gezogenen Abschnitten erzeugt -- je eine
 Frage mit den Fachwoertern und eine, die sie meidet:
@@ -1577,7 +1577,7 @@ abgeglichen.
 
 ### "Audioaufnahme starten" tat nichts
 
-Fred meldete, der Direktbefehl ausserhalb des Gespraechsmodus gehe nicht mehr.
+Gemeldet wurde, der Direktbefehl ausserhalb des Gespraechsmodus gehe nicht mehr.
 Erkennung und Code waren in Ordnung -- ein Test mit "Sprachaufzeichnung
 starten" lief sauber durch. **Die Antwort stand im Protokoll:**
 
@@ -1626,7 +1626,7 @@ sobald man KIHIWI_MODEL absichtlich verstellt.
 
 ### Der Testlauf von ornith-voice deckte zwei Loecher auf
 
-Fred wollte nur wissen, ob das Profil nach der Standardumstellung noch geht. Es
+Gefragt war nur, ob das Profil nach der Standardumstellung noch geht. Es
 ging -- Ornith lud sauber, 43 GiB frei. **Der Dienst antwortete trotzdem nicht.**
 
 `KIHIWI_MODEL` war nicht gesetzt, also nahm er die Vorgabe aus `konfig.py`, und
@@ -1656,8 +1656,8 @@ etwas Falsches ankuendigt, ist schlimmer als keine.
 
 ### Derselbe Fehler, neuer Dateityp
 
-Fred loeste den Wissensabgleich per Stimme aus und meldete, er sei schnell
-gewesen. War er -- **weil er den teuren Teil bewusst ausgelassen hat:**
+Ein Wissensabgleich per Stimme fiel als auffaellig schnell auf. Das war er --
+**weil er den teuren Teil bewusst ausgelassen hat:**
 
     WARNING Nachziehen uebersprungen: 2530 Abschnitte ohne Schlagwoerter,
             2530 ohne Vektor (Grenze 300)
@@ -1725,7 +1725,7 @@ Endstand: 351 Dokumente, 4931 Abschnitte, alle drei Ebenen vollstaendig. Von
 
 ### Der uebersprungene Teil wird jetzt ausgesprochen
 
-Fred wollte den naechsten Abgleich per Zuruf ausloesen und fragte, ob das geht.
+Der naechste Abgleich sollte per Zuruf laufen; gefragt war, ob das geht.
 Es geht -- aber beim Nachsehen fiel auf, dass er dabei genau in dieselbe Falle
 laufen wuerde wie beim letzten Mal: das Nachziehen wird bei mehr als 300 offenen
 Abschnitten uebersprungen, und das stand **nur im Protokoll**.
@@ -1749,7 +1749,7 @@ unsinnige Zahl nennen.
 
 ### "Der Teil mit dem Haupt-Repo fehlt"
 
-Fred nach einem Abgleich. Und er hatte recht: unveraenderte Quellen fielen aus
+So die Rueckmeldung nach einem Abgleich, und sie traf zu: unveraenderte Quellen fielen aus
 dem gesprochenen Satz, weil "unveraendert" inhaltlich nichts beitraegt. Die
 Ueberlegung war richtig, die Folge falsch -- **die Quelle verschwand ganz**, und
 aus dem Gesagten liess sich nicht unterscheiden, ob sie geprueft und
@@ -1767,7 +1767,7 @@ auf dem neuesten Stand" weg, weil es kein Sonst gibt.
 
 ### Ein leerer Auftrag, der sich nicht abbrechen liess
 
-Fred sagte "Hermes Aufgabe:" und danach, in einer zweiten Aeusserung, den
+Im Test fiel "Hermes Aufgabe:" und danach, in einer zweiten Aeusserung, den
 eigentlichen Auftrag. Der erste Satz startete bereits eine Recherche -- mit dem
 Ausloesewort selbst als Forschungsfrage:
 
@@ -1803,7 +1803,7 @@ dritte Wiederholung derselben Falle in dieser Woche.
 ### "Was bedeutet von Hand starten?"
 
 Der Abgleich meldete 607 neue Abschnitte und verwies auf "starte bitte einmal
-von Hand den Wissensbefehl einlesen". Fred fragte, was das heisst.
+von Hand den Wissensbefehl einlesen". Die Rueckfrage war, was das heisst.
 
 **Die Antwort war einfach, die Frage der eigentliche Befund.** Gemeint war
 `./dienste.sh wissen einlesen` im Terminal -- aber am Laborrechner gibt es
@@ -1833,7 +1833,7 @@ Kurzfassungen, 259 s Vektoren, null Fehlschlaege. Index jetzt 385 Dokumente,
 
 ### Hermes kannte die Unterlagen nicht
 
-Fred gab einen Auftrag zu den geometrischen Angaben der Saeule. Hermes
+Ein Auftrag galt den geometrischen Angaben eines Bauteils. Hermes
 antwortete nach Minuten, er habe "sehr gruendlich in deiner gesamten
 Session-Historie und im Repo gesucht" und finde nichts -- und fragte zurueck,
 ob eine UI-Saeule oder eine 3D-Saeule gemeint sei.
@@ -1858,7 +1858,7 @@ Wandstaerke, Kernbohrung und Spaltabstaenden, jede Zeile mit Quellenangabe,
 270 s. **Aus "ich finde nichts" wurde die Antwort, nach der gefragt war.**
 
 Nebenbei bestaetigt: die Buehnen-Wiederherstellung funktioniert. Beim Verbinden
-kam Freds alte Recherche zurueck, sodass im Testprotokoll das Vorher und das
+kam die alte Recherche zurueck, sodass im Testprotokoll das Vorher und das
 Nachher direkt untereinander standen.
 
 ### Tabellen und die Anzeigetafel
@@ -1876,8 +1876,8 @@ stand als Zeichenfolge da, und ein mehrzeiliges Zitat wurde in ebenso viele
 Kaesten zerlegt.
 
 **Anzeigetafel.** Neues Ausloesewort, vier Groessen (GPU, CPU, Speicher,
-Platte) mal vier Darstellungen. Fred hatte "Anzeigeanpassung" vorgeschlagen und
-um Alternativen gebeten -- "Anzeigetafel" passt besser zu den uebrigen
+Platte) mal vier Darstellungen. Vorgeschlagen war "Anzeigeanpassung", mit der Bitte
+um Alternativen -- "Anzeigetafel" passt besser zu den uebrigen
 Komposita und spricht sich leichter; "Anzeige" allein faellt im Labor staendig.
 
 Erkannt wird im Dienst, nicht vom Modell: sechzehn Kombinationen sind kein Fall
@@ -1905,8 +1905,8 @@ haette daraus beinahe auf einen Fehler in der Wiederherstellung geschlossen.
 
 ### Anzeigetafel sammelt an
 
-Fred: "prinzipiell waere es nett, wenn man immer hinzufuegt und dann einen
-leeren oder loeschen befehl hat". Vorher ersetzte jeder Befehl die ganze Tafel.
+Wunsch aus dem Labor: Werte sollen dazukommen, und es soll einen Befehl zum
+Leeren oder Loeschen geben. Vorher ersetzte jeder Befehl die ganze Tafel.
 
 Jetzt ist Hinzufuegen die Vorgabe, mit "leeren"/"loeschen"/"zumachen" fuer alles
 und "GPU entfernen" fuer einzelne Werte. **Je Groesse eine eigene
@@ -1932,14 +1932,14 @@ zuerst im Dienst gesucht statt in meinem eigenen Testskript.
 
 ### Die Anzeige stand still, weil der Dienst ausgehungert war
 
-Fred: "laeuft noch alles? meine anzeige steht gerade..."
+Rueckmeldung aus dem Labor: die Anzeige stand still.
 
 `dienste.sh status` zeigte den Sprachdienst als "startet" statt "bereit", und
 `/api/messwerte` brauchte **12,9 Sekunden** statt Millisekunden. Der Prozess:
 83,5 % CPU dauerhaft, **103 Threads**, 5,6 GB RSS, 37 Minuten Rechenzeit in 45
 Minuten Laufzeit.
 
-**Ursache war mein eigener Einbau von heute Morgen.** Freds "Wissen nachziehen"
+**Ursache war mein eigener Einbau von heute Morgen.** Ein "Wissen nachziehen"
 hatte 476 Abschnitte eingebettet -- IM SPRACHDIENSTPROZESS. Dabei lud er das
 Embedding-Modell, und onnxruntime laesst seine Threadpools busy-waiten: einen
 Thread je Kern, hier zwanzig, die weiterspinnen, auch wenn nichts zu rechnen
@@ -1962,7 +1962,7 @@ wenn der Speicher knapp wird.
 
 ### Die Tabelle wurde vorgelesen
 
-Fred liess sich die offenen Fragen zusammenstellen. Hermes lieferte gut -- und
+Ein Auftrag stellte die offenen Fragen zusammen. Hermes lieferte gut -- und
 der Assistent las die komplette Markdown-Tabelle vor, samt Spaltenkoepfen,
 Zustaendigkeiten und Statuszeilen. 1411 Zeichen am Stueck.
 
@@ -2016,7 +2016,7 @@ hat, waere ein Eingriff zu viel.
 
 ### computer_use abgeschaltet -- und der Auftrag lief durch
 
-Fred hat entschieden, dem Rechercheagenten die Browser-Automation zu nehmen.
+Entschieden: Der Rechercheagent verliert die Browser-Automation.
 `-t` ist eine Positivliste, also stehen die uebrigen dreizehn Toolsets jetzt
 fest im Code.
 
@@ -2044,7 +2044,7 @@ Aufstellung, nach Sprachdienst und Hardware gegliedert.
 Zweiter Absturz derselben Art: `CUDA error: an illegal memory access was
 encountered`, danach 500 auf jede Anfrage, dann beendet sich der Container.
 Am 03.09. nach zwei Tagen, am 07.09. nach dreieinhalb -- beide Male blieb der
-Assistent stumm, bis Fred nachfragte.
+Assistent stumm, bis jemand nachfragte.
 
 **Der Test muss eine echte Antwort abfordern.** Das vorhandene `bereit_vllm`
 prueft nur `/v1/models`, und genau das antwortete beim Haenger vom 28.08.
@@ -2077,7 +2077,7 @@ aus -- der Statuszeile nach lief weiter Qwen. Wer wechseln will, braucht
 ### Der Waechter fragt jetzt
 
 Am 08.09. hat der Waechter zweimal in einen laufenden Gutachtenlauf
-hineingeschaltet. Fred musste ihn aus einer anderen Sitzung abschalten.
+hineingeschaltet. Er musste aus einer anderen Sitzung abgeschaltet werden.
 
 Der Fehler war nicht, dass er aufwachte -- der Motor antwortete tatsaechlich
 nicht, weil die Gutachten-App gerade ihr eigenes Modell lud. Der Fehler war,
@@ -2163,7 +2163,7 @@ Aufzeichnung und zuletzt an einer Wegwerfsitzung, die samt Audio verschwand.
 
 ## „Alles löschen" löschte nicht alles
 
-Direkt nach dem Einbau hat Fred den Knopf benutzt: 24 Protokolle weg. Beim
+Direkt nach dem Einbau wurde der Knopf benutzt: 24 Protokolle weg. Beim
 anschließenden Datenabgleich fiel auf, dass `aufnahmen/` trotzdem noch 15
 Verzeichnisse enthielt — 11 MB rohe Mitschnitte vom 27.08. und einer vom
 07.09., alle ohne `protokoll.md`.
@@ -2201,7 +2201,7 @@ entsteht erst beim Aufruf. Getestet hatte ich `_strom` und `_einmal` einzeln
 und eine Zeitfrage über den Dienst; die kommt ohne Modell aus. Der Weg, der
 brach, war der einzige, den ich nicht gegangen bin: eine echte Wissensfrage
 end-to-end. Vier Stunden lang war das kein Zufall, sondern Systematik — ich
-hatte den Pfad geprüft, den ich gebaut hatte, nicht den, den Fred benutzt.
+hatte den Pfad geprüft, den ich gebaut hatte, nicht den, der im Labor benutzt wird.
 
 **Reparatur:** `llm.py` auf den Stand vor dem Umbau zurückgesetzt und die
 Änderung neu angewandt, diesmal als vier eng umrissene Ersetzungen der
@@ -2221,10 +2221,10 @@ den kaputten Stand von heute Vormittag genau die zwei Namen, an denen es brach.
 
 ## Das Modell suchte in neun von elf Fällen nicht
 
-Fred hat mehrfach nach dem Einschalten eines Geräts gefragt, dessen Anleitung
+Mehrfach kam die Frage nach dem Einschalten eines Geräts, dessen Anleitung
 seit dem Vormittag im Index liegt. Der Assistent behauptete stur, man müsse
-hinten einen Schalter drücken — auch als Fred ausdrücklich auf die Anleitung
-verwies und ihn aufforderte, in den Unterlagen nachzusehen.
+hinten einen Schalter drücken — auch als ausdrücklich auf die Anleitung
+verwiesen und er aufgefordert wurde, in den Unterlagen nachzusehen.
 
 Das Protokoll zeigt es genau: elf Runden „Absicht wissen → 3 Werkzeug(e)" in
 drei Minuten, und **zwei** Aufrufe von `dokumente_suchen`. Im Systemprompt
@@ -2272,7 +2272,7 @@ einer neuen Stelle neu lernen müssen — deshalb jetzt an der einen Stelle, an
 der jede Antwort vorbeikommt.
 
 Geprüft mit zwei Testmotoren auf einem eigenen Port: einer liefert 500, einer
-liefert 200 mit leerem Inhalt. Der echte Dienst und Freds Messaufbau blieben
+liefert 200 mit leerem Inhalt. Der echte Dienst und der Messaufbau im Labor blieben
 dabei unberührt.
 
 ## Der Denkschalter gehört nicht in die Hand des Startenden
@@ -2346,7 +2346,7 @@ zwei Fehler, sondern derselbe an zwei Enden.
 
 ## Die Projektdoku raus — und drei Fehler, die dabei auffielen
 
-Fred: die eigene Projektdokumentation gehört nicht in den Index, sie ist für
+Festgelegt: die eigene Projektdokumentation gehört nicht in den Index, sie ist für
 das Laborgeschäft nicht relevant. Nachgesehen: **alle neun** Dokumente der
 Quelle sind Entwicklerwissen, auch GLOSSAR.md (ein Deutsch-Englisch-Glossar
 für den Quelltext) und fachlich.md (die Spezifikation des Assistenten). Also
@@ -2450,7 +2450,7 @@ Prüfstandszahlen stehen im Bericht `local-agentic-coding-128gb`.
 
 ## 18.10.2026: Die Hermesaufgabe bekommt die Unterlagen
 
-Fred bat per „Hermes-Aufgabe" um eine Projektzusammenfassung und bekam
+Eine „Hermes-Aufgabe" bat um eine Projektzusammenfassung und bekam
 Allgemeinwissen zurück. Hermes meldete, zum Auftrag gebe es „keinen Treffer".
 Die Ursache steckte nicht in der Suche, sondern im Weg dorthin. Die
 Hermesaufgabe reichte die Anweisung **roh** durch, ohne Unterlagen und ohne
@@ -2471,7 +2471,7 @@ Jetzt gilt:
 
 ## 01.11.2026: Kiwi in der Videokonferenz
 
-Fred wollte Kiwi in ein Jitsi-Meeting holen, erst nur mit Ton, später mit
+Gewünscht war, Kiwi in ein Jitsi-Meeting zu holen, erst nur mit Ton, später mit
 Avatar. Gewählt: eine Brücke als eigener Konferenzteilnehmer (Chromium ohne
 Bildschirm über Playwright) statt einer Anbindung an Jitsis Server-Komponenten
 (Jigasi). So braucht der Sprachdienst keine Änderung, die Brücke spricht
@@ -2490,15 +2490,15 @@ Kiwis im Raum, und als sich die alte abmeldete, schaltete sie das Mikrofon
 des Dienstes für alle aus. Daher `./dienste.sh jitsi` mit PID-Datei und die
 Brücke, die das Mikrofon wieder einschaltet.
 
-Avatar: Fred wünschte sich eine Art stilisierten Einstein. Gezeichnet ist der
+Avatar: gewünscht war eine Art stilisierter Einstein. Gezeichnet ist der
 Typus des zerstreuten Genies, kein Porträt -- Name und Bild der realen Person
 werden bis heute lizenziert, und das Repo ist öffentlich. Aus drei Entwürfen
-(Cartoon, Kreide, geometrisch) wählte Fred den Cartoon. Zuhören: Nicken;
+(Cartoon, Kreide, geometrisch) fiel die Wahl auf den Cartoon. Zuhören: Nicken;
 Antworten: Mund nach dem gemessenen Pegel; Nachdenken: Blick nach oben mit
 drei Punkten. In der Konferenz getestet.
 
-Danach der Wunsch, dass Kiwi von selbst anklopft, sobald Fred eine Konferenz
-eröffnet, und Fred per Lobby entscheidet. Nur bei seinen Konferenzen: Jeder
+Danach der Wunsch, dass Kiwi von selbst anklopft, sobald ein bestimmter Nutzer eine Konferenz
+eröffnet, und dieser per Lobby entscheidet. Nur bei dessen Konferenzen: Jeder
 mit Konto kann Konferenzen eröffnen, und Kiwi soll nicht bei fremden Meetings
 zuhören. Jicofo gibt den Namen nicht preis, die Teilnehmer treten mit
 Gast-JIDs bei; erkennbar ist der Eröffner nur an der kurzen angemeldeten
@@ -2507,7 +2507,7 @@ hier, der die Liste abfragt.
 
 ## 02.11.2026: Kiwi blieb allein in der Konferenz
 
-Fred eröffnete eine Konferenz, Kiwi kam nicht. Die Brücke vom Vorabend saß
+Eine Konferenz wurde eröffnet, Kiwi kam nicht. Die Brücke vom Vorabend saß
 noch im alten Raum, seit zwölf Stunden allein: Sie endete nur, wenn Kiwi
 nicht mehr in der Konferenz war, und eine Jitsi-Konferenz endet nicht,
 solange noch jemand drin ist -- auch wenn das nur Kiwi ist. Der Wächter
@@ -2553,7 +2553,7 @@ Antwort liegt Flash damit nahe am Limit.
 ## 02./03.11.2026: Das Lagebild
 
 Auf die Frage, wie Kiwi im normalen Gespräch auch die Grundlagen des Projekts
-parat haben kann, nannte Fred seine vier typischen Fragen: Stand, Nächstes,
+parat haben kann, kamen die vier typischen Fragen auf den Tisch: Stand, Nächstes,
 Probleme, Vorzeigbares. Die Wissenssuche passt dazu nicht -- sie findet Stellen,
 gefragt ist ein Bild aus vielen Quellen. Entschieden: ein nachts erzeugtes
 Lagebild, automatisch und gekennzeichnet, Korrekturen per Stimme bis zur

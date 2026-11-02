@@ -487,7 +487,7 @@ AUSLOESER = {
     # die GPU belegt -- der Nutzer soll wissen, was er anstoesst.
     #
     # Vorher verwies die Meldung auf "von Hand den Wissensbefehl einlesen".
-    # Fred fragte, was das heisst -- zu Recht: am Laborrechner gibt es kein
+    # Im Test kam die Rueckfrage, was das heisst -- zu Recht: am Laborrechner gibt es kein
     # Terminal, und am Futro erst recht nicht. Ein Assistent, der auf etwas
     # verweist, das man per Stimme nicht tun kann, hilft nicht.
     "nachziehen": rf"wissen{_}nachziehen|nachziehen|erschliessen|"

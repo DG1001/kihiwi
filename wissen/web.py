@@ -1,8 +1,8 @@
 """Websuche über das lokale SearXNG.
 
 **Das ist die einzige Stelle, an der etwas das Netz verlässt.** Die stehende
-Auflage des Projekts lautet sonst: nichts verlässt das Netz. Fred hat die
-Websuche ausdrücklich gewollt; sie ist deshalb einzeln abschaltbar
+Auflage des Projekts lautet sonst: nichts verlässt das Netz. Die Websuche ist
+ausdrücklich gewollt; sie ist deshalb einzeln abschaltbar
 (`konfig.WEB_SUCHE`), und der Assistent sagt an, wenn er sie benutzt hat.
 
 Zu bedenken: die Suchanfrage enthält, wonach im Labor gefragt wurde. Sie geht

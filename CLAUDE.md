@@ -41,7 +41,7 @@ automatisch geladen) enthält zweierlei:
 
 - **Notizen zum GX10 als Maschine** — `model-switch`, Benchmark, Netz,
   Hermes-Fallen. Bei Widersprüchen zu `technisch.md` sind jene die Quelle.
-- **Arbeitsweise von Fred**, projektübergreifend: die Dreiteilung der
+- **Arbeitsweise**, projektübergreifend: die Dreiteilung der
   Dokumentation und Commits an sinnvollen Schnitten ohne Nachfrage.
 
 Sie liegen dort und nicht im kihiwi-Scope, weil sie über dieses Projekt

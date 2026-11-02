@@ -264,7 +264,7 @@ def _abgleich_satz(bericht: list[dict]) -> str:
     uebrig = [t for t in teile if not any(k in t for k in kaputt)]
 
     # Unveraenderte Quellen NAMENTLICH nennen. Sie trugen frueher keinen
-    # Eintrag, verschwanden damit ganz aus dem Satz -- und Fred fragte, warum
+    # Eintrag, verschwanden damit ganz aus dem Satz -- und im Test kam die Frage, warum
     # "der Teil mit dem Haupt-Repo fehlt". Zu Recht: aus dem Gesagten liess
     # sich nicht unterscheiden, ob eine Quelle geprueft und unveraendert war
     # oder gar nicht drankam. Dieselbe Verwechslung wie ueberall in diesem
