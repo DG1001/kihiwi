@@ -1,0 +1,17 @@
+{
+  "_hinweis": "Prueffragen fuer die Werkzeugrunde (werkzeug_messung.py). Allgemein formuliert, ohne Auslösewörter und Direktbefehle, damit sie im Dienst die Werkzeugrunde erreichen würden.",
+  "fragen": [
+    {"absicht": "web", "frage": "Schau mal im Internet nach, wie hoch die Zugspitze ist."},
+    {"absicht": "web", "frage": "Such im Netz, wann die nächste Fachmesse für Mikroskopie stattfindet."},
+    {"absicht": "web", "frage": "Kannst du online nachsehen, was ein Liter Flüssigstickstoff kostet?"},
+    {"absicht": "recherche", "frage": "Vergleiche bitte die gängigen Vakuumpumpen für Elektronenmikroskope."},
+    {"absicht": "recherche", "frage": "Mach mir eine Gegenüberstellung von Glühkathoden und Feldemissionsquellen."},
+    {"absicht": "recherche", "frage": "Schau gründlicher nach, welche Detektoren für Rückstreuelektronen es gibt."},
+    {"absicht": "aufzeichnung", "frage": "Bitte starte die Aufzeichnung."},
+    {"absicht": "aufzeichnung", "frage": "Kannst du die Aufnahme jetzt einschalten?"},
+    {"absicht": "aufzeichnung", "frage": "Mach die Aufzeichnung aus, bitte."},
+    {"absicht": "wissen", "frage": "Was gibt es überhaupt an Unterlagen?"},
+    {"absicht": "wissen", "frage": "Welche Dokumente liegen zum Projekt vor?"},
+    {"absicht": "wissen", "frage": "Gibt es Unterlagen zum Thema Vakuum?"}
+  ]
+}

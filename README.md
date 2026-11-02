@@ -38,6 +38,9 @@ Sekunden nichts kommt.
 | **Recherche abbrechen** | einen laufenden Auftrag beenden |
 | **Anzeigetafel** | Messwerte einblenden: GPU, CPU, Speicher, Platte |
 | **Bildanzeige** | ein Bild oder PDF aus den Unterlagen zeigen |
+| **Lagebild** | den Projektstand auf der Bühne zeigen |
+| **Lagebildkorrektur …** | einen Punkt im Lagebild berichtigen, gilt sofort |
+| **Lagebild erneuern** | das Lagebild jetzt neu erzeugen, nach Rückfrage |
 | **Kiwihilfe** | diese Liste, gesprochen und auf dem Monitor |
 
 **Ohne Aktivierungswort:** „Sprachaufzeichnung starten", „Audioaufnahme

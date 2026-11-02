@@ -135,6 +135,31 @@ sagt Kiwi das.
 
 ## Wissensverarbeitung
 
+Vier Stufen, je nachdem, was gefragt ist:
+
+| Stufe | Wann | Wie schnell |
+|---|---|---|
+| 0 | Plaudern, Allgemeinwissen | sofort, nur das Modell |
+| 1 | Projektstand: Stand, Nächstes, Probleme, Vorzeigbares | etwa 1 s mehr, aus dem Lagebild |
+| 2 | eine bestimmte Stelle in den Unterlagen | Sekunden, Wissenssuche |
+| 3 | gründliche Recherche | Minuten, Hermes auf Anweisung |
+
+### Das Lagebild
+
+```mermaid
+flowchart LR
+  E["Statusdokumente,<br>Commits, Protokolle,<br>Vorzeigbares, Korrekturen"] --> G["nachts: das Modell schreibt<br>fünf Abschnitte,<br>jeder Punkt mit Kennung"]
+  G --> P["Prüfung im Code:<br>nur gültige Kennungen,<br>sonst gilt das alte"]
+  P --> L[("zustand/lagebild/<br>mit Datum")]
+  L --> K["Kern im Prompt<br>jeder Antwort"]
+  L --> A["passender Abschnitt<br>bei den vier Fragen"]
+  L --> B["ganzes Lagebild<br>auf der Bühne"]
+```
+
+Korrekturen per Stimme gelten sofort und fließen in jedes folgende Lagebild
+ein, bis eine neuere Quelle das Thema aufgreift, höchstens zwei Wochen.
+Einzelheiten und Messwerte in [technisch.md](technisch.md).
+
 Kiwi beantwortet Fragen aus den Unterlagen des Labors. Dafür werden die Quellen
 regelmäßig abgeglichen, in Abschnitte zerlegt und auf zwei Wegen durchsuchbar
 gemacht: über Volltext mit vom Modell erzeugten Schlagwörtern und über
@@ -283,6 +308,9 @@ sequenceDiagram
   Port gefunden, nicht über den Prozessnamen.
 - **Das Modell wird nie ungefragt gewechselt.** `start` lädt nur ein Modell,
   wenn Port 8889 frei ist. Profile wechselt `model-switch` außerhalb des Repos.
+- **Das Lagebild** entsteht nachts per Crontab (`./dienste.sh lagebild
+  erneuern --nacht`); ist die Maschine belegt, wartet der Lauf, ein Modell
+  wechselt er nie.
 - **Der Modell-Wächter** stellt alle 120 s eine echte, kurze Anfrage an das
   Modell. Antwortet es zweimal nicht, startet er das Profil neu, höchstens
   dreimal pro Stunde. Hat jemand anderes die Maschine an einer optionalen

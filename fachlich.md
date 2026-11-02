@@ -145,6 +145,8 @@ Sprachmodell darüber entscheidet:
 | `Dokumentenrecherche` | Suche in den eigenen Unterlagen |
 | `Hermesaufgabe` | Anweisung unverändert an den Rechercheagenten, mit Auszügen aus den eigenen Unterlagen |
 | `Bildanzeige` | zeigt ein Bild oder PDF aus den Unterlagen auf dem Monitor |
+| `Lagebild` | zeigt den Projektstand auf dem Monitor |
+| `Lagebildkorrektur …` | berichtigt einen Punkt im Lagebild, gilt sofort |
 | `Kiwihilfe` | zählt auf, was Kiwi versteht |
 
 **Bildanzeige zeigt nur, was es gibt.** „Kiwi, Bildanzeige Schaltplan" holt
@@ -153,6 +155,16 @@ Commit-Stand darüber. Erzeugte Bilder gehören nicht dazu: in einem Labor darf
 auf dem Monitor nichts stehen, das wie ein Beleg aussieht und keiner ist. Sollten später
 Illustrationen erzeugt werden, tragen sie an derselben Stelle eine sichtbar
 andere Herkunft.
+
+## Der Projektstand im Gespräch
+
+„Wie ist der Stand?“, „Was steht als Nächstes an?“, „Wo hakt es?“, „Was kann
+ich vorzeigen?“ beantwortet Kiwi aus einem **Lagebild**, das jede Nacht aus den
+Unterlagen entsteht: Statusdokumente, Commits, Protokolle. Es ist ausdrücklich
+als automatisch abgeleitet gekennzeichnet, jeder Punkt nennt seine Quelle. Was
+nicht stimmt, berichtigt man per Stimme („Kiwi, Lagebildkorrektur: …“); die
+Korrektur gilt sofort und bleibt, bis eine neuere Quelle das Thema aufgreift.
+Gesprochen werden zwei Sätze, das Ganze steht auf dem Monitor.
 
 ## Zwei Stufen beim Antworten
 

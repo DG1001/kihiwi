@@ -121,8 +121,10 @@ ANTWORT_MAX_S = 45
 
 # Kern des Lagebilds auch im Prompt der Werkzeugrunde? Nur, wenn die Messung
 # zeigt, dass die Werkzeugaufrufe dadurch nicht seltener werden -- ein langer
-# Prompt hat sie schon einmal unterdrueckt (0 von 3 gegen 3 von 3).
-LAGEBILD_IN_WERKZEUGRUNDE = os.environ.get("KIHIWI_LAGEBILD_WERKZEUG", "0") in ("1", "ja", "an")
+# Prompt hat sie schon einmal unterdrueckt (0 von 3 gegen 3 von 3). Gemessen am
+# 03.11.2026 mit sprachdienst.werkzeug_messung: mit und ohne Kern je 36 von 36,
+# mit Nemotron-3.5-Super und mit Qwen3.8-Flash. Abschalten mit =0.
+LAGEBILD_IN_WERKZEUGRUNDE = os.environ.get("KIHIWI_LAGEBILD_WERKZEUG", "1") in ("1", "ja", "an")
 
 # --- Dateien ----------------------------------------------------------------
 AUFNAHMEN  = Path(os.environ.get("KIHIWI_AUFNAHMEN", WURZEL / "aufnahmen"))

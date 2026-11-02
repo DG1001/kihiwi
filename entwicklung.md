@@ -2549,3 +2549,37 @@ Kurzfassungen (67.008 Token) brauchte 141 s, schon die gekürzte Fassung 59 s �
 beides über dem Antwortlimit von 45 s. Nur Titel: 8.631 Token, rund 18 s.
 Am laufenden Sprachdienst noch nicht gemessen; bei zwei Einlesevorgängen je
 Antwort liegt Flash damit nahe am Limit.
+
+## 02./03.11.2026: Das Lagebild
+
+Auf die Frage, wie Kiwi im normalen Gespräch auch die Grundlagen des Projekts
+parat haben kann, nannte Fred seine vier typischen Fragen: Stand, Nächstes,
+Probleme, Vorzeigbares. Die Wissenssuche passt dazu nicht -- sie findet Stellen,
+gefragt ist ein Bild aus vielen Quellen. Entschieden: ein nachts erzeugtes
+Lagebild, automatisch und gekennzeichnet, Korrekturen per Stimme bis zur
+Ablösung durch eine neuere Quelle (höchstens zwei Wochen).
+
+Die Builder-Prüfung des Designs fand den wichtigsten Punkt: Das Design setzte
+auf die Zwischenspeicherung des Prompt-Anfangs. Der Modellserver hat aber einen
+Slot, und laut Serverprotokoll liest er trotz 30–50 % gleichem Anfang jedes
+Mal Tausende Token neu. Deshalb steht nur ein kleiner Kern im Prompt, der
+passende Abschnitt nur bei den vier Fragen; das Modellprofil blieb unverändert,
+weil es mit anderen geteilt ist.
+
+Beim ersten echten Lauf drei Fehler:
+- Die Beispielmuster trafen über den ganzen Pfad viel zu viel (`*STAND*` auch
+  in Ordnernamen und in Wörtern wie `abstand`): dreimal so viele Statusdokumente, das Budget strich alle
+  Commits. Seitdem gelten Muster ohne `/` nur für den Dateinamen.
+- Der Lauf meldete sich mit dem Vorgabeprofil an; die Belegungsstelle
+  verlangte einen Wechsel, der Lauf wertete das als belegt und ließ seine
+  Anmeldung eine Stunde stehen. Jetzt das geladene Profil und Freigabe bei
+  Ablehnung.
+- Der zweite Lauf scheiterte ganz: Das Modell übernahm aus dem vorigen
+  Lagebild das Format `[Titel, Datum]` statt der Kennungen. Seitdem geht das
+  vorige ohne Verweise hinein. Außerdem standen verstrichene Plantermine unter
+  „Als Nächstes“; das Modell bekommt jetzt das heutige Datum.
+
+Abnahme: Kern kostet 0,0–0,2 s je Antwort, die vier Fragen kommen 0,9–1,4 s
+nach einer Plauderfrage; Werkzeugaufrufe mit und ohne Kern 36/36 auf beiden
+Modellen; zehn von zehn geprüften Punkten stehen wörtlich in ihren Quellen.
+

@@ -943,6 +943,81 @@ Von Hand geht es weiterhin mit `./dienste.sh protokoll`.
 der Aufnahme (`(bei 00:01)`). Die Uhrzeit sagt WANN, der Versatz WO im Audio —
 ein Versatz allein beantwortet „was war heute früh" nicht.
 
+### Lagebild: der Projektstand im Gespräch
+
+Design: `docs/superpowers/specs/2026-11-02-lagebild-design.md`, Code:
+`wissen/lagebild.py`. Für die vier Fragen „Wie ist der Stand?“, „Was steht als
+Nächstes an?“, „Wo hakt es?“ und „Was kann ich vorzeigen?“ liefert die
+Wissenssuche nur Ausschnitte zu einer Stelle. Das Lagebild fasst stattdessen
+Statusdokumente, Commits, Protokoll-Zusammenfassungen und Vorzeigbares zu fünf
+Abschnitten zusammen (Worum es geht, Stand, Als Nächstes, Probleme und
+Herausforderungen, Vorzeigbar), jeder Punkt mit `[Titel, Datum]`.
+
+    ./dienste.sh lagebild erneuern [--ohne-abgleich] [--nacht]
+    ./dienste.sh lagebild zeigen
+
+**Eingaben** wählt der Code aus, nicht ein Agent. Welche Dateien
+Statusdokumente sind, steht in `wissen/lagebild.json` (nicht im Repo, Muster
+`wissen/lagebild.beispiel.json`). Muster ohne `/` gelten für den Dateinamen,
+mit `/` für den Pfad in der Quelle: gegen den ganzen Pfad traf `*STAND*` jeden
+Ordner wie `Altbestand/` und Dateien wie `spalt_abstand.json`; mit dem Beispiel kamen so
+dreimal so viele Statusdokumente zusammen wie gemeint, und das Budget strich alle Commits.
+
+**Erzeugen und prüfen.** Das Modell bekommt die Eingaben mit Kennungen
+(`E3`, Korrekturen `K1`) und muss jeden Punkt damit belegen. Der Code ersetzt
+die Kennungen durch `[Titel, Datum]` und wirft Punkte ohne gültige Kennung
+hinaus. Bleibt nichts übrig, gilt das alte Lagebild weiter, und die rohe
+Ausgabe liegt als `<Zeit>.fehlschlag.txt` daneben. Das vorige Lagebild geht nur
+**ohne Verweise** hinein: mit ihnen übernahm das Modell das Format `[Titel,
+Datum]` statt der Kennungen, und kein Punkt bestand die Prüfung. Das heutige
+Datum steht am Anfang der Nachricht, sonst führte das Modell verstrichene
+Termine aus alten Plänen unter „Als Nächstes“.
+
+**Im Gespräch** steht nur der Kern („Worum es geht“, ~750 Zeichen) im Prompt
+der Schlussantwort und, seit der Messung, auch der Werkzeugrunde
+(`KIHIWI_LAGEBILD_WERKZEUG`, Vorgabe an). Bei den vier Fragen (Absicht `LAGE`)
+kommt der passende Abschnitt dazu, ohne Vorabsuche und ohne Werkzeuge; die
+Bühne zeigt ihn. Eine Nachfrage danach („was ist da genau das Problem?“) geht in
+die Wissenssuche, mit den Quellen der Antwort im Suchtext. Mehr gehört nicht in
+den Prompt: der Modellserver hat einen Slot und liest jeden Prompt praktisch
+neu ein (im Serverprotokoll: 30–50 % gleicher Anfang, trotzdem Tausende Token
+neu), jedes Token kostet also bei jeder Antwort Zeit.
+
+**Korrekturen per Stimme** („Lagebildkorrektur: …“) gelten sofort, stehen im
+Prompt unter dem Kern und gehen in jedes folgende Lagebild mit Vorrang ein, bis
+eine neuere Quelle das Thema aufgreift (das Modell schlägt es vor, der Code
+prüft Kennung und Datum), höchstens 14 Tage. Ablage
+`zustand/lagebild/korrekturen.jsonl`.
+
+**Nachts** per Crontab, wie die Log-Rotation ein Eintrag der Maschine:
+
+    30 3 * * * <repo>/dienste.sh lagebild erneuern --nacht >> <repo>/logs/lagebild.log 2>&1
+
+Hält jemand anderes die Belegungsstelle exklusiv, wartet der Lauf (alle 15 min
+bis `nachts_bis`). Er meldet sich mit dem **geladenen** Profil an und gibt eine
+abgelehnte Anmeldung sofort wieder frei: mit dem Vorgabeprofil verlangte die
+Stelle einen Wechsel, der Lauf wertete das als belegt, und seine Anmeldung
+sperrte eine Stunde lang alle anderen (03.11.2026). Wer das Modell von Hand mit
+`model-switch` wechselt, meldet es der Stelle (`belegung-klient.sh geladen`),
+sonst kennt sie das Profil nicht. Tagsüber erneuert nichts automatisch; auf
+Zuruf („Lagebild erneuern“) erst nach „Ich bin dann ein paar Minuten nicht
+ansprechbar. Soll ich?“ und einem Ja.
+
+**Gemessen am 03.11.2026** (warm, getippte Fragen, Zeit bis zum ersten Ton):
+
+| | Nemotron-3.5-Super | Qwen3.8-Flash |
+|---|---|---|
+| Plauderfrage ohne Kern | 0,96 s | 0,51 s |
+| Plauderfrage mit Kern | 1,12 s | 0,52 s |
+| die vier Lagefragen | 1,3–2,2 s | 0,6–2,7 s (Median +0,9 bis +1,4 s) |
+| Werkzeugaufrufe ohne / mit Kern | 36/36, 36/36 | 36/36, 36/36 |
+| Lagebild erzeugen (70 Eingaben, ~89.000 Zeichen) | 21–51 s | 105 s |
+
+Werkzeugaufrufe mit `.venv/bin/python -m sprachdienst.werkzeug_messung` (zwölf
+Fragen aus `werkzeug_fragen.json`, je dreimal, direkt am Modell, damit kein
+Rechercheauftrag wirklich losläuft). Treue: zehn Punkte des ersten echten
+Lagebilds gegen ihre Quellen geprüft, alle zehn stehen dort wörtlich.
+
 ### Zwei Prompts, zwei Nachrichtenfolgen
 
 Die Schlussantwort wird **immer neu erzeugt**, mit dem Sprechstil-Prompt und
@@ -1252,6 +1327,10 @@ sofort — wie bei „Kiwi" selbst:
 | `Internetrecherche`, `Webrecherche`, `recherchiere` | Rechercheauftrag an Hermes, Ergebnis kommt nach (30–40 s) |
 | `Dokumentenrecherche`, `Dokumentensuche` | Suche in den Unterlagen, das Modell formuliert nur noch die Antwort |
 | `Hermesaufgabe`, `Hermesauftrag` | Anweisung **unverändert** an Hermes durchreichen, davor Auszüge aus den Unterlagen und ihr Pfad |
+| `Lagebild` | das ganze aktuelle Lagebild auf die Bühne |
+| `Lagebildkorrektur …` | Korrektur am Lagebild, gilt sofort |
+| `Lagebildkorrektur zurücknehmen` | nimmt die jüngste offene Korrektur zurück |
+| `Lagebild erneuern` | erzeugt das Lagebild jetzt neu, nach Rückfrage (Minuten, Kiwi blockiert) |
 | `Kiwihilfe`, `Befehlsliste`, `was kannst du` | Liste der Auslösewörter — gesprochen kurz, angezeigt vollständig |
 
 **Warum:** Das Modell hat sich wiederholt geweigert, obwohl das Werkzeug
