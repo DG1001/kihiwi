@@ -1,0 +1,222 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>kihiwi — Sätze einlesen</title>
+<style>
+  :root { --bg:#101014; --fg:#e8e8ea; --matt:#8a8a95; --linie:#2a2a33; --an:#3d9a54;
+          --rot:#c0453b; }
+  * { box-sizing:border-box; margin:0; }
+  body { background:var(--bg); color:var(--fg); font:16px/1.55 system-ui,sans-serif;
+         max-width:52rem; margin:0 auto; padding:1.5rem 1.2rem 3rem; }
+  h1 { font-size:1.05rem; font-weight:600; }
+  .matt { color:var(--matt); }
+  #kopf { display:flex; justify-content:space-between; align-items:baseline; gap:1rem;
+          border-bottom:1px solid var(--linie); padding-bottom:.7rem; margin-bottom:1rem; }
+  label { font-size:.85rem; color:var(--matt); }
+  input { font:inherit; background:#1c1c24; color:var(--fg); border:1px solid var(--linie);
+          border-radius:.35rem; padding:.25rem .5rem; width:9rem; }
+  #hinweis { font-size:.85rem; color:#e8b339; margin-bottom:1.2rem; }
+  #zaehler { font-size:.9rem; color:var(--matt); margin-bottom:.4rem; }
+  #satz { font-size:clamp(1.4rem, 3.6vw, 2.1rem); line-height:1.35; font-weight:500;
+          min-height:6.5em; padding:1rem 0 1.4rem; }
+  #pegel { height:.4rem; background:#1c1c24; border-radius:.25rem; overflow:hidden; }
+  #pegelbalken { height:100%; width:0; background:var(--an); transition:width .05s; }
+  .knoepfe { display:flex; gap:.6rem; flex-wrap:wrap; margin:1rem 0; }
+  button { font:inherit; padding:.6rem 1.1rem; border-radius:.4rem; cursor:pointer;
+           border:1px solid var(--linie); background:#1c1c24; color:var(--fg); }
+  button:hover:not(:disabled) { border-color:#4a4a58; }
+  button:disabled { opacity:.4; cursor:default; }
+  button:focus-visible, input:focus-visible { outline:2px solid #7ab8e8; outline-offset:2px; }
+  #aufnahme { min-width:12rem; font-weight:600; }
+  #aufnahme.laeuft { background:var(--rot); border-color:var(--rot); color:#fff; }
+  kbd { font-size:.75em; border:1px solid #4a4a58; border-radius:.25rem; padding:0 .3em; }
+  #status { min-height:1.5em; font-size:.95rem; }
+  #status.ok { color:#7ddc9a; } #status.fehler { color:var(--rot); }
+  #liste { display:flex; flex-wrap:wrap; gap:.35rem; margin-top:1.6rem; }
+  #liste button { padding:.15rem 0; width:2.3rem; font-size:.8rem; }
+  #liste button.fertig { background:#14351f; border-color:#2c6b40; color:#7ddc9a; }
+  #liste button.jetzt { outline:2px solid #7ab8e8; }
+  @media (prefers-reduced-motion: reduce) { #pegelbalken { transition:none; } }
+</style>
+
+<div id="kopf">
+  <h1>Sätze einlesen</h1>
+  <label>Sprecher <input id="sprecher" autocomplete="off" spellcheck="false"></label>
+</div>
+<p id="hinweis">Die Kiwi-Seite bitte vorher schließen oder dort das Mikrofon
+  ausschalten: Viele Sätze beginnen mit „Kiwi“, und Kiwi würde antworten.
+  Sprich so, wie du mit Kiwi sprichst, ruhig mit Pausen und Versprechern.</p>
+
+<div id="zaehler">—</div>
+<div id="satz" aria-live="polite">Sätze werden geladen …</div>
+<div id="pegel" aria-hidden="true"><div id="pegelbalken"></div></div>
+
+<div class="knoepfe">
+  <button id="aufnahme" disabled>Aufnehmen <kbd>Leertaste</kbd></button>
+  <button id="anhoeren" disabled>Anhören</button>
+  <button id="zurueck">Zurück</button>
+  <button id="weiter">Weiter <kbd>Enter</kbd></button>
+</div>
+<div id="status" role="status"></div>
+<div id="liste" aria-label="Alle Sätze"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+const RATE = 16000;
+let saetze = [], fertig = new Set(), jetzt = 0;
+let ctx = null, strom = null, knoten = null, stuecke = [], laeuft = false, letzte = null;
+let ws = null, beginn = 0, uhr = null;
+
+// Wie klient.html: 16 kHz, gleiche Mikrofoneinstellungen -- gemessen werden
+// soll, was Kiwi wirklich hoert.
+const WORKLET = `
+class Sammler extends AudioWorkletProcessor {
+  process(eingang) {
+    const k = eingang[0][0];
+    if (k) {
+      let spitze = 0;
+      for (let i = 0; i < k.length; i++) spitze = Math.max(spitze, Math.abs(k[i]));
+      this.port.postMessage({daten: k.slice(), spitze});
+    }
+    return true;
+  }
+}
+registerProcessor('sammler', Sammler);`;
+
+function sprecher() { return $("sprecher").value.trim().toLowerCase(); }
+function status(text, art = "") { $("status").textContent = text; $("status").className = art; }
+
+async function laden() {
+  let antwort;
+  try {
+    antwort = await (await fetch(`/api/vorlesen?sprecher=${encodeURIComponent(sprecher())}`)).json();
+  } catch (e) { status("Der Dienst antwortet nicht. Läuft Kiwi?", "fehler"); return; }
+  saetze = antwort.saetze; fertig = new Set(antwort.fertig);
+  if (!saetze.length) { $("satz").textContent = "Keine Sätze hinterlegt (zustand/sprachmessung/saetze.json)."; return; }
+  const offen = saetze.findIndex(s => !fertig.has(s.nr));
+  jetzt = offen < 0 ? 0 : offen;
+  zeichnen();
+}
+
+function zeichnen() {
+  const s = saetze[jetzt];
+  $("satz").textContent = s.satz;
+  $("zaehler").textContent = `Satz ${s.nr} von ${saetze.length} · ${fertig.size} eingelesen` +
+    (fertig.has(s.nr) ? " · dieser schon (nochmal aufnehmen ersetzt ihn)" : "");
+  $("aufnahme").disabled = !/^[a-z0-9_-]{1,32}$/.test(sprecher());
+  if ($("aufnahme").disabled) status("Erst einen Sprechernamen eintragen (Kleinbuchstaben, Ziffern, - oder _).");
+  $("anhoeren").disabled = !(letzte && letzte.nr === s.nr);
+  $("liste").replaceChildren(...saetze.map((x, i) => {
+    const b = document.createElement("button");
+    b.textContent = x.nr;
+    b.className = (fertig.has(x.nr) ? "fertig " : "") + (i === jetzt ? "jetzt" : "");
+    b.title = x.satz;
+    b.onclick = () => { if (!laeuft) { jetzt = i; status(""); zeichnen(); } };
+    return b;
+  }));
+}
+
+async function mikrofon() {
+  if (ctx) return;
+  ctx = new AudioContext({sampleRate: RATE});
+  strom = await navigator.mediaDevices.getUserMedia({audio: {
+    channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true}});
+  await ctx.audioWorklet.addModule(URL.createObjectURL(new Blob([WORKLET], {type: "application/javascript"})));
+  knoten = new AudioWorkletNode(ctx, "sammler");
+  knoten.port.onmessage = e => {
+    $("pegelbalken").style.width = Math.min(100, e.data.spitze * 140) + "%";
+    if (laeuft) stuecke.push(e.data.daten);
+  };
+  ctx.createMediaStreamSource(strom).connect(knoten);
+}
+
+function alsWav(stuecke) {
+  const n = stuecke.reduce((a, s) => a + s.length, 0);
+  const b = new DataView(new ArrayBuffer(44 + 2 * n));
+  const text = (o, s) => [...s].forEach((c, i) => b.setUint8(o + i, c.charCodeAt(0)));
+  text(0, "RIFF"); b.setUint32(4, 36 + 2 * n, true); text(8, "WAVE"); text(12, "fmt ");
+  b.setUint32(16, 16, true); b.setUint16(20, 1, true); b.setUint16(22, 1, true);
+  b.setUint32(24, RATE, true); b.setUint32(28, 2 * RATE, true); b.setUint16(32, 2, true);
+  b.setUint16(34, 16, true); text(36, "data"); b.setUint32(40, 2 * n, true);
+  let o = 44;
+  for (const s of stuecke) for (const v of s) { b.setInt16(o, Math.max(-1, Math.min(1, v)) * 32767, true); o += 2; }
+  return b.buffer;
+}
+
+function verbinden() {
+  return new Promise((ok, nein) => {
+    if (ws && ws.readyState === 1) return ok(ws);
+    ws = new WebSocket(`ws://${location.host}/vorlesen-ws`);
+    ws.binaryType = "arraybuffer";
+    ws.onopen = () => ok(ws);
+    ws.onerror = () => nein(new Error("keine Verbindung"));
+    ws.onmessage = e => {
+      const d = JSON.parse(e.data);
+      if (d.gespeichert) {
+        fertig.add(d.gespeichert);
+        status(`Satz ${d.gespeichert} gespeichert. Weiter mit Enter.`, "ok");
+        zeichnen();
+      } else if (d.fehler) status(`Nicht gespeichert: ${d.fehler}`, "fehler");
+    };
+  });
+}
+
+async function umschalten() {
+  if ($("aufnahme").disabled) return;
+  if (!laeuft) {
+    try { await mikrofon(); } catch (e) { status(`Mikrofon nicht verfügbar: ${e.message}`, "fehler"); return; }
+    if (ctx.state === "suspended") await ctx.resume();
+    stuecke = []; laeuft = true; beginn = Date.now();
+    $("aufnahme").classList.add("laeuft");
+    uhr = setInterval(() => { $("aufnahme").textContent = `Stopp (${((Date.now() - beginn) / 1000).toFixed(1)} s)`; }, 100);
+    status("Aufnahme läuft …");
+    return;
+  }
+  laeuft = false; clearInterval(uhr);
+  $("aufnahme").classList.remove("laeuft");
+  $("aufnahme").innerHTML = "Aufnehmen <kbd>Leertaste</kbd>";
+  const nr = saetze[jetzt].nr, wav = alsWav(stuecke);
+  letzte = {nr, wav};
+  $("anhoeren").disabled = false;
+  status("Speichere …");
+  try {
+    const w = await verbinden();
+    w.send(JSON.stringify({sprecher: sprecher(), nr}));
+    w.send(wav);
+  } catch (e) { status(`Nicht gespeichert: ${e.message}`, "fehler"); }
+}
+
+function anhoeren() {
+  if (!letzte) return;
+  const a = new Audio(URL.createObjectURL(new Blob([letzte.wav], {type: "audio/wav"})));
+  a.play();
+}
+
+function gehe(schritt) {
+  if (laeuft || !saetze.length) return;
+  jetzt = Math.max(0, Math.min(saetze.length - 1, jetzt + schritt));
+  status(""); zeichnen();
+}
+
+$("aufnahme").onclick = umschalten;
+$("anhoeren").onclick = anhoeren;
+$("weiter").onclick = () => gehe(1);
+$("zurueck").onclick = () => gehe(-1);
+// Leertaste und Enter gehoeren der Seite, nicht dem gerade fokussierten
+// Knopf: sonst loeste ein Druck auf "Weiter" zusaetzlich die Aufnahme aus.
+document.addEventListener("keyup", e => {
+  if (e.target !== $("sprecher") && e.code === "Space") e.preventDefault();
+});
+document.addEventListener("keydown", e => {
+  if (e.target === $("sprecher")) return;
+  if (e.code === "Space") { e.preventDefault(); umschalten(); }
+  else if (e.key === "Enter" || e.key === "ArrowRight") { e.preventDefault(); gehe(1); }
+  else if (e.key === "ArrowLeft") { e.preventDefault(); gehe(-1); }
+});
+try { $("sprecher").value = localStorage.getItem("vorlesen.sprecher") || ""; } catch (e) {}
+$("sprecher").addEventListener("change", () => {
+  try { localStorage.setItem("vorlesen.sprecher", sprecher()); } catch (e) {}
+  laden();
+});
+laden();
+</script>

@@ -1241,6 +1241,19 @@ falsche Richtung. Belegt: mit einer ML-Liste wurde aus „Fenstertechnologie" ei
 der Spracherkennung, ganz ohne Korrekturstufe. **Der Hebel sitzt vorn, nicht
 hinten.**
 
+### Messen mit echten Stimmen: die Vorleseseite
+
+`http://localhost:8920/vorlesen` (über denselben SSH-Tunnel wie `/klient`)
+zeigt Sätze mit bekanntem Wortlaut, nimmt sie im Browser auf und legt sie ab.
+Das Mikrofon läuft wie in `klient.html` (16 kHz mono, gleiche
+Einstellungen), denn gemessen werden soll der Weg, den Kiwi hört. Die Sätze
+mit den erwarteten Fachbegriffen liegen in `zustand/sprachmessung/saetze.json`,
+die Aufnahmen unter `zustand/sprachmessung/aufnahmen/<sprecher>/<nr>.wav`,
+beides nicht im Repo. Die Seite bekommt nur Nummer und Satz, die erwarteten
+Begriffe bleiben auf dem Server. Die Aufnahmen gehen über `/vorlesen-ws` an
+den Dienst und **nicht** durch die Spracherkennung: Viele Sätze beginnen mit
+„Kiwi“. Leertaste nimmt auf und stoppt, Enter geht weiter.
+
 ## Aktivierungswort und Werkzeuge
 
 **Aktivierungswort ist „Kiwi"** (`konfig.AKTIVIERUNG`), aus KI-Hiwi. Bei offenem

@@ -31,6 +31,7 @@ from wissen import web as wissen_web
 from . import protokoll as protokoll_modul
 
 from . import absicht as absicht_modul
+from . import vorlesen as vorlesen_modul
 from . import (aktivierung, doku, konfig, llm, messwerte, stt, tts,
                wecker as wecker_modul, zahlwort)
 from .turn import Endpoint, Turnerkenner
@@ -136,7 +137,7 @@ SITZUNGEN: set = set()
 NACHBEREITUNG = asyncio.Lock()
 SEITEN = {"/": "monitor.html", "/index.html": "monitor.html",
           "/klient": "klient.html", "/klient.html": "klient.html",
-          "/avatar.js": "avatar.js"}
+          "/avatar.js": "avatar.js", "/vorlesen": "vorlesen.html"}
 
 
 # ---------------------------------------------------------------- Gesundheit
@@ -1968,10 +1969,41 @@ async def zustand_senden(ws):
         HALTER.abbestellen(q)
 
 
+async def vorlesen_annehmen(ws):
+    """Aufnahmen der Vorleseseite: erst {"sprecher", "nr"} als Text, dann das
+    WAV als Binaernachricht. Geht NICHT durch die Spracherkennung -- die Saetze
+    beginnen oft mit "Kiwi", und der Dienst soll sie nur ablegen."""
+    kopf = None
+    try:
+        async for n in ws:
+            if isinstance(n, str):
+                kopf = json.loads(n)
+                continue
+            if not kopf:
+                await ws.send(json.dumps({"fehler": "erst Sprecher und Satznummer"}))
+                continue
+            try:
+                p = await asyncio.to_thread(vorlesen_modul.ablegen, vorlesen_modul.VERZ,
+                                            str(kopf.get("sprecher", "")),
+                                            int(kopf.get("nr", 0)), n)
+                log.info("Vorlesen: %s", p.relative_to(konfig.WURZEL))
+                await ws.send(json.dumps({"gespeichert": int(kopf["nr"])}))
+            except (ValueError, TypeError) as e:
+                await ws.send(json.dumps({"fehler": str(e), "nr": kopf.get("nr")}))
+            kopf = None
+    except websockets.ConnectionClosed:
+        pass
+
+
 async def behandeln(ws):
     pfad = ws.request.path
     if pfad.startswith("/monitor"):
         await zustand_senden(ws)
+        return
+    # Eigener Pfad: unter /vorlesen liefert http_seite die Seite aus, und der
+    # Verbindungsaufbau bekaeme sie statt des WebSockets.
+    if pfad.startswith("/vorlesen-ws"):
+        await vorlesen_annehmen(ws)
         return
     if not pfad.startswith("/audio"):
         await ws.close(1008, "unbekannter Pfad")
@@ -2114,6 +2146,21 @@ async def http_seite(verbindung, anfrage):
     if pfad_teil == "/api/liste":
         leib = json.dumps([{k: v for k, v in e.items() if k != "pfad"}
                            for e in _sammlung()], ensure_ascii=False)
+        antwort = verbindung.respond(http.HTTPStatus.OK, leib)
+        del antwort.headers["Content-Type"]
+        antwort.headers["Content-Type"] = "application/json; charset=utf-8"
+        return antwort
+
+    # Vorleseseite: Saetze und was dieser Sprecher schon eingelesen hat
+    if pfad_teil == "/api/vorlesen":
+        from urllib.parse import parse_qs
+        sprecher = parse_qs(anfrage.path.partition("?")[2]).get("sprecher", [""])[0]
+        try:
+            fertig = vorlesen_modul.fertig(vorlesen_modul.VERZ, sprecher)
+        except ValueError:
+            fertig = []
+        leib = json.dumps({"saetze": vorlesen_modul.saetze(), "fertig": fertig},
+                          ensure_ascii=False)
         antwort = verbindung.respond(http.HTTPStatus.OK, leib)
         del antwort.headers["Content-Type"]
         antwort.headers["Content-Type"] = "application/json; charset=utf-8"
