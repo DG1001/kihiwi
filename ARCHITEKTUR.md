@@ -31,6 +31,7 @@ flowchart LR
   subgraph GX10["GX10, alles auf 127.0.0.1"]
     S["Sprachdienst :8920<br>gateway.py<br>VAD, Piper, e5, Wecker"]
     W["whisper-server :8910<br>Spracherkennung"]
+    R["Reranker :8912<br>bge-reranker-v2-m3, GPU"]
     L["Modellserver :8889<br>llama.cpp oder vLLM"]
     I[("wissen/index.db<br>Volltext und Vektoren")]
     A[("aufnahmen/<br>WAV, Protokolle")]
@@ -50,6 +51,7 @@ flowchart LR
   B <-->|"WebSocket /audio"| S
   JW -->|"startet"| B
   S --> W
+  S --> R
   S --> L
   S <--> I
   S --> A
@@ -65,6 +67,7 @@ flowchart LR
 |---|---|---|---|
 | Sprachdienst | `127.0.0.1:8920` | `./dienste.sh start` | Audio, Turn-Taking, Entscheidungen, Sprachausgabe, Wissenssuche |
 | whisper-server | `127.0.0.1:8910` | `./dienste.sh start` | Spracherkennung (whisper.cpp, large-v3-turbo, Deutsch) |
+| Reranker | `127.0.0.1:8912` | `./dienste.sh start` | ordnet die Kandidaten der Wissenssuche neu (llama.cpp `--reranking`, Prozessname `kihiwi-rerank`) |
 | Modellserver | `127.0.0.1:8889` | `model-switch <profil>` | ein großes Sprachmodell, OpenAI-kompatibel; Vorgabe Qwen3.8-Flash-Next auf llama.cpp |
 | SearXNG | `127.0.0.1:8088` | eigener Container | Websuche, einziger Weg nach außen |
 | Hermes | kein Port | Sprachdienst, je Auftrag | Agent für längere Rechercheaufträge |
@@ -209,15 +212,18 @@ flowchart LR
   F["Frage"] --> P["Aufbereiten:<br>Komposita trennen,<br>Stoppwörter raus,<br>Umlaut-Schreibweisen"]
   P --> V1["Volltext FTS5, bm25<br>Text 1,0, Überschrift 2,0,<br>Schlagwörter 1,5"]
   F --> V2["Vektorsuche<br>e5, Kosinus"]
-  V1 --> RRF["Reciprocal Rank Fusion<br>k = 60, nur Ränge"]
+  V1 --> RRF["Reciprocal Rank Fusion<br>k = 60, nur Ränge,<br>24 Kandidaten"]
   V2 --> RRF
-  RRF --> AUS["8 beste Abschnitte,<br>je 600 Zeichen um den Treffer,<br>mit Herkunft"]
+  RRF --> RR["Reranker<br>Frage und Abschnitt<br>gemeinsam bewertet"]
+  RR --> AUS["8 beste Abschnitte,<br>je 600 Zeichen um den Treffer,<br>mit Herkunft"]
   AUS --> PR["in den Prompt"]
 ```
 
-Fällt die Vektorsuche aus, bleibt der Volltext. An 60 Testfragen liegt die
-richtige Stelle in 90 % der Fälle unter den ersten acht, wenn die Frage die
-Begriffe der Unterlage benutzt, und in rund 40 %, wenn sie anders formuliert ist.
+Fällt die Vektorsuche aus, bleibt der Volltext; fällt der Reranker aus, bleibt
+die Reihenfolge der Mischung. An 60 Testfragen liegt die richtige Stelle mit
+Reranker in 98 % der Fälle unter den ersten acht, wenn die Frage die Begriffe
+der Unterlage benutzt, und in 68 %, wenn sie anders formuliert ist (ohne: 95 %
+und 58 %). Er kostet gut 0,2 s je Suche.
 
 ### Der Index
 

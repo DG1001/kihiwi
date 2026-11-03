@@ -341,9 +341,13 @@ def suchen(frage: str, anzahl: int = 5, c: sqlite3.Connection | None = None
         # Anführungszeichen um jeden Begriff: sonst deutet FTS5 Bindestriche
         # als Operatoren und scheitert an "Siliziumnitrid-Fenster".
         ausdruck = " OR ".join(f'"{x}"' for x in w)
+        # Mit Reranker mehr Kandidaten (24): er ordnet sie neu, und was nicht
+        # darunter ist, kann er nicht nach vorn holen.
+        from . import rerank
+        pool = max(anzahl, rerank.KANDIDATEN) if rerank.AN else anzahl
         # Mehr holen als gebraucht: die Verschmelzung soll aus beiden Listen
         # waehlen koennen, nicht nur aus den ersten acht.
-        breit = anzahl * 3
+        breit = pool * 3
         zeilen = c.execute("""
             SELECT a.rowid, a.text, a.ueberschrift, a.schlagwoerter,
                    d.titel, d.quelle, d.herkunft,
@@ -364,7 +368,7 @@ def suchen(frage: str, anzahl: int = 5, c: sqlite3.Connection | None = None
             from . import vektor
             nah = vektor.aehnlich(frage, breit)
             if nah:
-                rangfolge = vektor.verschmelzen(volltext, nah, anzahl=anzahl)
+                rangfolge = vektor.verschmelzen(volltext, nah, anzahl=pool)
                 fehlend = [r for r in rangfolge if r not in nach_id]
                 if fehlend:
                     marken = ",".join("?" * len(fehlend))
@@ -379,8 +383,15 @@ def suchen(frage: str, anzahl: int = 5, c: sqlite3.Connection | None = None
             # fehlende Bibliothek, NaN. Dann eben nur Volltext.
             log.warning("Vektorteil uebersprungen: %r", e)
 
-        return [Treffer(*nach_id[r][1:]) for r in rangfolge[:anzahl]
-                if r in nach_id]
+        kandidaten = [r for r in rangfolge[:pool] if r in nach_id]
+        if rerank.AN and len(kandidaten) > 1:
+            def fuer_reranker(z):
+                text, ueberschrift, titel = z[1], z[2], z[4]
+                return f"{titel} — {ueberschrift}\n{text}" if ueberschrift else f"{titel}\n{text}"
+            reihe = rerank.ordnen(frage, [fuer_reranker(nach_id[r]) for r in kandidaten])
+            if reihe is not None:
+                kandidaten = [kandidaten[i] for i in reihe]
+        return [Treffer(*nach_id[r][1:]) for r in kandidaten[:anzahl]]
     except sqlite3.OperationalError:
         return []
     finally:

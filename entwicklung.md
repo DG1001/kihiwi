@@ -2658,3 +2658,11 @@ kam in 28 Minuten nicht durch die Hälfte und belegte 15,6 GB, bis die Maschine
 bei 0 GB frei stand; abgebrochen, bevor etwas anderes fiel. Bei einem
 Messprozess gehört deshalb von Anfang an ein Speicherwächter daneben.
 
+Eingebaut am selben Tag: `wissen/rerank.py`, aufgerufen aus `index.suchen`,
+Dienst in `dienste.sh` auf `:8912`. Beim Einbau zählte vor allem, dass
+`model-switch` bei jedem Modellwechsel alle `llama-server` beendet; der
+Reranker läuft deshalb unter dem Namen `kihiwi-rerank`. Am laufenden Kiwi fand
+die Frage nach dem Einschalten eines Geräts jetzt die genaue Stelle der
+Anleitung statt einer allgemeinen. Der erste Satz kommt bei Wissensfragen
+etwa 0,3 s später.
+

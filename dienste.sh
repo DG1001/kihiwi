@@ -2,9 +2,9 @@
 # dienste.sh — startet, stoppt und zeigt die drei Dienste des Sprachassistenten.
 #
 #   ./dienste.sh start           alles hochfahren (idempotent)
-#   ./dienste.sh stop            Sprachdienst und whisper-server beenden
+#   ./dienste.sh stop            Sprachdienst, whisper-server und Reranker beenden
 #   ./dienste.sh stop --vllm     zusaetzlich das Modell entladen
-#   ./dienste.sh neustart        stop + start der beiden lokalen Dienste
+#   ./dienste.sh neustart        stop + start der lokalen Dienste
 #   ./dienste.sh status          was laeuft, auf welchem Port
 #   ./dienste.sh log [name]      Protokoll folgen (sprach | whisper | vllm)
 #   ./dienste.sh waechter [...]  vLLM ueberwachen und bei Ausfall neu starten
@@ -49,7 +49,14 @@ MODELL="$WHISPER/models/ggml-large-v3-turbo.bin"
 
 P_VLLM=8889
 P_WHISPER=8910
+P_RERANK=8912
 P_SPRACH=8920
+
+# Reranker fuer die Suche (wissen/rerank.py): llama-server mit --reranking auf
+# der GPU. Fehlt Programm oder Modell, laeuft alles ohne ihn weiter -- die
+# Suche bleibt dann bei der Mischung aus Volltext und Vektoren.
+LLAMA_SERVER="${KIHIWI_LLAMA_SERVER:-$HOME/code/llama.cpp/build/bin/llama-server}"
+RERANK_MODELL="${KIHIWI_RERANK_MODELL:-$HOME/models/rerank/bge-reranker-v2-m3-Q8_0.gguf}"
 
 C_VLLM=vllm-model          # Containername, den model-switch vergibt
 # Welches model-switch-Profil `start` laedt, wenn nichts auf :8889 laeuft.
@@ -129,6 +136,7 @@ vllm_util() {
         | grep -A1 -Fx -- '--gpu-memory-utilization' | tail -1; }
 bereit_whisper() { curl -sf --max-time 2 -o /dev/null "http://127.0.0.1:$P_WHISPER/"; }
 bereit_sprach()  { curl -sf --max-time 2 -o /dev/null "http://127.0.0.1:$P_SPRACH/"; }
+bereit_rerank()  { curl -sf --max-time 2 "http://127.0.0.1:$P_RERANK/health" | grep -q ok; }
 
 ok()   { printf '  \033[32m✓\033[0m %s\n' "$*"; }
 info() { printf '  \033[2m·\033[0m %s\n' "$*"; }
@@ -418,6 +426,25 @@ start_whisper() {
         || { fehl "whisper-server kam nicht hoch, siehe $LOGS/whisper.log"; return 1; }
 }
 
+start_rerank() {
+    if belegt $P_RERANK; then ok "Reranker laeuft bereits (:$P_RERANK)"; return 0; fi
+    [ -x "$LLAMA_SERVER" ] || { info "Reranker uebersprungen: $LLAMA_SERVER fehlt"; return 0; }
+    [ -f "$RERANK_MODELL" ] || { info "Reranker uebersprungen: $RERANK_MODELL fehlt"; return 0; }
+    # Eigener Prozessname ueber einen Link: model-switch beendet bei jedem
+    # Modellwechsel ALLE Prozesse namens llama-server (pkill -x), und der
+    # Reranker gehoert nicht zum Modell.
+    local bin="$WURZEL/zustand/bin"
+    mkdir -p "$bin" && ln -sfn "$LLAMA_SERVER" "$bin/kihiwi-rerank"
+    info "starte Reranker"
+    # -c 8192 bei vier Plaetzen: 2048 Token je Paar aus Frage und Abschnitt,
+    # die Abschnitte gehen auf 1500 Zeichen gekuerzt hinaus.
+    ( setsid --fork nohup "$bin/kihiwi-rerank" -m "$RERANK_MODELL" --reranking \
+        --host 127.0.0.1 --port $P_RERANK -ngl 99 -c 8192 -b 2048 -ub 2048 --parallel 4 \
+        </dev/null >>"$LOGS/rerank.log" 2>&1 & )
+    warte 60 bereit_rerank && ok "Reranker bereit (:$P_RERANK)" \
+        || info "Reranker kam nicht hoch (siehe $LOGS/rerank.log) -- Suche ohne ihn"
+}
+
 start_sprach() {
     if belegt $P_SPRACH; then ok "Sprachdienst laeuft bereits (:$P_SPRACH)"; return 0; fi
     [ -x "$VENV" ] || { fehl "venv fehlt: $VENV"; return 1; }
@@ -466,6 +493,7 @@ status() {
     # llama-server oder ds4-server.
     zeile "Sprachmodell"   $P_VLLM    bereit_vllm    "$modell"
     zeile "whisper-server" $P_WHISPER bereit_whisper "large-v3-turbo, -l de"
+    zeile "Reranker"       $P_RERANK  bereit_rerank  "bge-reranker-v2-m3"
     zeile "Sprachdienst"   $P_SPRACH  bereit_sprach  "Monitor: http://127.0.0.1:$P_SPRACH/"
     if jitsi_laeuft; then ok "Jitsi-Bruecke    PID $(cat "$JITSI_PID")  $(jitsi_raum)"; fi
     if jitsi_auto_laeuft; then ok "Jitsi-Waechter   PID $(cat "$JITSI_AUTO_PID")  Kiwi klopft bei neuen Konferenzen an"; fi
@@ -497,7 +525,7 @@ namen_pruefen() {
 logs_rotieren() {
     local konf="$LOGS/.logrotate.conf"
     cat > "$konf" <<KONF
-"$LOGS/whisper.log" {
+"$LOGS/whisper.log" "$LOGS/rerank.log" {
     size 10M
     rotate 4
     compress
@@ -513,7 +541,7 @@ KONF
 # ------------------------------------------------------------------ Einstieg
 case "${1:-status}" in
     start)
-        namen_pruefen; start_vllm; start_whisper; start_sprach; echo; status ;;
+        namen_pruefen; start_vllm; start_whisper; start_rerank; start_sprach; echo; status ;;
     namen)
         exec "$VENV" "$WURZEL/namenspruefung.py" "${@:2}" ;;
     abschrift)
@@ -535,6 +563,7 @@ case "${1:-status}" in
     stop)
         stopp_port $P_SPRACH  "Sprachdienst"
         stopp_port $P_WHISPER "whisper-server"
+        stopp_port $P_RERANK  "Reranker"
         if [ "${2:-}" = "--vllm" ]; then
             info "entlade Modell"; "$HOME/.local/bin/model-switch" stop >/dev/null 2>&1 \
                 && ok "vLLM gestoppt"
@@ -544,7 +573,8 @@ case "${1:-status}" in
     neustart)
         stopp_port $P_SPRACH  "Sprachdienst"
         stopp_port $P_WHISPER "whisper-server"
-        start_whisper; start_sprach; echo; status ;;
+        stopp_port $P_RERANK  "Reranker"
+        start_whisper; start_rerank; start_sprach; echo; status ;;
     status)  status ;;
     protokoll)
         # Dokumentationspfad. Braucht whisper-server; das Modell nur fuer

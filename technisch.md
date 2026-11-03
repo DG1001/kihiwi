@@ -275,6 +275,7 @@ Konfiguration und Stand legt der Befehl selbst in `logs/` ab.
 |---|---|---|
 | Modellserver | `127.0.0.1:8889` | je nach Profil llama.cpp (Vorgabe `qwen38flash`) oder vLLM-Container `vllm-model` |
 | whisper-server | `127.0.0.1:8910` | large-v3-turbo, `-l de` |
+| Reranker | `127.0.0.1:8912` | bge-reranker-v2-m3 Q8, `llama-server --reranking` auf der GPU, Prozessname `kihiwi-rerank` |
 | Sprachdienst | `127.0.0.1:8920` | Monitor unter `http://127.0.0.1:8920/` |
 | ds4-server | `127.0.0.1:8888` | manuell zu starten |
 | SearXNG | `127.0.0.1:8088` | Container, für Hermes-Suche |
@@ -693,7 +694,7 @@ als beide Einzelverfahren.
 Der eingebaute Stand, gegen dieselbe Grundwahrheit geprüft: **86,7 %** bzw.
 **40,0 %**, Suche 80–116 ms, erster Aufruf nach dem Start 1,4 s (Modell laden).
 
-**Reranker: eine Probe, noch nicht eingebaut (03.11.2026).** Die alten 60
+**Reranker (03.11.2026).** Die alten 60
 Fragenpaare waren nicht mehr da. Erzeugt wurde ein neuer Satz nach demselben
 Verfahren, ohne Code- und Datendateien (lokal, `zustand/suchmessung/`, nicht im
 Repo, weil die Fragen aus den Unterlagen stammen). Die Zahlen sind deshalb nur
@@ -718,11 +719,20 @@ die Kandidaten der heutigen Suche (RRF) neu und gibt die ersten acht weiter:
   Abschnitten 2,5 s, mit ganzen ein Vielfaches. Dabei wuchs der Prozess auf
   15,6 GB und brachte die Maschine an 0 GB frei. onnxruntime hat hier keinen
   CUDA-Anbieter.
-- **Für einen Einbau zu klären:** `model-switch` beendet bei jedem Wechsel alle
-  Prozesse namens `llama-server` (`pkill -x`); ein Reranker-Server braucht
-  deshalb einen anderen Prozessnamen. Mit `-c 16384 --parallel 4` belegte er
-  3,1 GB, das geht kleiner. Fällt er aus, muss die Suche bei der heutigen
-  Reihenfolge bleiben.
+- **Eingebaut** in `index.suchen` (`wissen/rerank.py`): 24 Kandidaten aus der
+  Mischung, auf 1500 Zeichen gekürzt, neu geordnet, die ersten acht gehen
+  weiter. Über den echten Suchweg gemessen: 95,0 → 98,3 % und 58,3 → 68,3 %,
+  Suche im Median 0,31 statt 0,11 s. Im Gespräch kommt der erste Satz bei
+  Wissensfragen dadurch etwa 0,3 s später (1,8–2,0 statt rund 1,6 s).
+- **Eigener Prozessname.** `model-switch` beendet bei jedem Wechsel alle
+  Prozesse namens `llama-server` (`pkill -x`). `dienste.sh` startet den
+  Reranker deshalb über den Link `zustand/bin/kihiwi-rerank`; `pgrep -x
+  llama-server` findet ihn nicht. Mit `-c 8192 --parallel 4` belegt er
+  0,8 GB.
+- **Fällt er aus, bleibt die Mischung.** Fehlen Programm oder Modell, startet
+  `dienste.sh` ohne ihn. Antwortet er nicht (Timeout 3 s) oder falsch, gilt
+  die bisherige Reihenfolge, und 60 s lang wird er nicht gefragt.
+  Abschalten: `KIHIWI_RERANK=0`, Kandidatenzahl `KIHIWI_RERANK_KANDIDATEN`.
 
 **onnxruntime-Threads sind auf vier begrenzt.** Ohne Begrenzung nimmt es
 einen Thread je Kern (hier 20) und lässt sie **busy-waiten**, auch wenn nichts
