@@ -48,6 +48,7 @@ modelle/
 # Vokabular und Quellenliste verraten, woran gearbeitet wird.
 # Die .beispiel-Dateien liegen im Repo und dienen als Rueckfall.
 vokabular.txt
+ersetzungen.txt
 wissen/quellen.json
 wissen/lagebild.json
 wissen/einbettung.json

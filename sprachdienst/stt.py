@@ -6,7 +6,8 @@ Zwei Wege mit verschiedenen Anforderungen (siehe CLAUDE.md):
 Beide setzen die Sprache HART auf Deutsch. Ohne das uebersetzt Whisper deutsche
 Saetze mit englischen Fachbegriffen komplett ins Englische -- gemessen.
 """
-import asyncio, io, json, urllib.error, urllib.request, wave
+import asyncio, io, json, re, urllib.error, urllib.request, wave
+from pathlib import Path
 import numpy as np
 from . import konfig
 
@@ -76,15 +77,47 @@ def _ruf(wav: bytes, prompt: str, timeout: float) -> str:
     return urllib.request.urlopen(req, timeout=timeout).read().decode().strip()
 
 
+def ersetzungen(datei: Path | None = None) -> list[tuple[re.Pattern, str]]:
+    """Feste Ersetzungen, eine je Zeile: `falsch => richtig`, # ist Kommentar.
+
+    Fuer Verhoerer, die die Vokabelliste nicht behebt -- gemessen am 03.11.2026
+    mit der Vorleseseite: ein Begriff kam in allen drei Varianten (ohne, kurze,
+    volle Liste) gleich falsch, obwohl er in der Liste steht. Gross- und
+    Kleinschreibung zaehlen nicht, Leerzeichen und Bindestrich zwischen den
+    Teilen sind gleichwertig, ersetzt werden nur ganze Woerter."""
+    try:
+        zeilen = Path(datei or konfig.ERSETZUNGEN).read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return []
+    regeln = []
+    for z in zeilen:
+        if z.lstrip().startswith("#") or "=>" not in z:
+            continue
+        falsch, richtig = (x.strip() for x in z.split("=>", 1))
+        teile = [re.escape(t) for t in re.split(r"[\s-]+", falsch) if t]
+        if teile and richtig:
+            regeln.append((re.compile(r"(?<!\w)" + r"[\s-]*".join(teile) + r"(?!\w)", re.I),
+                           richtig))
+    return regeln
+
+
+def ersetzen(text: str, regeln: list[tuple[re.Pattern, str]] | None = None) -> str:
+    for muster, richtig in (ersetzungen() if regeln is None else regeln):
+        text = muster.sub(lambda _: richtig, text)
+    return text
+
+
 async def transkribiere(samples: np.ndarray, mit_vokabular: bool = True,
                         timeout: float = 15.0, kurz: bool = False) -> str:
     """Dialogpfad. Gibt bei Fehlern "" zurueck statt zu werfen -- ein toter
-    STT darf den Dienst nicht mitreissen."""
+    STT darf den Dienst nicht mitreissen. Die festen Ersetzungen gelten fuer
+    jeden Weg, der hier vorbeikommt (Dialog, Nachschaerfen, Abschrift)."""
     try:
-        return await asyncio.to_thread(
+        roh = await asyncio.to_thread(
             _ruf, _wav(samples), _vokabular(kurz) if mit_vokabular else "", timeout)
     except (urllib.error.URLError, OSError, TimeoutError):
         return ""
+    return ersetzen(roh)
 
 
 async def erreichbar(timeout: float = 2.0) -> bool:

@@ -1272,6 +1272,16 @@ wenige und so gleichförmig sind; erst fehlende Begriffe in die Vokabelliste,
 wiederkehrende Verhörer fest ersetzen, dann neu messen, auch mit einer zweiten
 Stimme.
 
+**Feste Ersetzungen** (`ersetzungen.txt`, nicht im Repo, Muster
+`ersetzungen.beispiel.txt`): je Zeile `falsch => richtig`, Groß-/Kleinschreibung
+egal, Leerzeichen und Bindestrich zwischen den Teilen gleichwertig, nur ganze
+Wörter, in der Reihenfolge der Datei. `stt.transkribiere` wendet sie auf jedes
+Transkript an, damit gelten sie für Dialog, Nachschärfen, Protokoll und
+Abschrift. Mit sechs Regeln und einem Begriff mehr in der Vokabelliste kamen in
+derselben Messung 87 von 90 Begriffen richtig, die drei übrigen nur als
+Schreibweise („%“, ein Name). **Vorbehalt:** Die Regeln stammen aus genau diesen
+Aufnahmen; ob sie tragen, zeigt erst eine zweite Stimme oder ein neuer Satz.
+
 ## Aktivierungswort und Werkzeuge
 
 **Aktivierungswort ist „Kiwi"** (`konfig.AKTIVIERUNG`), aus KI-Hiwi. Bei offenem

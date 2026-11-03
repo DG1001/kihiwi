@@ -1,0 +1,14 @@
+# Feste Ersetzungen fuer Verhoerer der Spracherkennung -- BEISPIEL.
+#
+# Kopieren nach `ersetzungen.txt` und auf das eigene Labor anpassen. Die echte
+# Datei liegt nicht im Repository: wie die Vokabelliste verraet sie, woran
+# gearbeitet wird.
+#
+# Fuer Begriffe, die trotz Vokabelliste immer gleich falsch ankommen. Erst
+# messen (Vorleseseite, sprachdienst.sprachmessung), dann eintragen, dann neu
+# messen. Eine Regel je Zeile: falsch => richtig. Gross-/Kleinschreibung egal,
+# Leerzeichen und Bindestrich zwischen den Teilen gleichwertig, ersetzt werden
+# nur ganze Woerter. Die Regeln gelten der Reihe nach.
+
+Rückstrahlelektroden => Rückstreuelektronen
+Silizium mit Tretfenster => Siliziumnitrid-Fenster

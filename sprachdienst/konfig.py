@@ -144,6 +144,10 @@ STIMM_ART  = os.environ.get("KIHIWI_STIMM_ART", "neutral")
 # wird. Fehlt es, greift die Beispieldatei, damit ein frischer Klon laeuft.
 VOKABULAR  = (WURZEL / "vokabular.txt" if (WURZEL / "vokabular.txt").exists()
               else WURZEL / "vokabular.beispiel.txt")
+# Feste Ersetzungen fuer Verhoerer, die trotz Vokabelliste immer gleich kommen
+# ("Rueckstrahlelektroden"). Ebenfalls nicht im Repository, gleicher Grund.
+ERSETZUNGEN = (WURZEL / "ersetzungen.txt" if (WURZEL / "ersetzungen.txt").exists()
+               else WURZEL / "ersetzungen.beispiel.txt")
 
 # Umlaute hier BEWUSST korrekt, auch wenn der Rest der Datei ASCII ist: das
 # Modell ahmt den Stil des System-Prompts nach. Mit "Aufzaehlungen" im Prompt

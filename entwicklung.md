@@ -2703,3 +2703,19 @@ Entschieden: Nemotron ist die Vorgabe. Flash antwortet etwa doppelt so schnell,
 Nemotron erzeugt das Lagebild schneller und erklärte im Test Allgemeinwissen
 genauer.
 
+## 03.11.2026: Spracherkennung gemessen statt feinabgestimmt
+
+Gewünscht war ein Fine-Tuning von Whisper auf das Laborvokabular. Vorher sollte
+sich zeigen, wie oft die Fachbegriffe überhaupt verfehlt werden. Dafür gibt es
+jetzt die Vorleseseite (`/vorlesen`): bekannte Sätze, im Browser aufgenommen wie
+im Dialog. Ein Sprecher hat 40 Sätze mit 90 Fachbegriffen eingelesen.
+
+Ergebnis: Mit der vollen Vokabelliste kamen 82 von 90 Begriffen richtig, und die
+echten Fehler betrafen nur fünf Begriffe, immer gleich verhört, einer davon
+trotz Eintrag in der Liste in allen drei Varianten. Für so wenige, so
+gleichförmige Fehler ist ein Fine-Tuning (Hunderte Aufnahmen, Training,
+Umwandlung für whisper.cpp, Risiko für die übrige Sprache) zu teuer. Stattdessen
+eine feste Ersetzungsliste und ein Begriff mehr in der Vokabelliste: 87 von 90,
+der Rest nur Schreibweisen. Weil die Regeln aus denselben Aufnahmen stammen,
+steht die Gegenprobe mit einer zweiten Stimme noch aus.
+
