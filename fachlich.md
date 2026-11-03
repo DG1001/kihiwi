@@ -146,7 +146,9 @@ Sprachmodell darüber entscheidet:
 | `Hermesaufgabe` | Anweisung unverändert an den Rechercheagenten, mit Auszügen aus den eigenen Unterlagen |
 | `Bildanzeige` | zeigt ein Bild oder PDF aus den Unterlagen auf dem Monitor |
 | `Lagebild` | zeigt den Projektstand auf dem Monitor |
-| `Lagebildkorrektur …` | berichtigt einen Punkt im Lagebild, gilt sofort |
+| `Lagebildkorrektur …` | berichtigt einen Punkt im Lagebild, gilt sofort; allein gesagt, fragt Kiwi nach |
+| `Lagebildkorrektur zurücknehmen` | nimmt die jüngste Korrektur zurück |
+| `Lagebild erneuern` | erzeugt das Lagebild jetzt neu, nach Rückfrage; Kiwi ist dann einige Minuten nicht ansprechbar |
 | `Kiwihilfe` | zählt auf, was Kiwi versteht |
 
 **Bildanzeige zeigt nur, was es gibt.** „Kiwi, Bildanzeige Schaltplan" holt
@@ -163,7 +165,9 @@ ich vorzeigen?“ beantwortet Kiwi aus einem **Lagebild**, das jede Nacht aus de
 Unterlagen entsteht: Statusdokumente, Commits, Protokolle. Es ist ausdrücklich
 als automatisch abgeleitet gekennzeichnet, jeder Punkt nennt seine Quelle. Was
 nicht stimmt, berichtigt man per Stimme („Kiwi, Lagebildkorrektur: …“); die
-Korrektur gilt sofort und bleibt, bis eine neuere Quelle das Thema aufgreift.
+Korrektur gilt sofort und bleibt, bis eine neuere Quelle das Thema aufgreift,
+höchstens zwei Wochen. Eine falsche Korrektur nimmt „Lagebildkorrektur
+zurücknehmen“ wieder zurück.
 Gesprochen werden zwei Sätze, das Ganze steht auf dem Monitor.
 
 ## Zwei Stufen beim Antworten
