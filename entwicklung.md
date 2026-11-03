@@ -2641,3 +2641,20 @@ Ob das dichte Qwen-Modell geholfen hätte: nein, die Weigerung kam aus der
 Anweisung, und die dichten Modelle befolgten genau diese Art Anweisung im
 Modellvergleich besonders streng.
 
+## 03.11.2026: Reranker-Probe
+
+Vor einem Fine-Tuning der Einbettung sollte sich zeigen, was ein Reranker ohne
+Training bringt. Die 60 Fragenpaare vom 31.08. waren nicht mehr auffindbar;
+der neue Satz liegt jetzt lokal in `zustand/suchmessung/` samt Skripten.
+
+Ergebnis (Zahlen in technisch.md): `bge-reranker-v2-m3` auf der GPU hebt die
+umschriebenen Fragen von 56,7 auf 68,3 % und die wörtlichen von 95,0 auf
+98,3 %, für gut 0,2 s je Wissensfrage. Er sortiert alles nach vorn, was die
+Suche überhaupt unter den Kandidaten hat; der Rest ist eine Frage der
+Einbettung.
+
+Der erste Versuch lief auf der CPU über `fastembed` mit ganzen Abschnitten. Er
+kam in 28 Minuten nicht durch die Hälfte und belegte 15,6 GB, bis die Maschine
+bei 0 GB frei stand; abgebrochen, bevor etwas anderes fiel. Bei einem
+Messprozess gehört deshalb von Anfang an ein Speicherwächter daneben.
+

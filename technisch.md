@@ -693,6 +693,37 @@ als beide Einzelverfahren.
 Der eingebaute Stand, gegen dieselbe Grundwahrheit geprüft: **86,7 %** bzw.
 **40,0 %**, Suche 80–116 ms, erster Aufruf nach dem Start 1,4 s (Modell laden).
 
+**Reranker: eine Probe, noch nicht eingebaut (03.11.2026).** Die alten 60
+Fragenpaare waren nicht mehr da. Erzeugt wurde ein neuer Satz nach demselben
+Verfahren, ohne Code- und Datendateien (lokal, `zustand/suchmessung/`, nicht im
+Repo, weil die Fragen aus den Unterlagen stammen). Die Zahlen sind deshalb nur
+untereinander vergleichbar, nicht mit der Tabelle oben. Der Reranker sortiert
+die Kandidaten der heutigen Suche (RRF) neu und gibt die ersten acht weiter:
+
+| ersten acht | mit den Fachwörtern | umschrieben | je Frage |
+|---|---|---|---|
+| heute (RRF) | 95,0 % · MRR 0,78 | 56,7 % · MRR 0,34 | ~0,1 s |
+| richtiger Abschnitt unter 24 Kandidaten | 98,3 % | 68,3 % | — |
+| bge-reranker-v2-m3, 24 Kandidaten, GPU | **98,3 %** · MRR 0,84 | **68,3 %** · MRR 0,49 | +0,23 s |
+| bge-reranker-v2-m3, 16 Kandidaten, GPU | 96,7 % · MRR 0,85 | 66,7 % · MRR 0,50 | +0,16 s |
+| jina-reranker-v2-base-multilingual, 24, GPU | 98,3 % · MRR 0,87 | 65,0 % · MRR 0,49 | +0,12 s |
+
+- **Der Reranker holt alles, was unter den Kandidaten ist.** Mit 24 Kandidaten
+  stehen danach alle 41 auffindbaren umschriebenen Fragen unter den ersten
+  acht. Die übrigen 19 findet die Suche gar nicht; dort hilft nur eine bessere
+  Einbettung (Fine-Tuning), kein Umsortieren.
+- **Nur auf der GPU brauchbar.** `llama-server --reranking` (CUDA, Q8-GGUF,
+  Abschnitte auf 1500 Zeichen gekürzt) braucht 0,16–0,25 s je Frage. Auf der
+  CPU über `fastembed` (vier Threads wie im Dienst) waren es mit gekürzten
+  Abschnitten 2,5 s, mit ganzen ein Vielfaches. Dabei wuchs der Prozess auf
+  15,6 GB und brachte die Maschine an 0 GB frei. onnxruntime hat hier keinen
+  CUDA-Anbieter.
+- **Für einen Einbau zu klären:** `model-switch` beendet bei jedem Wechsel alle
+  Prozesse namens `llama-server` (`pkill -x`); ein Reranker-Server braucht
+  deshalb einen anderen Prozessnamen. Mit `-c 16384 --parallel 4` belegte er
+  3,1 GB, das geht kleiner. Fällt er aus, muss die Suche bei der heutigen
+  Reihenfolge bleiben.
+
 **onnxruntime-Threads sind auf vier begrenzt.** Ohne Begrenzung nimmt es
 einen Thread je Kern (hier 20) und lässt sie **busy-waiten**, auch wenn nichts
 zu rechnen ist. Nach einem Einbettungslauf im Sprachdienst: 103 Threads,
