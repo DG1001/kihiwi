@@ -1288,8 +1288,19 @@ läuft.
 Deshalb sucht der Dienst jetzt **vor** der Modellantwort, sobald die Absicht
 `WISSEN` ist, und legt die Fundstellen in den Prompt. Die Absichtserkennung
 hat ohnehin schon entschieden, dass die Frage an die Unterlagen geht; dann
-wird auch nachgesehen. Dazu die Auflage, sich an die Fundstellen zu halten und
-offen zu sagen, wenn die Antwort nicht darunter ist.
+wird auch nachgesehen. Dazu die Auflage, sich bei Labor, Geräten und Projekt
+an die Fundstellen zu halten und offen zu sagen, wenn die Antwort nicht
+darunter ist. **Allgemeines Fachwissen darf das Modell ergänzen**, gekennzeichnet
+als nicht aus den Unterlagen. Bis zum 03.11.2026 stand hier „antworte NICHT aus
+eigenem Wissen“; das widersprach dem Systemprompt („Vorrang, nicht Grenze“, seit
+21.09.) und gewann, weil es direkt an der Frage steht. Gemessen mit Nemotron,
+je eine Frage vorher → nachher: „Warum braucht ein Elektronenmikroskop ein
+Vakuum?“ von „Die Unterlagen sagen dazu nichts“ zu „Das steht nicht in den
+Unterlagen. Allgemein gilt: …“; „Was würdest du aus deinem Gedächtnis sagen?“
+von einer Wiederholung der Unterlagen zu einem gekennzeichneten Zusatz. Fragen
+zu Gerät und Projekt antworteten vorher wie nachher aus den Unterlagen mit
+Quelle. Am Modell lag es nicht: Qwen3.8-27B und Qwen3.6-35B verweigerten
+dieselbe Art Frage (siehe Modellvergleich).
 
 **Kurze Rückfragen bekommen die vorige Äußerung als Kontext** (unter 50
 Zeichen). „Und wie lange dauert das?" allein führte auf die Absuchzeit von

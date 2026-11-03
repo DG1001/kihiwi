@@ -993,11 +993,22 @@ class Sitzung:
                                                "name": "dokumente_suchen",
                                                "args": {"frage": suchtext},
                                                "ergebnis": treffer}))
+                # Die Fundstellen sind der Vorrang, nicht die Grenze -- wie im
+                # Systemprompt seit dem 21.09. Hier stand bis zum 03.11. noch
+                # "antworte NICHT aus eigenem Wissen"; das gewann, weil es
+                # direkt an der Frage steht, und "Warum braucht ein
+                # Elektronenmikroskop ein Vakuum?" bekam "Die Unterlagen
+                # sagen dazu nichts", selbst auf ausdrueckliche Bitte. Streng
+                # bleibt es bei Labor, Geraeten und Projekt: dort hatte das
+                # Modell am 14.09. einen Schalter erfunden.
                 frage = (f"Das steht dazu in unseren Unterlagen:\n\n{treffer}\n\n"
                          f"Beantworte damit: {text}\n\n"
-                         f"Halte dich an diese Fundstellen und nenne die Quelle."
-                         f" Steht die Antwort nicht darin, sage genau das —"
-                         f" antworte NICHT aus eigenem Wissen.")
+                         f"Geht es um unser Labor, unsere Geräte oder unser Projekt,"
+                         f" halte dich an diese Fundstellen und nenne die Quelle;"
+                         f" steht es nicht darin, sage genau das und erfinde nichts."
+                         f" Ist es allgemeines Fachwissen, das die Fundstellen nicht"
+                         f" beantworten und das du sicher kennst, antworte daraus"
+                         f" und sag dazu, dass es nicht aus den Unterlagen stammt.")
                 # Gesucht ist gesucht: dem Modell danach noch einmal
                 # `dokumente_suchen` anzubieten, war doppelt gemoppelt -- und
                 # teuer. Die Werkzeugrunde entschied in zwoelf Messlaeufen

@@ -2615,3 +2615,29 @@ nur der Kopf, 60×48 px links neben „kihiwi“, so hoch wie Titel und
 Gerätezeile; Text und Aufnahmebalken der Kachel fehlen dort, weil die Seite
 beides selbst zeigt. Der Mund folgt wie in der Brücke dem gemessenen Pegel
 der Wiedergabe, nicht der Phase.
+
+## 03.11.2026: Kiwi verweigerte Allgemeinwissen
+
+Im Gespräch kam auf „Erkläre mir, wie ein REM funktioniert“ und auf die
+ausdrückliche Bitte „Und was würdest du aus deinem Gedächtnis sagen?“ nur, was
+in den Unterlagen steht, oder „Ich kann es dir nicht aus meinem Gedächtnis
+sagen, weil die Antwort nicht in den Unterlagen steht.“ Ursache war ein
+Widerspruch: Die Vorabsuche vom 14.09. hängt an jede Wissensfrage „antworte
+NICHT aus eigenem Wissen“, der Systemprompt erlaubt es seit dem 21.09.
+ausdrücklich. Die Anweisung an der Frage gewann. Und weil nach einer Vorabsuche
+mit Treffern kein Werkzeug mehr angeboten wird, konnte das Modell auch nicht
+ins Netz ausweichen.
+
+Jetzt ist es geteilt: bei Labor, Geräten und Projekt nur die Fundstellen, bei
+allgemeinem Fachwissen eigenes Wissen mit Kennzeichnung. Nachgestellt mit fünf
+Fragen vorher und nachher, die Vakuumfrage und die Gedächtnisfrage werden jetzt
+beantwortet, Gerät und Projekt weiter aus den Unterlagen mit Quelle.
+
+Im selben Gespräch lief die Websuche mit einem falsch erkannten Fachbegriff
+(aus einem Eigennamen wurde ein Vorname) und fand Holzbaukataloge; der Begriff
+fehlte in der Vokabelliste der Spracherkennung (lokal, nicht im Repo) und ist
+nachgetragen.
+Ob das dichte Qwen-Modell geholfen hätte: nein, die Weigerung kam aus der
+Anweisung, und die dichten Modelle befolgten genau diese Art Anweisung im
+Modellvergleich besonders streng.
+
