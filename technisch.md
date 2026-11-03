@@ -1254,6 +1254,24 @@ Begriffe bleiben auf dem Server. Die Aufnahmen gehen über `/vorlesen-ws` an
 den Dienst und **nicht** durch die Spracherkennung: Viele Sätze beginnen mit
 „Kiwi“. Leertaste nimmt auf und stoppt, Enter geht weiter.
 
+Ausgewertet wird mit `.venv/bin/python -m sprachdienst.sprachmessung <sprecher>`:
+jede Aufnahme dreimal an den whisper-server, ohne Vokabelliste, mit der kurzen
+Liste des ersten Durchgangs und mit der vollen Liste von `nachschaerfen` (das ist
+der Text, mit dem Kiwi arbeitet). Gezählt wird, ob jeder erwartete Fachbegriff im
+Transkript steht; Schreibweise von Komposita zählt nicht, Buchstaben schon.
+
+**Erste Messung (03.11.2026, ein Sprecher, 40 Sätze, 90 Begriffe):** Mit voller
+Liste stehen 82 von 90 Begriffen richtig im Text, ohne Liste 83, mit kurzer 85.
+Drei der acht Fehlschläge sind keine: „Prozent“ als „%“, ein Name in anderer
+Schreibweise. Echte Fehler gibt es bei fünf Begriffen, darunter einer aus der
+Vokabelliste, der in allen drei Varianten gleich falsch kam; die übrigen sind
+Gerätebezeichnungen und Eigennamen, die nicht in der Liste stehen. Die
+Wortfehlerrate (Median 11 %) kommt fast nur von Zahlen („zwanzig“ gegen „20“) und
+Bindestrichen. **Schluss: kein Fine-Tuning von Whisper**, solange die Fehler so
+wenige und so gleichförmig sind; erst fehlende Begriffe in die Vokabelliste,
+wiederkehrende Verhörer fest ersetzen, dann neu messen, auch mit einer zweiten
+Stimme.
+
 ## Aktivierungswort und Werkzeuge
 
 **Aktivierungswort ist „Kiwi"** (`konfig.AKTIVIERUNG`), aus KI-Hiwi. Bei offenem
