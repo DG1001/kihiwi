@@ -211,7 +211,7 @@ flowchart LR
 flowchart LR
   F["Frage"] --> P["Aufbereiten:<br>Komposita trennen,<br>Stoppwörter raus,<br>Umlaut-Schreibweisen"]
   P --> V1["Volltext FTS5, bm25<br>Text 1,0, Überschrift 2,0,<br>Schlagwörter 1,5"]
-  F --> V2["Vektorsuche<br>e5, Kosinus"]
+  F --> V2["Vektorsuche<br>e5, auf die Unterlagen<br>feinabgestimmt, Kosinus"]
   V1 --> RRF["Reciprocal Rank Fusion<br>k = 60, nur Ränge,<br>24 Kandidaten"]
   V2 --> RRF
   RRF --> RR["Reranker<br>Frage und Abschnitt<br>gemeinsam bewertet"]
@@ -220,10 +220,12 @@ flowchart LR
 ```
 
 Fällt die Vektorsuche aus, bleibt der Volltext; fällt der Reranker aus, bleibt
-die Reihenfolge der Mischung. An 60 Testfragen liegt die richtige Stelle mit
-Reranker in 98 % der Fälle unter den ersten acht, wenn die Frage die Begriffe
-der Unterlage benutzt, und in 68 %, wenn sie anders formuliert ist (ohne: 95 %
-und 58 %). Er kostet gut 0,2 s je Suche.
+die Reihenfolge der Mischung. An 60 Testfragen liegt die richtige Stelle in 98 %
+der Fälle unter den ersten acht, wenn die Frage die Begriffe der Unterlage
+benutzt, und in 80 %, wenn sie anders formuliert ist. Vor Reranker und
+Feinabstimmung waren es 95 % und 58 %. Der Reranker kostet gut 0,2 s je Suche.
+Die Bildersuche nutzt das ursprüngliche e5, die Feinabstimmung hätte sie
+verschlechtert.
 
 ### Der Index
 

@@ -2666,3 +2666,28 @@ die Frage nach dem Einschalten eines Geräts jetzt die genaue Stelle der
 Anleitung statt einer allgemeinen. Der erste Satz kommt bei Wissensfragen
 etwa 0,3 s später.
 
+## 03.11.2026: Die Einbettung auf die eigenen Unterlagen feinabgestimmt
+
+Der Reranker hatte gezeigt, wo die Grenze liegt: Er holt alles nach vorn, was
+unter den Kandidaten ist, aber 19 von 60 umschriebenen Fragen fand die Suche gar
+nicht. Gewünscht war deshalb das Fine-Tuning der Einbettung.
+
+Trainingsfragen schrieb Qwen3.8-Flash, nicht Nemotron wie beim Testsatz. Das war
+Zufall (eine andere Anwendung hatte das Modell gewechselt), aber ein günstiger:
+Die Einbettung kann so nicht den Fragestil des Testsatzes lernen. Die Dokumente
+des Testsatzes blieben außerhalb des Trainings. Ergebnis über den Suchweg des
+Dienstes: umschriebene Fragen 68,3 → 80,0 %, mit den Fachwörtern unverändert
+98,3 %. Zwei Epochen brachten nichts gegenüber einer.
+
+Beim Umstellen fiel der Bildertest durch: Auf Fließtext trainiert, traf das
+Modell die Stichwort-Einträge der Bilder schlechter (5 statt 7 von 7), und alle
+Werte lagen unter der Schwelle. Die Bildersuche bleibt deshalb beim Original.
+Dafür trägt jetzt jeder Vektor den Namen seines Modells, und die Suche nimmt
+nur die des eingestellten. Ein Wechsel kann alte und neue Vektoren so nicht mehr
+mischen; vorher hätte genau das still passieren können.
+
+Zwei Fallen beim Erzeugen der Fragen: Qwen3.8-Flash dachte nach und verbrauchte
+die 300 Token vor der Antwort, jede Anfrage fiel durch. Und vier gleichzeitige
+Anfragen an einen Modellserver mit einem Platz machten nichts schneller, sie
+ließen nur Kiwi länger warten.
+

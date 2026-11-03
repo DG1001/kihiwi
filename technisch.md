@@ -734,6 +734,50 @@ die Kandidaten der heutigen Suche (RRF) neu und gibt die ersten acht weiter:
   die bisherige Reihenfolge, und 60 s lang wird er nicht gefragt.
   Abschalten: `KIHIWI_RERANK=0`, Kandidatenzahl `KIHIWI_RERANK_KANDIDATEN`.
 
+**Feinabgestimmte Einbettung (03.11.2026).** Der Reranker holt nur nach vorn,
+was unter den Kandidaten ist; die übrigen umschriebenen Fragen fand die Suche
+gar nicht. Deshalb ist e5-large auf die eigenen Unterlagen feinabgestimmt
+worden. Ablauf und Skripte: `wissen/feinabstimmung/` (README dort).
+
+- **Daten:** 1500 Abschnitte, je eine Frage mit den Fachwörtern und eine
+  umschriebene, geschrieben von Qwen3.8-Flash. Die Testfragen schrieb
+  Nemotron, und die 47 Dokumente des Testsatzes waren im Training nicht
+  dabei. Die Einbettung kann also weder einen Fragestil noch die Testabschnitte
+  auswendig lernen.
+- **Training:** InfoNCE mit Negativen aus dem Stapel plus je einem schweren
+  Negativ aus einem anderen Dokument, Temperatur 0,01, lr 1e-5, eine Epoche
+  (zwei brachten dasselbe), Wortvektoren eingefroren, Gradient-Checkpointing.
+  Knapp 5 Minuten auf der GPU, es blieben ≥ 19 GB frei.
+- **Ergebnis** am Testsatz, gemessen über den Suchweg des Dienstes:
+
+| ersten acht | mit den Fachwörtern | umschrieben |
+|---|---|---|
+| Original, nur Vektoren | 90,0 % | 46,7 % |
+| feinabgestimmt, nur Vektoren | 98,3 % | 71,7 % |
+| Original, Mischung + Reranker | 98,3 % | 68,3 % |
+| **feinabgestimmt, Mischung + Reranker** | **98,3 %** | **80,0 %** |
+| feinabgestimmt, Mischung ohne Reranker | 98,3 % | 70,0 % |
+
+- **Nicht für die Bilder.** Die Einträge des Bilderkatalogs sind Stichwörter
+  aus dem Dateinamen („Bild: netzteil schaltbild, optik“). Darauf wurde das
+  feinabgestimmte Modell schlechter: 5 statt 7 von 7 echten Bilderfragen, und
+  alle Ähnlichkeiten lagen rund 0,08 tiefer, die Schwelle 0,815 hätte nicht
+  mehr gepasst. Die Bildersuche bleibt beim Original (`vektor.BILDER_MODELL`),
+  das erst geladen wird, wenn jemand ein Bild sucht.
+- **Im Dienst:** `wissen/einbettung.json` (nicht im Repo, Muster
+  `einbettung.beispiel.json`) nennt Modell und ONNX-Ordner. fastembed rechnet
+  das Modell wie das Original mit Mittelwert über die Token; geprüft: Kosinus
+  1,00000 zwischen fastembed und transformers, beim Original wie beim
+  feinabgestimmten Modell. Jeder Vektor trägt den Namen seines Modells,
+  gesucht und gezählt wird nur mit denen des eingestellten. Nach einem
+  Wechsel gelten die alten als fehlend, zwei Modelle mischen sich nie.
+- **Umstellung:** alle 15 917 Abschnittstexte auf der GPU in 93 s eingebettet
+  (auf der CPU wären es rund zwei Stunden), alte Vektoren in
+  `vektoren_e5basis` und `bilder_e5basis` gesichert. Neue Abschnitte bettet
+  der Dienst wie bisher auf der CPU ein, dann mit dem neuen Modell.
+- **Vorbehalt:** Alle Testfragen sind von einem Sprachmodell geschrieben. Wie
+  sich gesprochene Fragen verändern, ist nicht gemessen.
+
 **onnxruntime-Threads sind auf vier begrenzt.** Ohne Begrenzung nimmt es
 einen Thread je Kern (hier 20) und lässt sie **busy-waiten**, auch wenn nichts
 zu rechnen ist. Nach einem Einbettungslauf im Sprachdienst: 103 Threads,

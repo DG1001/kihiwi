@@ -1,0 +1,5 @@
+{
+  "_hinweis": "Muster. Als wissen/einbettung.json (nicht im Repo) waehlt sie ein eigenes Einbettungsmodell fuer die Abschnitte, etwa ein auf die eigenen Unterlagen feinabgestimmtes e5 als ONNX (model.onnx, model.onnx_data, Tokenizer-Dateien des Originals). Ohne Datei gilt intfloat/multilingual-e5-large. Nach einem Wechsel muessen alle Vektoren neu eingebettet werden; die alten gelten dann als fehlend. Die Bildersuche bleibt beim Original, ausser bilder_modell sagt etwas anderes; bilder_sicher_ab ist dann ihre Schwelle, neu zu messen mit wissen.bilder_test.",
+  "modell": "eigenes/e5-large-fein",
+  "pfad": "~/models/einbettung/e5-large-fein-onnx"
+}

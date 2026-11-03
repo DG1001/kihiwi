@@ -55,6 +55,13 @@ CREATE TABLE IF NOT EXISTS bilder (
 # Satz, die Auswahl steht in beiden Faellen auf der Buehne.
 SICHER_AB = 0.815
 
+
+def sicher_ab() -> float:
+    """Die Schwelle gehoert zum Modell: ein feinabgestimmtes legt die Werte
+    anders (am 03.11.2026 lagen alle um rund 0,08 tiefer). Fuer ein eigenes
+    Bildermodell steht sie in wissen/einbettung.json."""
+    return float(vektor.EINSTELLUNG.get("bilder_sicher_ab", SICHER_AB))
+
 _VERWEIS = re.compile(r"!\[([^\]]*)\]\(\s*<?([^)\s>]+)>?(?:\s+\"[^\"]*\")?\s*\)")
 
 
@@ -151,15 +158,18 @@ def aufbauen(repos: Path | None = None, quellen: list[dict] | None = None,
     c = c or index.verbinden()
     try:
         c.executescript(SCHEMA)
-        alt = {p: t for p, t in c.execute("SELECT pfad, text FROM bilder")}
-        offen = [e for e in eintraege if alt.get(e["pfad"]) != e["text"]]
+        alt = {p: (t, m) for p, t, m in c.execute("SELECT pfad, text, modell FROM bilder")}
+        # Neu einbetten, was sich geaendert hat ODER von einem anderen Modell stammt
+        offen = [e for e in eintraege
+                 if alt.get(e["pfad"]) != (e["text"], vektor.BILDER_MODELL)]
         if offen:
-            V = vektor.einbetten([e["text"] for e in offen], als_frage=False)
+            V = vektor.einbetten([e["text"] for e in offen], als_frage=False,
+                                 modell=vektor.BILDER_MODELL)
             c.executemany(
                 "INSERT OR REPLACE INTO bilder (pfad,quelle,rel,unterschrift,"
                 "text,herkunft,stand,v,modell) VALUES (?,?,?,?,?,?,?,?,?)",
                 [(e["pfad"], e["quelle"], e["rel"], e["unterschrift"], e["text"],
-                  e["herkunft"], e["stand"], V[i].tobytes(), vektor.MODELL)
+                  e["herkunft"], e["stand"], V[i].tobytes(), vektor.BILDER_MODELL)
                  for i, e in enumerate(offen)])
         # Der Stand wandert mit, auch wenn sich die Beschreibung nicht aendert:
         # er steht auf der Buehne und soll der Commit sein, aus dem das Bild kommt.
@@ -196,7 +206,7 @@ def suchen(frage: str, anzahl: int = 6,
     try:
         c = c or index.lesen()
         zeilen = c.execute("SELECT quelle, rel, unterschrift, herkunft, stand, v "
-                           "FROM bilder").fetchall()
+                           "FROM bilder WHERE modell = ?", (vektor.BILDER_MODELL,)).fetchall()
     except sqlite3.OperationalError:
         return []
     finally:
@@ -205,7 +215,7 @@ def suchen(frage: str, anzahl: int = 6,
     if not zeilen or not frage.strip():
         return []
     V = np.vstack([np.frombuffer(z[5], dtype=np.float32) for z in zeilen])
-    s = V @ vektor.einbetten([frage], als_frage=True)[0]
+    s = V @ vektor.einbetten([frage], als_frage=True, modell=vektor.BILDER_MODELL)[0]
     treffer = []
     for j in np.argsort(-s)[:anzahl]:
         quelle, rel, unter, herkunft, stand, _ = zeilen[j]
@@ -213,7 +223,7 @@ def suchen(frage: str, anzahl: int = 6,
             "quelle": quelle, "rel": rel, "titel": Path(rel).name,
             "unterschrift": unter or "", "herkunft": herkunft or "",
             "stand": stand or "", "pdf": rel.lower().endswith(".pdf"),
-            "punkte": round(float(s[j]), 4), "sicher": bool(s[j] >= SICHER_AB)})
+            "punkte": round(float(s[j]), 4), "sicher": bool(s[j] >= sicher_ab())})
     return treffer
 
 

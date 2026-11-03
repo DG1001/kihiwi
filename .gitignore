@@ -50,5 +50,6 @@ modelle/
 vokabular.txt
 wissen/quellen.json
 wissen/lagebild.json
+wissen/einbettung.json
 # Probefragen der Bildsuche: nennen Dateien aus den privaten Quellen.
 wissen/bilder_fragen.json
