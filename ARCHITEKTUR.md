@@ -68,7 +68,7 @@ flowchart LR
 | Sprachdienst | `127.0.0.1:8920` | `./dienste.sh start` | Audio, Turn-Taking, Entscheidungen, Sprachausgabe, Wissenssuche |
 | whisper-server | `127.0.0.1:8910` | `./dienste.sh start` | Spracherkennung (whisper.cpp, large-v3-turbo, Deutsch) |
 | Reranker | `127.0.0.1:8912` | `./dienste.sh start` | ordnet die Kandidaten der Wissenssuche neu (llama.cpp `--reranking`, Prozessname `kihiwi-rerank`) |
-| Modellserver | `127.0.0.1:8889` | `model-switch <profil>` | ein großes Sprachmodell, OpenAI-kompatibel; Vorgabe Qwen3.8-Flash-Next auf llama.cpp |
+| Modellserver | `127.0.0.1:8889` | `model-switch <profil>` | ein großes Sprachmodell, OpenAI-kompatibel; Vorgabe Nemotron-3.5-Super auf vLLM |
 | SearXNG | `127.0.0.1:8088` | eigener Container | Websuche, einziger Weg nach außen |
 | Hermes | kein Port | Sprachdienst, je Auftrag | Agent für längere Rechercheaufträge |
 | Jitsi-Brücke | kein Port | Jitsi-Wächter oder `./dienste.sh jitsi start` | Kiwi als Konferenzteilnehmer |

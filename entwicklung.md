@@ -2691,3 +2691,15 @@ die 300 Token vor der Antwort, jede Anfrage fiel durch. Und vier gleichzeitige
 Anfragen an einen Modellserver mit einem Platz machten nichts schneller, sie
 ließen nur Kiwi länger warten.
 
+## 03.11.2026: Nemotron als Vorgabe eingetragen
+
+Kiwi lief zuletzt mit Nemotron-3.5-Super, der Wächter mit
+`KIHIWI_PROFIL=nemo35super`. In `dienste.sh` und `konfig.py` stand aber noch
+`qwen38flash`, dieselbe liegengebliebene Vorgabe wie schon am 14.10. Aufgefallen
+ist es, als eine andere Anwendung für ihren Lauf auf Qwen3.8-Flash gewechselt
+und es geladen gelassen hatte: Wächter und geladenes Modell passten nicht
+zusammen, und beim ersten Aussetzer hätte der Wächter das Modell getauscht.
+Entschieden: Nemotron ist die Vorgabe. Flash antwortet etwa doppelt so schnell,
+Nemotron erzeugt das Lagebild schneller und erklärte im Test Allgemeinwissen
+genauer.
+

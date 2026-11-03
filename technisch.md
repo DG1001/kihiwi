@@ -16,15 +16,27 @@ und GPU teilen sich diese Bandbreite, ein großes CPU-Modell hilft nicht.
 
 `~/.local/bin/model-switch` — es läuft immer nur **ein** großes Modell.
 Argumente: `ds4` | `ornith` | **`ornith-voice`** | `qwen36nvfp4` | `qwen38` |
-`nemotron` | `nemotronspec` | `qwenvl30` | **`qwen38flash`** | `stop` | `status`.
+`nemotron` | `nemotronspec` | `qwenvl30` | `qwen38flash` | **`nemo35super`** | `stop` | `status`.
 
-**Vorgabe ist `qwen38flash`** (Qwen3.8-Flash-Next über llama.cpp, Modellname
-`qwen3.8-flash-next`). Im Betrieb ist es seit dem 30.08.2026, als Vorgabe in
-`dienste.sh` und `konfig.py` aber erst seit dem 14.10.2026 eingetragen. Bis
-dahin stand dort noch `qwen36nvfp4-voice`. Aufgefallen ist das nicht, weil der
-Wächter mit ausdrücklichem `KIHIWI_PROFIL=qwen38flash` lief und `start_sprach`
-den angebotenen Namen übernimmt. Den Denkschalter ergänzt `_denkschalter()`
-selbst (siehe unten).
+**Vorgabe ist `nemo35super`** (Nemotron-3.5-Super über vLLM, Modellname
+`nemotron-3.5-super`, GPU_UTIL 0.75), seit dem 03.11.2026. Im Betrieb war es
+schon vorher: Der Wächter lief mit `KIHIWI_PROFIL=nemo35super`, während in
+`dienste.sh` und `konfig.py` noch `qwen38flash` stand. Das ist dieselbe
+liegengebliebene Vorgabe wie am 14.10.2026, und sie hat Folgen: Ein Wächter
+mit anderem Profil als dem geladenen tauscht beim ersten Aussetzer das Modell.
+
+| | Nemotron-3.5-Super | Qwen3.8-Flash-Next |
+|---|---|---|
+| erster Ton, Plauderfrage | 0,96 s | 0,51 s |
+| die vier Lagefragen | 1,3–2,2 s | 0,6–2,7 s |
+| Werkzeugaufrufe | 36/36 | 36/36 |
+| Lagebild erzeugen | 21–51 s | 105 s |
+
+Flash antwortet also schneller; Nemotron ist das größere Modell, erzeugt das
+Lagebild schneller und erklärte im Test vom 03.11. Allgemeinwissen genauer
+(Einzelbeobachtung, nicht gemessen). Laden dauert bei Nemotron bis zu 15
+Minuten. Für Qwen3.8-Flash ergänzt `_denkschalter()` den Denkschalter selbst
+(siehe unten).
 
 **Bei vLLM ein `*-voice`-Profil benutzen**, nicht das Prüfstandsprofil.
 Es gibt `ornith-voice` und `qwen36nvfp4-voice`. Qwen3.6-35B-A3B hat
@@ -33,7 +45,8 @@ die gleiche Bauart und den gleichen Durchsatz wie Ornith (78,3 gegen
 Wissen, wenn nichts zu finden ist.
 
 ```bash
-./dienste.sh start                                   # Qwen3.8-Flash-Next
+./dienste.sh start                                   # Nemotron-3.5-Super
+KIHIWI_PROFIL=qwen38flash ./dienste.sh start         # Qwen3.8-Flash-Next
 KIHIWI_PROFIL=qwen36nvfp4-voice ./dienste.sh start   # Qwen3.6-35B-A3B NVFP4
 KIHIWI_PROFIL=ornith-voice ./dienste.sh start        # Ornith
 ```
@@ -273,7 +286,7 @@ Konfiguration und Stand legt der Befehl selbst in `logs/` ab.
 
 | Dienst | Adresse | Anmerkung |
 |---|---|---|
-| Modellserver | `127.0.0.1:8889` | je nach Profil llama.cpp (Vorgabe `qwen38flash`) oder vLLM-Container `vllm-model` |
+| Modellserver | `127.0.0.1:8889` | je nach Profil vLLM-Container `vllm-model` (Vorgabe `nemo35super`) oder llama.cpp |
 | whisper-server | `127.0.0.1:8910` | large-v3-turbo, `-l de` |
 | Reranker | `127.0.0.1:8912` | bge-reranker-v2-m3 Q8, `llama-server --reranking` auf der GPU, Prozessname `kihiwi-rerank` |
 | Sprachdienst | `127.0.0.1:8920` | Monitor unter `http://127.0.0.1:8920/` |

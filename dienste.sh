@@ -64,11 +64,13 @@ C_VLLM=vllm-model          # Containername, den model-switch vergibt
 # Bei vLLM immer ein *-voice-Profil nehmen -- die Pruefstandsprofile
 # reservieren 0.85 des Speichers, und dann hungert der Rest des Sprachstapels.
 #
-# Qwen3.8-Flash-Next (llama.cpp) seit dem 30.08.2026 im Betrieb, als Vorgabe
-# nachgezogen am 14.10.2026. Der Waechter lief schon die ganze Zeit mit
-# KIHIWI_PROFIL=qwen38flash, die Vorgabe war liegen geblieben. Davor
-# Qwen3.6-35B-A3B (qwen36nvfp4-voice), das als Profil bestehen bleibt.
-PROFIL_VORGABE=qwen38flash
+# Nemotron-3.5-Super (vLLM, nemo35super, GPU_UTIL 0.75) seit dem 03.11.2026 als
+# Vorgabe. Im Betrieb war es schon vorher, der Waechter lief mit
+# KIHIWI_PROFIL=nemo35super, waehrend hier noch qwen38flash stand -- dieselbe
+# liegengebliebene Vorgabe wie am 14.10. Qwen3.8-Flash-Next (qwen38flash)
+# antwortet etwa doppelt so schnell (erster Ton 0,5 statt 1,0 s), Nemotron ist
+# das groessere Modell und erzeugt das Lagebild schneller (21-51 statt 105 s).
+PROFIL_VORGABE=nemo35super
 PROFIL="${KIHIWI_PROFIL:-$PROFIL_VORGABE}"
 # Untergrenze in GiB, unter der es fuer den Sprachstapel eng wird.
 # whisper.cpp (CUDA), Piper, sherpa-onnx und der Sprachdienst brauchen
