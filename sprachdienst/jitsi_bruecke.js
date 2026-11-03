@@ -91,112 +91,11 @@ registerProcessor('sender', Sender);
     spielt += b.duration;
   };
 
-  // --- Avatar: ein gezeichneter Professor ---------------------------------
-  // Kein Portraet, der Typus "zerstreutes Genie" (Haarwolke, Brauen,
-  // Schnurrbart). Gezeichnet in 320x180-Koordinaten, doppelt skaliert.
-  //   hoeren    : leichtes Nicken
-  //   antworten : Mund nach dem gemessenen Pegel der Sprachausgabe
-  //   denken    : Blick nach oben, Brauen hoch, drei Punkte
-  //   bereit    : ruhig, ab und zu Blinzeln
-  //   leerlauf  : Augen zu, abgedunkelt (Mikrofon aus)
-  // Dazu der Zustand als Text und eine laufende AUFNAHME als roter Balken:
-  // Im Labor steht sie gross auf dem Bildschirm, in der Konferenz sieht man
-  // nur diese Kachel (§ 201 StGB, siehe fachlich.md).
-  const PHASEN = {leerlauf: "Mikrofon aus", bereit: "sag „Kiwi“",
-                  hoeren: "hört zu", denken: "denkt nach", antworten: "spricht"};
+  // --- Avatar: der Professor aus avatar.js ---------------------------------
+  // jitsi_bruecke.py setzt avatar.js vor diese Datei. Hier nur, was die Kachel
+  // braucht: der Zustand vom Dienst und der gemessene Pegel der Sprachausgabe.
   let zustand = {};
   window.kiwiZustand = z => { zustand = z; };
-
-  const HAUT = "#f2c7a0", OHR = "#e9b68d", HAAR = "#f3f3ee";
-  const HAARWOLKE = [[112, 70, 22], [128, 48, 22], [152, 38, 22], [178, 40, 22],
-                     [200, 54, 22], [212, 76, 20], [104, 94, 16], [218, 98, 16]];
-  let mund = 0, naechstesBlinzeln = 0, blinzelnBis = 0;
-
-  function professor(g, t) {
-    const phase = zustand.phase || "bereit";
-    // Mund: schnell auf, etwas langsamer zu -- wirkt wie Sprechen statt Flackern
-    const ziel = Math.min(1, Math.max(0, (sprechpegel() - 0.01) * 9));
-    mund = ziel > mund ? ziel : mund * 0.75 + ziel * 0.25;
-
-    if (t > naechstesBlinzeln) { blinzelnBis = t + 140; naechstesBlinzeln = t + 3000 + Math.random() * 2500; }
-    const augenZu = phase === "leerlauf" || t < blinzelnBis;
-    const nach_oben = phase === "denken";
-    const nicken = phase === "hoeren" ? Math.sin(t / 260) : 0;
-
-    g.save();
-    g.scale(2, 2);
-    g.fillStyle = "#24331b"; g.fillRect(0, 0, 320, 180);
-
-    g.save();
-    g.translate(160, 170);
-    g.rotate(nicken * 0.025);
-    g.translate(-160, -170 + nicken * 2.5);
-
-    g.fillStyle = HAAR;
-    for (const [x, y, r] of HAARWOLKE) { g.beginPath(); g.arc(x, y, r, 0, 2 * Math.PI); g.fill(); }
-    g.fillStyle = OHR;
-    g.beginPath(); g.ellipse(117, 104, 9, 13, 0, 0, 2 * Math.PI); g.fill();
-    g.beginPath(); g.ellipse(203, 104, 9, 13, 0, 0, 2 * Math.PI); g.fill();
-    g.fillStyle = HAUT;
-    g.beginPath(); g.ellipse(160, 100, 44, 52, 0, 0, 2 * Math.PI); g.fill();
-
-    g.lineCap = "round";
-    g.strokeStyle = "#d9a47c"; g.lineWidth = 2;
-    g.beginPath(); g.moveTo(138, 72); g.quadraticCurveTo(160, 66, 182, 72);
-    g.moveTo(142, 80); g.quadraticCurveTo(160, 75, 178, 80); g.stroke();
-
-    const hoch = nach_oben ? -4 : 0;
-    g.strokeStyle = HAAR; g.lineWidth = 6;
-    g.beginPath(); g.moveTo(130, 88 + hoch); g.quadraticCurveTo(142, 78 + hoch, 154, 86 + hoch);
-    g.moveTo(166, 86 + hoch); g.quadraticCurveTo(178, 78 + hoch, 190, 88 + hoch); g.stroke();
-
-    if (augenZu) {
-      g.strokeStyle = "#2c2420"; g.lineWidth = 2.5;
-      g.beginPath(); g.moveTo(137, 100); g.quadraticCurveTo(143, 104, 149, 100);
-      g.moveTo(171, 100); g.quadraticCurveTo(177, 104, 183, 100); g.stroke();
-    } else {
-      const dy = nach_oben ? -3 : 0, dx = nach_oben ? 2 : 0;
-      g.fillStyle = "#2c2420";
-      g.beginPath(); g.ellipse(143 + dx, 99 + dy, 5, 6, 0, 0, 2 * Math.PI);
-      g.ellipse(177 + dx, 99 + dy, 5, 6, 0, 0, 2 * Math.PI); g.fill();
-      g.fillStyle = "#fff";
-      g.beginPath(); g.arc(145 + dx, 97 + dy, 1.6, 0, 2 * Math.PI);
-      g.arc(179 + dx, 97 + dy, 1.6, 0, 2 * Math.PI); g.fill();
-    }
-
-    g.strokeStyle = "#c98f67"; g.lineWidth = 3;
-    g.beginPath(); g.moveTo(160, 102); g.quadraticCurveTo(153, 116, 160, 120);
-    g.quadraticCurveTo(165, 121, 167, 118); g.stroke();
-
-    g.fillStyle = "#7a2e2e";
-    g.beginPath(); g.ellipse(160, 135, 11, 1 + 7 * mund, 0, 0, 2 * Math.PI); g.fill();
-
-    g.fillStyle = HAAR;
-    g.beginPath(); g.moveTo(128, 126);
-    g.quadraticCurveTo(144, 114, 160, 122); g.quadraticCurveTo(176, 114, 192, 126);
-    g.quadraticCurveTo(178, 136, 160, 128); g.quadraticCurveTo(142, 136, 128, 126);
-    g.fill();
-    g.restore();
-
-    if (phase === "denken") {
-      const welcher = Math.floor(t / 350) % 4;
-      [[236, 64, 4], [248, 52, 5], [262, 40, 6]].forEach(([x, y, r], i) => {
-        g.fillStyle = i < welcher ? "#d8e8c8" : "rgba(216, 232, 200, 0.25)";
-        g.beginPath(); g.arc(x, y, r, 0, 2 * Math.PI); g.fill();
-      });
-    }
-    if (phase === "leerlauf") { g.fillStyle = "rgba(0, 0, 0, 0.35)"; g.fillRect(0, 0, 320, 180); }
-
-    g.textAlign = "center"; g.textBaseline = "middle";
-    g.fillStyle = "#d8e8c8"; g.font = "12px sans-serif";
-    g.fillText(PHASEN[phase] || "", 160, 172);
-    if (zustand.aufnahme) {
-      g.fillStyle = "#c62828"; g.fillRect(0, 0, 320, 26);
-      g.fillStyle = "#fff"; g.font = "bold 16px sans-serif";
-      g.fillText("● AUFNAHME", 160, 14);
-    }
-    g.restore();
-  }
 
   let bild = null;
   function bildspur() {
@@ -204,11 +103,11 @@ registerProcessor('sender', Sender);
       const c = document.createElement("canvas");
       c.width = 640; c.height = 360;
       const g = c.getContext("2d");
-      const t0 = performance.now();
+      const t0 = performance.now(), avatar = window.kiwiAvatar();
       // setInterval statt requestAnimationFrame: rAF steht still, sobald die
       // Seite nicht sichtbar ist -- und ohne Bildschirm ist sie das nie sicher.
-      setInterval(() => professor(g, performance.now() - t0), 40);
-      professor(g, 0);
+      setInterval(() => avatar.kachel(g, performance.now() - t0, zustand, sprechpegel()), 40);
+      avatar.kachel(g, 0, zustand, sprechpegel());
       bild = c.captureStream(25).getVideoTracks()[0];
     }
     return bild.clone();
@@ -216,11 +115,9 @@ registerProcessor('sender', Sender);
   window.kiwiAvatarProbe = (phase, pegel) => {
     // Nur fuer Tests: ein Einzelbild in einem Zustand, als PNG
     const c = document.createElement("canvas"); c.width = 640; c.height = 360;
-    const vorher = [zustand, mund, naechstesBlinzeln, blinzelnBis];
-    zustand = {phase, aufnahme: false};
-    mund = pegel || 0; naechstesBlinzeln = Infinity; blinzelnBis = 0;
-    professor(c.getContext("2d"), 700);
-    [zustand, mund, naechstesBlinzeln, blinzelnBis] = vorher;
+    const avatar = window.kiwiAvatar();
+    avatar.fest(pegel);
+    avatar.kachel(c.getContext("2d"), 700, {phase, aufnahme: false}, sprechpegel());
     return c.toDataURL("image/png");
   };
 

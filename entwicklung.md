@@ -2605,3 +2605,13 @@ Punkte, alle mit Test behoben:
 - Zwei Beispielnamen in Code, Test und Doku stammten aus echten Unterlagen;
   ersetzt durch erfundene.
 
+## 03.11.2026: Avatar auch auf der Klientenseite
+
+Gewünscht war der Professor aus der Jitsi-Kachel auch auf der Webseite, aber
+klein. Die Zeichnung zog von `jitsi_bruecke.js` nach `avatar.js` um und wird
+von beiden genutzt; die Kachel ist danach in allen fünf Zuständen
+pixelgleich (Prüfbilder vorher und nachher verglichen). Auf der Seite steht
+nur der Kopf, 60×48 px links neben „kihiwi“, so hoch wie Titel und
+Gerätezeile; Text und Aufnahmebalken der Kachel fehlen dort, weil die Seite
+beides selbst zeigt. Der Mund folgt wie in der Brücke dem gemessenen Pegel
+der Wiedergabe, nicht der Phase.

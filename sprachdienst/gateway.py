@@ -135,7 +135,8 @@ SITZUNGEN: set = set()
 # beides teilt sie sich mit dem Sprachpfad.
 NACHBEREITUNG = asyncio.Lock()
 SEITEN = {"/": "monitor.html", "/index.html": "monitor.html",
-          "/klient": "klient.html", "/klient.html": "klient.html"}
+          "/klient": "klient.html", "/klient.html": "klient.html",
+          "/avatar.js": "avatar.js"}
 
 
 # ---------------------------------------------------------------- Gesundheit
@@ -2203,7 +2204,8 @@ async def http_seite(verbindung, anfrage):
     # Quelltext an. Headers.__setitem__ HAENGT AN statt zu ersetzen, deshalb
     # erst loeschen.
     del antwort.headers["Content-Type"]
-    antwort.headers["Content-Type"] = "text/html; charset=utf-8"
+    antwort.headers["Content-Type"] = ("text/javascript; charset=utf-8" if datei.endswith(".js")
+                                       else "text/html; charset=utf-8")
     return antwort
 
 

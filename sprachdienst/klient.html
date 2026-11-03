@@ -30,9 +30,12 @@
 
   h1 { font-size:1.05rem; font-weight:600; margin-bottom:.15rem; }
   .matt { color:var(--matt); }
-  #kopf { display:flex; align-items:baseline; justify-content:space-between;
+  #kopf { display:flex; align-items:center; justify-content:space-between;
           gap:.8rem; border-bottom:1px solid var(--linie);
           padding-bottom:.7rem; margin-bottom:.8rem; flex:none; }
+  /* Kiwis Professor, klein: so hoch wie Titel und Geraetezeile zusammen. */
+  #kopf .links { display:flex; align-items:center; gap:.7rem; min-width:0; }
+  #avatar { width:60px; height:48px; border-radius:.35rem; flex:none; }
   #geraet { font-size:.8rem; }
   #phase { font-size:1.15rem; font-weight:600; white-space:nowrap; }
   .knoepfe { display:flex; gap:.5rem; flex-wrap:wrap; margin:.6rem 0; flex:none; }
@@ -275,7 +278,10 @@
 
 <div id="seite">
   <div id="kopf">
-    <div><h1>kihiwi</h1><span class="matt" id="geraet">kein Mikrofon gewählt</span></div>
+    <div class="links">
+      <canvas id="avatar" width="60" height="48" aria-hidden="true"></canvas>
+      <div><h1>kihiwi</h1><span class="matt" id="geraet">kein Mikrofon gewählt</span></div>
+    </div>
     <div id="phase" class="matt">—</div>
   </div>
 
@@ -337,6 +343,7 @@
   <div id="b-inhalt"></div>
 </div>
 
+<script src="/avatar.js"></script>
 <script>
 const $ = id => document.getElementById(id);
 const RATE = 16000, BLOCK = 512;
@@ -482,7 +489,7 @@ function abspielen(puffer) {
   const k = b.getChannelData(0);
   for (let i = 0; i < roh.length; i++) k[i] = roh[i] / 32768;
   const q = ctx.createBufferSource();
-  q.buffer = b; q.connect(ctx.destination);
+  q.buffer = b; q.connect(ctx.destination); q.connect(pegelMesser());
 
   const jetzt = ctx.currentTime;
   // Zurücksetzen NUR, wenn die Warteschlange leergelaufen ist oder der Context
@@ -504,6 +511,36 @@ function tonZustand() {
     : ctx.state;
   $("led-ton").classList.toggle("da", ctx.state === "running");
 }
+
+// --- Avatar: derselbe Professor wie in der Jitsi-Kachel, klein ----------------
+// Der Mund folgt dem gemessenen Pegel der Sprachausgabe, wie in der Bruecke:
+// die Phase "antworten" endet, bevor der vorausgeplante Ton ausgespielt ist.
+let messer = null, avatarZustand = {phase: "leerlauf"};
+const messpuffer = new Float32Array(512);
+function pegelMesser() {
+  // Je AudioContext ein eigener: mikroAus() schliesst den alten.
+  if (!messer || messer.context !== ctx) { messer = ctx.createAnalyser(); messer.fftSize = 512; }
+  return messer;
+}
+function sprechpegel() {
+  if (!messer || messer.context !== ctx) return 0;
+  messer.getFloatTimeDomainData(messpuffer);
+  let q = 0;
+  for (const v of messpuffer) q += v * v;
+  return Math.sqrt(q / messpuffer.length);
+}
+(() => {
+  const c = $("avatar"), dpr = window.devicePixelRatio || 1;
+  if (!window.kiwiAvatar) { c.remove(); return; }   // avatar.js fehlt: ohne Figur
+  c.width = Math.round(60 * dpr); c.height = Math.round(48 * dpr);
+  const g = c.getContext("2d"), avatar = window.kiwiAvatar();
+  let zuletzt = -1e9;
+  function bild(t) {
+    if (t - zuletzt >= 40) { avatar.klein(g, t, avatarZustand, sprechpegel()); zuletzt = t; }
+    requestAnimationFrame(bild);
+  }
+  requestAnimationFrame(bild);
+})();
 
 // --- Verlauf -----------------------------------------------------------------
 const TEXTE = {leerlauf:"Mikrofon aus", bereit:"Bereit", hoeren:"Hört zu",
@@ -755,6 +792,7 @@ function verbinden() {
     if (e.data instanceof ArrayBuffer) { abspielen(e.data); return; }
     const d = JSON.parse(e.data);
     if (d.typ === "zustand") {
+      avatarZustand = d;
       $("phase").textContent = TEXTE[d.phase] || d.phase;
       // Gespräch und Recherche sind unabhängig voneinander und werden deshalb
       // als eigene Marken angezeigt, nicht in der Phase — sonst verdeckt eines

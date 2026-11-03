@@ -35,6 +35,9 @@ from . import konfig
 
 log = logging.getLogger("kihiwi.jitsi")
 SEITENTEIL = Path(__file__).with_name("jitsi_bruecke.js")
+# Der Avatar ist mit klient.html geteilt und steht davor: die Reihenfolge
+# mehrerer add_init_script ist nicht festgelegt, ein Skript aus beiden schon.
+AVATAR = Path(__file__).with_name("avatar.js")
 
 
 def raum_url(url: str, name: str) -> str:
@@ -81,7 +84,8 @@ async def lauf(url: str, name: str, sichtbar: bool, warten: float | None = None,
                 pass
 
         await seite.expose_binding("kiwiTonRaus", ton_raus)
-        await seite.add_init_script(path=str(SEITENTEIL))
+        await seite.add_init_script(script=AVATAR.read_text(encoding="utf-8") + "\n"
+                                    + SEITENTEIL.read_text(encoding="utf-8"))
         seite.on("pageerror", lambda e: log.warning("Seite: %s", e))
 
         await ws.send(json.dumps({"befehl": "mikro", "an": True}))

@@ -401,6 +401,13 @@ Kiwis im Raum und antworteten beide). `status` zeigt sie mit Raum an.
   der Zustand als Text, oben bei laufender Aufzeichnung ein roter Balken
   „● AUFNAHME“. `window.kiwiAvatarProbe(phase, pegel)` liefert ein Einzelbild
   als PNG zum Prüfen.
+- Die Figur steht in `sprachdienst/avatar.js` (`window.kiwiAvatar()`, ein
+  Zeichner mit eigenem Mund- und Blinzelzustand). `jitsi_bruecke.py` setzt
+  sie vor das Seitenskript, als **ein** `add_init_script`: die Reihenfolge
+  mehrerer ist bei Playwright nicht festgelegt. Dieselbe Figur steht klein
+  (60×48 px) im Kopf von `klient.html` (`/avatar.js`), nur der Kopf, ohne
+  Text und Aufnahmebalken, die zeigt die Seite selbst; der Mund folgt dort dem
+  Pegel der Wiedergabe im Browser.
 - Kiwi reagiert wie am Freisprecher nur auf das Aktivierungswort, gemischt
   über alle Teilnehmer.
 - Die Brücke schaltet beim Start `mikro` an und beim Ende aus. Der Schalter
